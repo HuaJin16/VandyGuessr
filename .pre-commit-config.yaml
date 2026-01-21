@@ -1,0 +1,31 @@
+repos:
+  # Standard pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+  # Ruff - Python linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  # Biome - JavaScript/TypeScript linting and formatting
+  - repo: local
+    hooks:
+      - id: biome
+        name: biome
+        entry: bash -c 'cd frontend && pnpm biome check --write .'
+        language: system
+        files: ^frontend/.*\.(js|ts|svelte|json)$
+        pass_filenames: false
