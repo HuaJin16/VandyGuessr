@@ -2,7 +2,11 @@
 
 from fastapi import APIRouter
 
+from app.api.v1.images import router as images_router
+
 router = APIRouter()
+
+router.include_router(images_router)
 
 
 @router.get("/health")

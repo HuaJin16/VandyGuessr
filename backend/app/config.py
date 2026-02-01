@@ -39,6 +39,17 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = ["http://localhost:5173"]
 
+    # Upload
+    upload_secret_code: str = ""
+    upload_max_bytes: int = 50 * 1024 * 1024
+
+    # DigitalOcean Spaces (S3-compatible)
+    spaces_region: str = ""
+    spaces_endpoint: str = ""
+    spaces_bucket: str = ""
+    spaces_access_key: str = ""
+    spaces_secret_key: str = ""
+
     @property
     def auth0_jwks_url(self) -> str:
         """Get the JWKS URL for Auth0."""
