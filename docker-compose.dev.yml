@@ -4,11 +4,11 @@
 services:
   backend:
     build:
-      context: ./backend
+      context: ./apps/api
       dockerfile: Dockerfile
       target: development
     volumes:
-      - ./backend:/app
+      - ./apps/api:/app
       - /app/.venv
     environment:
       - BACKEND_RELOAD=true
@@ -16,11 +16,11 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./apps/web
       dockerfile: Dockerfile
       target: development
     volumes:
-      - ./frontend:/app
+      - ./apps/web:/app
       - /app/node_modules
     command: pnpm dev --host
 

@@ -1,15 +1,14 @@
 # VandyGuessr
 
-A GeoGuessr-style game for Vanderbilt University's campus - guess locations from photos taken inside and outside campus buildings.
+A GeoGuessr-style game for Vanderbilt students that uses 3D campus imagery to test how well you know campus.
 
-## Tech Stack
+## Product Overview
 
-- **Backend**: FastAPI (Python 3.12) with UV package manager
-- **Frontend**: Svelte + Vite + TypeScript + Tailwind CSS
-- **Database**: MongoDB
-- **Cache**: Redis
-- **Authentication**: Auth0
-- **Containerization**: Docker + Docker Compose
+VandyGuessr is built for Vanderbilt students who want a fast, competitive way to explore campus. Each game runs through a handful of rounds using 3D images captured around campus (indoors or outdoors), and players drop a pin on a map to guess the location. Scores roll up into a round recap, and player accounts track campus rank, games played, points, and locations discovered over time.
+
+## Architecture
+
+See the tech stack and storage decisions in `docs/ARCHITECTURE.md`.
 
 ## Prerequisites
 
@@ -38,12 +37,12 @@ cp .env.example .env
 
 ```bash
 # Backend
-cd backend
+cd apps/api
 uv sync
 cd ..
 
 # Frontend
-cd frontend
+cd apps/web
 pnpm install
 cd ..
 
@@ -70,11 +69,11 @@ docker-compose up mongodb redis
 docker-compose up mongodb redis
 
 # Terminal 2: Start backend
-cd backend
+cd apps/api
 uv run uvicorn app.main:app --reload --port 8000
 
 # Terminal 3: Start frontend
-cd frontend
+cd apps/web
 pnpm dev
 ```
 
@@ -88,24 +87,27 @@ pnpm dev
 
 ```
 VandyGuessr/
-├── backend/
-│   ├── app/
-│   │   ├── api/v1/          # API routes
-│   │   ├── core/            # Auth, database, redis
-│   │   ├── models/          # Pydantic models
-│   │   ├── services/        # Business logic
-│   │   ├── config.py        # Settings
-│   │   └── main.py          # FastAPI app
-│   ├── pyproject.toml
-│   └── Dockerfile
-├── frontend/
-│   ├── src/
-│   │   ├── lib/             # Shared components
-│   │   ├── routes/          # Page components
-│   │   ├── App.svelte
-│   │   └── main.ts
-│   ├── package.json
-│   └── Dockerfile
+├── apps/
+│   ├── api/
+│   │   ├── app/
+│   │   │   ├── api/v1/          # API routes
+│   │   │   ├── core/            # Auth, database, redis
+│   │   │   ├── models/          # Pydantic models
+│   │   │   ├── services/        # Business logic
+│   │   │   ├── config.py        # Settings
+│   │   │   └── main.py          # FastAPI app
+│   │   ├── pyproject.toml
+│   │   └── Dockerfile
+│   └── web/
+│       ├── src/
+│       │   ├── lib/             # Shared components
+│       │   ├── routes/          # Page components
+│       │   ├── App.svelte
+│       │   └── main.ts
+│       ├── package.json
+│       └── Dockerfile
+├── docs/
+│   └── ARCHITECTURE.md
 ├── docker-compose.yml
 ├── docker-compose.dev.yml
 └── .env.example
@@ -117,12 +119,12 @@ VandyGuessr/
 
 ```bash
 # Backend - Run linter
-cd backend
+cd apps/api
 uv run ruff check .
 uv run ruff format .
 
 # Frontend - Run linter
-cd frontend
+cd apps/web
 pnpm lint
 pnpm format
 ```

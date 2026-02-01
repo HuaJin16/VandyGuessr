@@ -16,16 +16,16 @@ repos:
     hooks:
       - id: ruff
         args: [--fix]
-        files: ^backend/
+        files: ^apps/api/
       - id: ruff-format
-        files: ^backend/
+        files: ^apps/api/
 
   # Biome - JavaScript/TypeScript linting and formatting
   - repo: local
     hooks:
       - id: biome
         name: biome
-        entry: bash -c 'cd frontend && pnpm biome check --write .'
+        entry: bash -c 'cd apps/web && pnpm biome check --write .'
         language: system
-        files: ^frontend/.*\.(js|ts|svelte|json)$
+        files: ^apps/web/.*\.(js|ts|svelte|json)$
         pass_filenames: false
