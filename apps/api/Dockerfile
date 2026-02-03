@@ -22,7 +22,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 FROM base AS development
 
 # Copy dependency files
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 
 # Install dependencies
 RUN uv sync --frozen --no-install-project
@@ -43,7 +43,7 @@ CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "800
 FROM base AS production
 
 # Copy dependency files
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 
 # Install dependencies only (no dev)
 RUN uv sync --frozen --no-install-project --no-dev
