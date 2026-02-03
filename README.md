@@ -28,9 +28,10 @@ See the tech stack and storage decisions in `docs/ARCHITECTURE.md`.
 git clone <repository-url>
 cd VandyGuessr
 
-# Copy environment file
-cp .env.example .env
-# Edit .env with your Auth0 credentials
+# Copy environment files
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env
+# Edit .env files with your Microsoft OAuth credentials
 ```
 
 ### 2. Install Dependencies
@@ -52,13 +53,10 @@ pre-commit install
 
 ### 3. Start Development Services
 
-#### Option A: Using Docker (Recommended)
+#### Option A: Using Docker (Databases Only)
 
 ```bash
-# Start all services (backend, frontend, MongoDB, Redis)
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
-
-# Or start just the databases
+# Start MongoDB + Redis
 docker-compose up mongodb redis
 ```
 
@@ -138,15 +136,9 @@ Pre-commit hooks automatically run on `git commit`:
 - Ruff (Python linting/formatting)
 - Biome (JS/TS linting/formatting)
 
-## Auth0 Setup
+## Microsoft OAuth Setup
 
-1. Create an Auth0 account at https://auth0.com
-2. Create a new Application (Single Page Application)
-3. Create a new API
-4. Configure the following in your `.env`:
-   - `AUTH0_DOMAIN`: Your Auth0 domain
-   - `AUTH0_API_AUDIENCE`: Your API identifier
-   - `VITE_AUTH0_CLIENT_ID`: Your SPA client ID
+See `docs/AZURE_AUTH_SETUP.md` for the full Azure app registration flow.
 
 ## License
 

@@ -22,7 +22,7 @@ VandyGuessr is a GeoGuessr-style game for Vanderbilt students using 360-degree (
 ## 5) Core User Experience
 ### 5.1 Welcome/Login
 - Centered card: “Welcome back” + “Log in with Vanderbilt”
-- Auth0 login
+- Microsoft OAuth login
 - Vanderbilt-only access: validate `@vanderbilt.edu`
 - On success: redirect to Home; on failure: simple error
 - User profile loaded (name, email, avatar)
@@ -94,12 +94,12 @@ Score = 5000 * e ^ (-10 * distance / size)
 - Svelte integration
 
 ## 10) Authentication & Profiles
-- Auth0 for sign-in
+- Microsoft OAuth for sign-in
 - Vanderbilt-only access via `@vanderbilt.edu` validation
 - User fields stored: `email`, `username`, `name`
 - `username`: auto-generated from email local part, normalized, unique
-- `name`: editable display name (default from Auth0 first + last)
-- Avatar (PFP): pulled from Auth0; shown in top bar with menu (Edit Profile, Logout)
+- `name`: editable display name (default from Microsoft profile)
+- Avatar (PFP): pulled from Microsoft Graph; shown in top bar with menu (Edit Profile, Logout)
 
 ## 11) Daily Challenge (No CRON)
 ### Deterministic Hash + Cache
@@ -121,7 +121,7 @@ Score = 5000 * e ^ (-10 * distance / size)
 ```
 {
   _id,
-  auth0Id,
+  microsoftOid,
   email,
   username,
   name,
@@ -195,7 +195,7 @@ Score = 5000 * e ^ (-10 * distance / size)
 - Constraints:
   - Email domain validation is case-insensitive.
 - Dependencies:
-  - Auth0 tenant configuration and rules.
+  - Azure AD app registration; Vanderbilt email validation in backend.
 - Edge Cases:
   - Uppercase domains; missing email claim.
 - Data Contracts:
@@ -210,7 +210,7 @@ Score = 5000 * e ^ (-10 * distance / size)
 - Constraints:
   - Error is generic (no sensitive details).
 - Dependencies:
-  - Auth0 SDK error handling.
+  - Microsoft OAuth SDK error handling.
 - Edge Cases:
   - Timeouts, canceled login, expired auth code.
 - Data Contracts:
@@ -221,23 +221,23 @@ Score = 5000 * e ^ (-10 * distance / size)
   - Users remain signed in between sessions when the token is valid.
   - Expired sessions return to login.
 - Constraints:
-  - Token refresh handled by Auth0 SDK.
+  - Token refresh handled by Microsoft OAuth SDK.
 - Dependencies:
-  - Auth0 session/token storage.
+  - Microsoft session/token storage.
 - Edge Cases:
   - Clock skew; revoked tokens.
 - Data Contracts:
   - `UserProfile`
 
 ### Profile & Identity
-**B1 - Initialize profile from Auth0**
+**B1 - Initialize profile from Microsoft OAuth**
 - Acceptance Criteria:
-  - `name` defaults to Auth0 first + last on first login.
+  - `name` defaults to Microsoft profile name on first login.
   - `email`, `username`, and `avatarUrl` are stored.
 - Constraints:
   - `name` is editable after creation.
 - Dependencies:
-  - Auth0 profile claims.
+  - Microsoft profile claims.
 - Edge Cases:
   - Missing first/last name; fallback to email local part.
 - Data Contracts:
@@ -276,7 +276,7 @@ Score = 5000 * e ^ (-10 * distance / size)
 - Constraints:
   - Avatar fallback when missing.
 - Dependencies:
-  - Auth0 logout flow.
+  - Microsoft logout flow.
 - Edge Cases:
   - Missing avatar claim.
 - Data Contracts:

@@ -1,41 +1,4 @@
 services:
-  backend:
-    build:
-      context: ./apps/api
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    environment:
-      - MONGODB_URL=mongodb://mongodb:27017
-      - MONGODB_DATABASE=vandyguessr
-      - REDIS_URL=redis://redis:6379
-      - AUTH0_DOMAIN=${AUTH0_DOMAIN}
-      - AUTH0_API_AUDIENCE=${AUTH0_API_AUDIENCE}
-      - AUTH0_ISSUER=${AUTH0_ISSUER}
-      - AUTH0_ALGORITHMS=${AUTH0_ALGORITHMS:-RS256}
-    depends_on:
-      - mongodb
-      - redis
-    networks:
-      - vandyguessr-network
-
-  frontend:
-    build:
-      context: ./apps/web
-      dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_URL=http://localhost:8000
-      - VITE_AUTH0_DOMAIN=${VITE_AUTH0_DOMAIN}
-      - VITE_AUTH0_CLIENT_ID=${VITE_AUTH0_CLIENT_ID}
-      - VITE_AUTH0_AUDIENCE=${VITE_AUTH0_AUDIENCE}
-      - VITE_AUTH0_CALLBACK_URL=${VITE_AUTH0_CALLBACK_URL}
-    depends_on:
-      - backend
-    networks:
-      - vandyguessr-network
-
   mongodb:
     image: mongo:7
     ports:

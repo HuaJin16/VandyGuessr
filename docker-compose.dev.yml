@@ -2,28 +2,6 @@
 # Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 services:
-  backend:
-    build:
-      context: ./apps/api
-      dockerfile: Dockerfile
-      target: development
-    volumes:
-      - ./apps/api:/app
-      - /app/.venv
-    environment:
-      - BACKEND_RELOAD=true
-    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-  frontend:
-    build:
-      context: ./apps/web
-      dockerfile: Dockerfile
-      target: development
-    volumes:
-      - ./apps/web:/app
-      - /app/node_modules
-    command: pnpm dev --host
-
   mongodb:
     ports:
       - "27017:27017"

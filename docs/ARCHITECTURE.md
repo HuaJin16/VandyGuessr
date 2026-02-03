@@ -6,7 +6,7 @@
 - **Frontend**: Svelte + Vite + TypeScript + Tailwind CSS
 - **Database**: MongoDB
 - **Cache**: Redis
-- **Authentication**: Auth0
+- **Authentication**: Microsoft OAuth (Azure AD)
 - **Containerization**: Docker + Docker Compose
 
 ## Storage Decisions

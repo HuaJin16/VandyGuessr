@@ -30,11 +30,10 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379"
 
-    # Auth0
-    auth0_domain: str = ""
-    auth0_api_audience: str = ""
-    auth0_issuer: str = ""
-    auth0_algorithms: str = "RS256"
+    # Microsoft OAuth
+    microsoft_client_id: str = ""
+    microsoft_tenant_id: str = "common"
+    microsoft_algorithms: str = "RS256"
 
     # CORS
     cors_origins: list[str] = ["http://localhost:5173"]
@@ -51,9 +50,20 @@ class Settings(BaseSettings):
     spaces_secret_key: str = ""
 
     @property
-    def auth0_jwks_url(self) -> str:
-        """Get the JWKS URL for Auth0."""
-        return f"https://{self.auth0_domain}/.well-known/jwks.json"
+    def microsoft_jwks_url(self) -> str:
+        """Get the JWKS URL for Microsoft OAuth."""
+        return (
+            "https://login.microsoftonline.com/"
+            f"{self.microsoft_tenant_id}/discovery/v2.0/keys"
+        )
+
+    @property
+    def microsoft_issuer(self) -> str:
+        """Get the issuer URL for Microsoft OAuth."""
+        return (
+            "https://login.microsoftonline.com/"
+            f"{self.microsoft_tenant_id}/v2.0"
+        )
 
 
 @lru_cache
