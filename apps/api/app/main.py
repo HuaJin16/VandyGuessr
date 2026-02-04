@@ -2,12 +2,13 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import router as api_v1_router
 from app.config import get_settings
-from app.core import not_found
 from app.core.database import close_mongo_connection, connect_to_mongo
 from app.core.redis import close_redis_connection, connect_to_redis
 
@@ -49,12 +50,22 @@ def create_app() -> FastAPI:
     )
 
     # Include routers
-    app.include_router(api_v1_router, prefix="/api/v1")
+    app.include_router(api_v1_router, prefix="/v1")
 
-    @app.get("/", response_class=Response)
-    async def root() -> Response:
-        """Root endpoint - returns 404 as this is not a valid API endpoint."""
-        return not_found()
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(
+        request: Request,  # noqa: ARG001
+        exc: StarletteHTTPException,
+    ) -> Response | JSONResponse:
+        """Handle HTTP exceptions with empty response for 404s."""
+        if exc.status_code == 404:
+            return Response(status_code=404)
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+    @app.get("/health")
+    async def health_check() -> dict[str, str]:
+        """Health check endpoint."""
+        return {"status": "healthy", "version": "0.1.0"}
 
     return app
 

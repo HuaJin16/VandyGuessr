@@ -1,9 +1,5 @@
 # VandyGuessr
 
-A GeoGuessr-style game for Vanderbilt students that uses 3D campus imagery to test how well you know campus.
-
-## Product Overview
-
 VandyGuessr is built for Vanderbilt students who want a fast, competitive way to explore campus. Each game runs through a handful of rounds using 3D images captured around campus (indoors or outdoors), and players drop a pin on a map to guess the location. Scores roll up into a round recap, and player accounts track campus rank, games played, points, and locations discovered over time.
 
 ## Architecture
@@ -79,9 +75,11 @@ VandyGuessr/
 ├── apps/
 │   ├── api/
 │   │   ├── app/
-│   │   │   ├── api/v1/          # API routes
+│   │   │   ├── api/v1/          # Controllers (HTTP layer)
 │   │   │   ├── core/            # Auth, database, redis
-│   │   │   ├── models/          # Pydantic models
+│   │   │   ├── entities/        # MongoDB document schemas
+│   │   │   ├── models/          # API request/response schemas
+│   │   │   ├── repositories/    # Database access layer
 │   │   │   ├── services/        # Business logic
 │   │   │   ├── config.py        # Settings
 │   │   │   └── main.py          # FastAPI app
@@ -89,8 +87,10 @@ VandyGuessr/
 │   │   └── Dockerfile
 │   └── web/
 │       ├── src/
-│       │   ├── lib/             # Shared components
-│       │   ├── routes/          # Page components
+│       │   ├── lib/
+│       │   │   ├── auth/        # MSAL configuration
+│       │   │   ├── components/  # Svelte components
+│       │   │   └── stores/      # Svelte stores
 │       │   ├── App.svelte
 │       │   └── main.ts
 │       ├── package.json
