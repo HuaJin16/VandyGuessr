@@ -124,7 +124,6 @@ def _build_upload_form_html(environment: str) -> str:
                 accept="image/jpeg,image/png,image/heic,image/heif"
                 multiple
                 required
-                capture="environment"
             >
         </div>
         <button type="submit" id="submit-btn">Upload Photos</button>
