@@ -36,7 +36,8 @@ VandyGuessr is a GeoGuessr-style game for Vanderbilt students using 360-degree (
 ### 5.3 Game Play
 - Full-screen 360-degree viewer (equirectangular)
 - Top bar: round number, current score, timer (if timed)
-- Bottom controls: settings, mini-map, “Guess”
+- Bottom controls: settings, mini-map, "Guess"
+- Top-left corner: "End Game" button (subtle/ghost style); hidden on round 5
 - Map expands on hover or click
 - 5 rounds per game
 - Single pin allowed; can be moved before submission
@@ -148,11 +149,22 @@ Score = 5000 * e ^ (-10 * distance / size)
   _id,
   userId,
   mode: { timed: boolean, environment: "indoor" | "outdoor" | "any", daily: boolean },
+  status: "active" | "completed" | "abandoned",
   rounds: [
-    { roundId, imageId, guess: { lat, lng }, distanceMeters, score }
+    {
+      roundId,
+      imageId,
+      guess: { lat, lng },
+      distanceMeters,
+      score,
+      startedAt,    // timestamp when round began (image loaded)
+      expiresAt,    // for timed mode: startedAt + 120s; null for untimed
+      skipped       // true if round was skipped due to early game end
+    }
   ],
   totalScore,
-  createdAt
+  createdAt,
+  lastActivityAt  // updated on round start and guess submission; used for untimed timeout
 }
 ```
 
@@ -180,8 +192,11 @@ Score = 5000 * e ^ (-10 * distance / size)
 ## 13) API Surface (Phase 1)
 - `GET /api/v1/users/me`
 - `PATCH /api/v1/users/me` (update display name)
+- `GET /api/v1/games` (list user's games; supports `?status=active|completed|abandoned`, `?limit=N`, `?offset=N`)
+- `GET /api/v1/games/{id}` (get full game state including rounds, timing, status)
 - `POST /api/v1/games/start` (returns game + rounds)
 - `POST /api/v1/games/{id}/round/{n}/guess`
+- `POST /api/v1/games/{id}/end` (end game early; marks remaining rounds as skipped, returns game summary)
 - `GET /api/v1/leaderboard?mode=...&timeframe=...`
 - `POST /api/v1/images/upload?code=...&environment=indoor|outdoor`
 
@@ -370,12 +385,67 @@ Score = 5000 * e ^ (-10 * distance / size)
   - Timer stops after submission.
 - Constraints:
   - Timer does not start before the image loads.
+  - Timer is server-authoritative; `expiresAt` computed from `startedAt + 120s`.
 - Dependencies:
   - Viewer load event, guess submission endpoint.
 - Edge Cases:
   - Tab switch; timer continues.
+  - User leaves and returns; see D5.
 - Data Contracts:
   - `RoundResult`
+  - `Round.startedAt`, `Round.expiresAt`
+
+**D5 - Session recovery on return**
+- Acceptance Criteria:
+  - On page load, client checks for in-progress game via `GET /api/v1/games?status=active`.
+  - **Timed mode, time expired for current round**:
+    - Auto-submit current round (with placed pin, or 0 score if no pin).
+    - If multiple rounds would have expired (user gone for extended time), mark all as 0 and jump directly to Game Summary.
+  - **Timed mode, time remaining**: Resume round with remaining time (synced from server).
+  - **Untimed mode**: Resume exactly where user left off.
+  - **Untimed mode, inactive > 1 hour**: Game is marked as abandoned; user starts fresh.
+- Constraints:
+  - Timer is server-authoritative; client cannot manipulate elapsed time.
+  - Client syncs remaining time from server on load to prevent clock drift issues.
+  - `lastActivityAt` updated on each round start and guess submission.
+- Dependencies:
+  - `GET /api/v1/games?status=active` to retrieve in-progress game.
+  - `GET /api/v1/games/{id}` to get full game state including round timing.
+  - `Round.startedAt` and `Round.expiresAt` fields for timing.
+  - `GameSession.lastActivityAt` for untimed timeout detection.
+- Edge Cases:
+  - Clock drift between client and server (always trust server time).
+  - Game abandoned exactly at round boundary.
+  - Network failure during auto-submit on return (retry with backoff).
+  - User returns after all 5 rounds would have expired (show summary with all 0s).
+- Data Contracts:
+  - `Round.startedAt`, `Round.expiresAt`
+  - `GameSession.status` (active | completed | abandoned)
+  - `GameSession.lastActivityAt`
+
+**D6 - End game early**
+- Acceptance Criteria:
+  - User can end game at any point during gameplay via "End Game" button (corner placement).
+  - Confirmation dialog shows: rounds completed, current score, warning that remaining rounds score 0.
+  - On confirm: remaining rounds marked as `skipped: true, score: 0`.
+  - Game status set to `completed` (not abandoned).
+  - User redirected to Game Summary.
+  - Ended games count fully toward stats and leaderboard rankings.
+- Constraints:
+  - Cannot undo once confirmed.
+  - Individual round skip is NOT supported (must end entire game to skip).
+  - Button hidden or disabled on round 5 (game about to end anyway).
+- Dependencies:
+  - `POST /api/v1/games/{id}/end` endpoint.
+  - Confirmation dialog component.
+- Edge Cases:
+  - User on last round (button hidden).
+  - Network failure during end request (retry with confirmation state preserved).
+  - Double-click on confirm (server handles idempotently).
+  - Timer expires while dialog is open (auto-submit takes precedence, close dialog).
+- Data Contracts:
+  - `Round.skipped` (boolean)
+  - `GameSession.status` = "completed"
 
 ### Results & Summary
 **E1 - Distance calculation**
@@ -669,3 +739,44 @@ Score = 5000 * e ^ (-10 * distance / size)
 - Gamemode variants beyond Phase 1
 - Virtual tour mode
 - Round multipliers and trivia facts
+
+## 18) Content Requirements
+
+### Launch Target
+- **Minimum images for v1 launch:** 500 usable images
+- **Raw capture target:** ~715 images (assuming ~70% pass quality review)
+- **Distribution:** 250 indoor / 250 outdoor (50/50 split)
+
+### Capture Approach: Zone-Based Systematic
+Divide campus into 8 zones. Each contributor rotates through zones over 8 weeks.
+
+| Zone | Area | Est. Images |
+|------|------|-------------|
+| 1 | Commons, Rand, Sarratt, Student Life | 70 |
+| 2 | Library Lawn, Stevenson, Kirkland | 70 |
+| 3 | Engineering Quad (FGH, Jacobs, etc.) | 60 |
+| 4 | Peabody Campus | 70 |
+| 5 | Science Buildings (Stevenson, SC, etc.) | 60 |
+| 6 | Alumni Lawn, Branscomb, Greek Row | 60 |
+| 7 | Athletics, Rec Center, West End | 50 |
+| 8 | Hidden gems, gap filling | 60 |
+
+### Timeline
+- **Duration:** 8 weeks
+- **Contributors:** 3 people
+- **Effort:** 1-2 hours per person per week
+- **Rate:** ~15 images per hour per person
+- **Weekly output:** ~90 raw images (~63 usable)
+
+### Image Requirements
+- **Format:** iPhone pano photo (equirectangular)
+- **GPS EXIF:** Required (location must be embedded in image metadata)
+- **Environment tag:** Each image tagged as `indoor` or `outdoor` at upload
+
+### Coordination
+- **Tool:** Google Doc with campus map screenshot as whiteboard
+- **Tracking:** Color-coded markers per contributor, checklist per zone
+- **Sync:** Weekly 15-minute check-in to review progress and adjust assignments
+
+### Post-Launch Roadmap
+- **v1 launch:** 500 images
