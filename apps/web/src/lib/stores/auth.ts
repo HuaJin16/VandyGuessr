@@ -92,7 +92,7 @@ function createAuthStore() {
 
 				const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-				const response = await fetch(`${apiUrl}/api/v1/users/me`, {
+				const response = await fetch(`${apiUrl}/v1/users/me`, {
 					headers: {
 						Authorization: `Bearer ${tokenResponse.accessToken}`,
 					},

@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  backend-lint:
-    name: Backend Lint
+  api-lint:
+    name: API Lint
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -39,8 +39,8 @@ jobs:
       - name: Run Ruff formatter
         run: uv run ruff format --check .
 
-  backend-check:
-    name: Backend Check
+  api-check:
+    name: API Check
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -62,10 +62,10 @@ jobs:
         run: uv sync
 
       - name: Verify imports
-        run: uv run python -c "from app.main import app; print('Backend imports OK')"
+        run: uv run python -c "from app.main import app; print('API imports OK')"
 
-  frontend-lint:
-    name: Frontend Lint
+  web-lint:
+    name: Web Lint
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -92,8 +92,8 @@ jobs:
       - name: Run Biome
         run: pnpm lint
 
-  frontend-check:
-    name: Frontend Type Check
+  web-check:
+    name: Web Type Check
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -120,8 +120,8 @@ jobs:
       - name: Run svelte-check
         run: pnpm check
 
-  frontend-build:
-    name: Frontend Build
+  web-build:
+    name: Web Build
     runs-on: ubuntu-latest
     defaults:
       run:
