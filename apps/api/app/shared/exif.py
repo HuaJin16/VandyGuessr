@@ -37,14 +37,27 @@ def _parse_timestamp(raw: str | None) -> str | None:
 
 def extract_metadata(file_bytes: bytes) -> dict[str, Any]:
     with Image.open(io.BytesIO(file_bytes)) as image:
-        exif = image.getexif() or {}
+        exif = image.getexif()
+        if not exif:
+            return {
+                "latitude": None,
+                "longitude": None,
+                "altitude": None,
+                "timestamp": None,
+                "width": image.width,
+                "height": image.height,
+                "format": image.format,
+            }
+
         exif_data = {ExifTags.TAGS.get(tag, tag): value for tag, value in exif.items()}
 
-        gps_info = exif_data.get("GPSInfo")
+        # GPS data is in a sub-IFD, access it properly via get_ifd()
+        # Using exif_data.get("GPSInfo") returns an IFD pointer (int), not the data
+        gps_ifd = exif.get_ifd(ExifTags.IFD.GPSInfo)
         gps_data: dict[str | int, Any] = {}
-        if gps_info:
+        if gps_ifd:
             gps_data = {
-                ExifTags.GPSTAGS.get(tag, tag): value for tag, value in gps_info.items()
+                ExifTags.GPSTAGS.get(tag, tag): value for tag, value in gps_ifd.items()
             }
 
         latitude = None
