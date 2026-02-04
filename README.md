@@ -53,18 +53,9 @@ pre-commit install
 
 ### 3. Start Development Services
 
-#### Option A: Using Docker (Databases Only)
-
-```bash
-# Start MongoDB + Redis
-docker-compose up mongodb redis
-```
-
-#### Option B: Run Locally
-
 ```bash
 # Terminal 1: Start MongoDB and Redis via Docker
-docker-compose up mongodb redis
+docker-compose up
 
 # Terminal 2: Start backend
 cd apps/api
@@ -105,10 +96,11 @@ VandyGuessr/
 │       ├── package.json
 │       └── Dockerfile
 ├── docs/
-│   └── ARCHITECTURE.md
+│   ├── ARCHITECTURE.md
+│   ├── AZURE_AUTH_SETUP.md
+│   └── PRD.md
 ├── docker-compose.yml
-├── docker-compose.dev.yml
-└── .env.example
+└── README.md
 ```
 
 ## Development
