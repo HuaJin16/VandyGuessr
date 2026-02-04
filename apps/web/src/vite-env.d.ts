@@ -4,7 +4,6 @@
 interface ImportMetaEnv {
 	readonly VITE_API_URL: string;
 	readonly VITE_MICROSOFT_CLIENT_ID: string;
-	readonly VITE_MICROSOFT_TENANT_ID: string;
 	readonly VITE_MICROSOFT_REDIRECT_URI: string;
 }
 

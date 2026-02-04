@@ -85,16 +85,17 @@ Add these variables to your environment:
 
 ```bash
 MICROSOFT_CLIENT_ID=your-azure-client-id
-MICROSOFT_TENANT_ID=common
 ```
 
 ### Frontend
 
 ```bash
 VITE_MICROSOFT_CLIENT_ID=your-azure-client-id
-VITE_MICROSOFT_TENANT_ID=common
 VITE_MICROSOFT_REDIRECT_URI=http://localhost:5173/
 ```
+
+Note: The tenant ID (`common`) is hardcoded in the application since we always
+use multi-tenant authentication with email validation.
 
 ## 8) Fetching Profile Data and Photos
 

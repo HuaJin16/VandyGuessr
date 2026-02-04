@@ -32,7 +32,6 @@ class Settings(BaseSettings):
 
     # Microsoft OAuth
     microsoft_client_id: str = ""
-    microsoft_tenant_id: str = "common"
     microsoft_algorithms: str = "RS256"
 
     # CORS
@@ -52,18 +51,12 @@ class Settings(BaseSettings):
     @property
     def microsoft_jwks_url(self) -> str:
         """Get the JWKS URL for Microsoft OAuth."""
-        return (
-            "https://login.microsoftonline.com/"
-            f"{self.microsoft_tenant_id}/discovery/v2.0/keys"
-        )
+        return "https://login.microsoftonline.com/common/discovery/v2.0/keys"
 
     @property
     def microsoft_issuer(self) -> str:
         """Get the issuer URL for Microsoft OAuth."""
-        return (
-            "https://login.microsoftonline.com/"
-            f"{self.microsoft_tenant_id}/v2.0"
-        )
+        return "https://login.microsoftonline.com/common/v2.0"
 
 
 @lru_cache
