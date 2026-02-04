@@ -25,6 +25,9 @@
 		"vite": "^5.2.11"
 	},
 	"dependencies": {
-		"@azure/msal-browser": "^3.10.0"
+		"@azure/msal-browser": "^3.10.0",
+		"@tanstack/svelte-query": "^5.90.2",
+		"axios": "^1.13.4",
+		"svelte-spa-router": "^4.0.1"
 	}
 }
