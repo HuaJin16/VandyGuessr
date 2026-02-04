@@ -1,20 +1,31 @@
 <script lang="ts">
+import { queryClient } from "$lib/shared/api/queryClient";
+import { auth, isAuthenticated, isLoading } from "$lib/shared/auth/auth.store";
+import { QueryClientProvider } from "@tanstack/svelte-query";
 import { onMount } from "svelte";
-import Home from "./lib/components/Home.svelte";
-import Login from "./lib/components/Login.svelte";
-import { auth, isAuthenticated, isLoading } from "./lib/stores/auth";
+import Router, { replace } from "svelte-spa-router";
+import { routes } from "./routes";
 
 onMount(() => {
 	auth.initialize();
 });
+
+// Reactive navigation based on auth state
+$: if (!$isLoading) {
+	if ($isAuthenticated) {
+		replace("/");
+	} else {
+		replace("/login");
+	}
+}
 </script>
 
-<main>
+<QueryClientProvider client={queryClient}>
   {#if $isLoading}
-    <p>Loading...</p>
-  {:else if $isAuthenticated}
-    <Home />
+    <main>
+      <p>Loading...</p>
+    </main>
   {:else}
-    <Login />
+    <Router {routes} />
   {/if}
-</main>
+</QueryClientProvider>

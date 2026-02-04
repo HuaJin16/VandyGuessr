@@ -1,16 +1,25 @@
 """FastAPI application entry point."""
 
+import os
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.v1.router import router as api_v1_router
 from app.config import get_settings
-from app.core.database import close_mongo_connection, connect_to_mongo
-from app.core.redis import close_redis_connection, connect_to_redis
+from app.core.db import (
+    close_mongo_connection,
+    close_redis_connection,
+    connect_to_mongo,
+    connect_to_redis,
+)
+from app.domains.images.router import router as images_router
+from app.domains.users.router import router as users_router
+
+logger = structlog.get_logger()
 
 
 @asynccontextmanager
@@ -49,8 +58,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Include routers
-    app.include_router(api_v1_router, prefix="/v1")
+    # Include domain routers under /v1 prefix
+    app.include_router(images_router, prefix="/v1")
+    app.include_router(users_router, prefix="/v1")
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(
@@ -64,10 +74,34 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health_check() -> dict[str, str]:
-        """Health check endpoint."""
-        return {"status": "healthy", "version": "0.1.0"}
+        """Health check endpoint with version info."""
+        return {
+            "status": "healthy",
+            "version": os.getenv("VERSION", "0.1.0"),
+            "git_sha": os.getenv("GIT_SHA", "unknown"),
+            "git_branch": os.getenv("GIT_BRANCH", "unknown"),
+        }
 
     return app
 
+
+# Configure structlog for JSON output
+structlog.configure(
+    processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.processors.JSONRenderer(),
+    ],
+    wrapper_class=structlog.stdlib.BoundLogger,
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=True,
+)
 
 app = create_app()
