@@ -609,12 +609,45 @@ export function cn(...inputs: ClassValue[]) {
 
 ### Image Storage (S3-Compatible via DigitalOcean Spaces)
 
-- **What we store**: Campus photo assets used for game rounds, uploaded by admins.
+- **What we store**: Campus photo assets used for game rounds, uploaded by contributors.
 - **Why S3-compatible storage**: Simple, cost-effective object storage that scales with image volume and integrates cleanly with CDN or public delivery later.
 - **Current scope**: Keep it simple; only original uploads are stored for now.
 
 ### Upload Pipeline and Metadata
 
-- **Admin upload endpoint**: The API includes an admin-only upload endpoint that accepts images from iPhones.
+- **Upload endpoint**: The API includes a secret-code-protected upload endpoint with a mobile-friendly HTML form.
 - **EXIF extraction**: GPS metadata is extracted from EXIF and used to seed location data into MongoDB.
-- **S3 object keys**: Images are stored under an `images/` prefix with unique IDs.
+- **S3 object keys**: Images are stored under an `images/` prefix with unique UUIDs (e.g., `images/{uuid}.jpg`).
+- **MongoDB persistence**: Image metadata (URL, coordinates, environment, timestamps) is stored in the `images` collection.
+
+### Images Domain Structure
+
+```
+apps/api/app/domains/images/
+├── __init__.py
+├── router.py       # GET (HTML form) + POST (multi-file upload) endpoints
+├── service.py      # Upload orchestration, validation, S3 + MongoDB persistence
+├── repository.py   # MongoDB CRUD operations
+├── entities.py     # ImageEntity document schema
+└── models.py       # API response schemas
+```
+
+### Image Entity Schema
+
+```python
+{
+    "_id": ObjectId,
+    "url": str,                    # S3 URL
+    "latitude": float,             # GPS latitude from EXIF
+    "longitude": float,            # GPS longitude from EXIF
+    "altitude": float | None,      # Optional altitude
+    "timestamp": datetime | None,  # EXIF timestamp
+    "width": int | None,
+    "height": int | None,
+    "format": str | None,          # jpg, png, etc.
+    "environment": "indoor" | "outdoor",
+    "original_filename": str | None,
+    "file_size": int,
+    "created_at": datetime
+}
+```

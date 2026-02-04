@@ -5,6 +5,8 @@ from lagom import Container
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.db.mongo import get_database
+from app.domains.images.repository import IImageRepository, ImageRepository
+from app.domains.images.service import ImageService
 from app.domains.users.repository import IUserRepository, UserRepository
 from app.domains.users.service import UserService
 
@@ -16,9 +18,11 @@ container[AsyncIOMotorDatabase] = lambda: get_database()
 
 # Register repositories
 container[IUserRepository] = UserRepository
+container[IImageRepository] = ImageRepository
 
 # Register services
 container[UserService] = UserService
+container[ImageService] = ImageService
 
 
 def deps[T](cls: type[T]) -> T:

@@ -128,6 +128,32 @@ Pre-commit hooks automatically run on `git commit`:
 - Ruff (Python linting/formatting)
 - Biome (JS/TS linting/formatting)
 
+## Image Upload
+
+VandyGuessr requires 360-degree campus photos with GPS EXIF data. Contributors can upload images via a mobile-friendly HTML form.
+
+### Upload URLs
+
+Share these links with photo contributors (replace `YOUR_SECRET_CODE` with the configured `UPLOAD_SECRET_CODE`):
+
+- **Outdoor photos**: `https://your-api-domain/v1/images/upload?code=YOUR_SECRET_CODE&environment=outdoor`
+- **Indoor photos**: `https://your-api-domain/v1/images/upload?code=YOUR_SECRET_CODE&environment=indoor`
+
+### Requirements
+
+- Images must have GPS location data (EXIF). Most iPhone/Android camera photos include this automatically.
+- Supported formats: JPEG, PNG, HEIC
+- Maximum file size: 50MB (configurable via `UPLOAD_MAX_BYTES`)
+
+### How It Works
+
+1. Open the upload link on your phone
+2. Select one or more photos (or take a new photo)
+3. Tap "Upload Photos"
+4. View results showing which uploads succeeded and their GPS coordinates
+
+Images are stored in DigitalOcean Spaces (S3-compatible) and metadata is persisted to MongoDB for use in games.
+
 ## Microsoft OAuth Setup
 
 See `docs/AZURE_AUTH_SETUP.md` for the full Azure app registration flow.
