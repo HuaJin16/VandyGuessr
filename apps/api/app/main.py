@@ -2,11 +2,12 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import router as api_v1_router
 from app.config import get_settings
+from app.core import not_found
 from app.core.database import close_mongo_connection, connect_to_mongo
 from app.core.redis import close_redis_connection, connect_to_redis
 
@@ -49,6 +50,11 @@ def create_app() -> FastAPI:
 
     # Include routers
     app.include_router(api_v1_router, prefix="/api/v1")
+
+    @app.get("/", response_class=Response)
+    async def root() -> Response:
+        """Root endpoint - returns 404 as this is not a valid API endpoint."""
+        return not_found()
 
     return app
 
