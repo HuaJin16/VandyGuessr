@@ -29,3 +29,33 @@ repos:
         language: system
         files: ^apps/web/.*\.(js|ts|svelte|json)$
         pass_filenames: false
+
+  # Pre-push hooks - CI/CD checks
+  - repo: local
+    hooks:
+      # Frontend TypeScript/Svelte type checking
+      - id: svelte-check
+        name: svelte-check
+        entry: bash -c 'cd apps/web && pnpm run check'
+        language: system
+        files: ^apps/web/.*\.(ts|svelte)$
+        pass_filenames: false
+        stages: [pre-push]
+
+      # Frontend build verification
+      - id: frontend-build
+        name: frontend-build
+        entry: bash -c 'cd apps/web && pnpm run build'
+        language: system
+        files: ^apps/web/
+        pass_filenames: false
+        stages: [pre-push]
+
+      # Backend import check
+      - id: backend-check
+        name: backend-check
+        entry: bash -c 'cd apps/api && uv run python -c "from app.main import app"'
+        language: system
+        files: ^apps/api/.*\.py$
+        pass_filenames: false
+        stages: [pre-push]
