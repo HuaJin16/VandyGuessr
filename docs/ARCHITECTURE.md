@@ -18,6 +18,8 @@
 | Frontend | `axios` | HTTP client |
 | Frontend | `@tanstack/svelte-query` | Server state management & caching |
 | Frontend | `svelte-spa-router` | Client-side routing |
+| Frontend | `bits-ui` | Headless component primitives |
+| Frontend | `tailwind-variants` | Variant-based component styling |
 
 ---
 
@@ -526,6 +528,80 @@ export const routes = {
 - **Stores** are for client-only state (UI state, form state, etc.)
 - **Optimistic updates** for mutations where instant feedback improves UX
 - **Error boundaries** wrap major sections to prevent full-page crashes
+
+### UI Components with Bits UI
+
+We use **Bits UI** (headless component library) + **tailwind-variants** for building styled UI primitives:
+
+```
+apps/web/src/lib/shared/
+├── ui/
+│   ├── index.ts           # Barrel export
+│   ├── Button.svelte      # Styled button with variants
+│   ├── Card.svelte        # Container component
+│   └── CardContent.svelte # Card content wrapper
+└── utils.ts               # cn() utility for class merging
+```
+
+**Class merging utility (`shared/utils.ts`):**
+
+```typescript
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+```
+
+**Button with variants (`shared/ui/Button.svelte`):**
+
+```svelte
+<script lang="ts">
+  import { tv, type VariantProps } from "tailwind-variants";
+  import { cn } from "$lib/shared/utils";
+
+  const buttonVariants = tv({
+    base: "inline-flex items-center justify-center rounded-md text-sm font-medium ...",
+    variants: {
+      variant: {
+        default: "bg-neutral-900 text-white hover:bg-neutral-800",
+        outline: "border border-neutral-300 bg-transparent hover:bg-neutral-100",
+        ghost: "hover:bg-neutral-100",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 px-3",
+        lg: "h-11 px-8",
+      },
+    },
+    defaultVariants: { variant: "default", size: "default" },
+  });
+
+  export let variant: VariantProps<typeof buttonVariants>["variant"] = "default";
+  export let size: VariantProps<typeof buttonVariants>["size"] = "default";
+  let className = "";
+  export { className as class };
+</script>
+
+<button class={cn(buttonVariants({ variant, size }), className)} on:click {...$$restProps}>
+  <slot />
+</button>
+```
+
+**Usage:**
+
+```svelte
+<script>
+  import { Button, Card, CardContent } from "$lib/shared/ui";
+</script>
+
+<Card>
+  <CardContent>
+    <Button variant="outline" size="sm">Click me</Button>
+  </CardContent>
+</Card>
+```
 
 ---
 

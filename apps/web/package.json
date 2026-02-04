@@ -28,6 +28,10 @@
 		"@azure/msal-browser": "^3.10.0",
 		"@tanstack/svelte-query": "^5.90.2",
 		"axios": "^1.13.4",
-		"svelte-spa-router": "^4.0.1"
+		"bits-ui": "0.21",
+		"clsx": "^2.1.1",
+		"svelte-spa-router": "^4.0.1",
+		"tailwind-merge": "^3.4.0",
+		"tailwind-variants": "^3.2.2"
 	}
 }
