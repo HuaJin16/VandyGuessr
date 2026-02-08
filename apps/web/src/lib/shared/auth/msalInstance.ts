@@ -41,7 +41,7 @@ export async function getAccessToken(): Promise<string | null> {
 			...loginRequest,
 			account,
 		});
-		return tokenResponse.accessToken;
+		return tokenResponse.idToken;
 	} catch {
 		// Token acquisition failed - user needs to re-authenticate
 		return null;
