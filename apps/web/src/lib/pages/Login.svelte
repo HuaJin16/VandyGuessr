@@ -1,11 +1,13 @@
 <script lang="ts">
 import { auth, authError, isLoading } from "$lib/shared/auth/auth.store";
+import logo from "../../assets/logo.webp";
 </script>
 
 <div class="flex min-h-screen items-center justify-center p-4">
 	<div class="w-full max-w-md">
 		<div class="glass-card px-8 py-10 sm:px-10 sm:py-12">
 			<div class="flex flex-col items-center text-center">
+				<img src={logo} alt="VandyGuessr logo" class="mb-3 h-16 w-16" />
 				<h1 class="font-heading text-3xl font-bold text-charcoal sm:text-4xl">
 					VandyGuessr
 				</h1>
