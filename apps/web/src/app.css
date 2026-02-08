@@ -48,6 +48,8 @@ body {
 
 	.btn-3d:hover {
 		background: #236e2d;
+		transform: translateY(3px);
+		box-shadow: 0 3px 0 #236e2d;
 	}
 
 	.btn-3d:active {
