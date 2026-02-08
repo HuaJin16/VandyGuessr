@@ -44,6 +44,7 @@ VandyGuessr is a GeoGuessr-style game for Vanderbilt students using 360-degree (
 
 ### 5.4 Round Results
 - Round number
+- Location name (building/landmark); shows "Unknown location" if unavailable
 - Score, max score, optional multiplier (future)
 - Map with guessed vs actual location + distance line
 - “Next Round” button
@@ -139,6 +140,7 @@ Score = 5000 * e ^ (-10 * distance / size)
   url,
   exif: { lat, lng, altitude, timestamp, width, height, format },
   environment: "indoor" | "outdoor",
+  location_name,                 // auto-tagged via geospatial lookup; null if no match
   createdAt
 }
 ```
@@ -159,7 +161,8 @@ Score = 5000 * e ^ (-10 * distance / size)
       score,
       startedAt,    // timestamp when round began (image loaded)
       expiresAt,    // for timed mode: startedAt + 120s; null for untimed
-      skipped       // true if round was skipped due to early game end
+      skipped,      // true if round was skipped due to early game end
+      location_name // denormalized from image at game creation; "Unknown location" if null
     }
   ],
   totalScore,
@@ -186,6 +189,21 @@ Score = 5000 * e ^ (-10 * distance / size)
   timeframe,  // daily | weekly | alltime
   rankings: [{ userId, name, avgScore, gamesPlayed, totalPoints }],
   updatedAt
+}
+```
+
+### locations
+```
+{
+  _id,
+  name,                          // "Kirkland Hall", "Alumni Lawn", etc.
+  osm_id,                        // OpenStreetMap feature ID (for idempotent seeding)
+  building_type,                 // "university", "residential", "hospital", etc.
+  geometry: {                    // GeoJSON (Polygon or Point)
+    type,
+    coordinates
+  },
+  created_at
 }
 ```
 
@@ -477,6 +495,7 @@ Score = 5000 * e ^ (-10 * distance / size)
 **E3 - Round results display**
 - Acceptance Criteria:
   - Round results show guess, actual, distance, and score.
+  - Location name is displayed (denormalized from image at game creation; shows "Unknown location" if no match).
   - Map shows a line between guess and actual.
 - Constraints:
   - Data must render even if map tiles are slow to load.
@@ -528,7 +547,7 @@ Score = 5000 * e ^ (-10 * distance / size)
 
 **F3 - Per-round breakdown**
 - Acceptance Criteria:
-  - List of rounds with score and distance.
+  - List of rounds with score, distance, and location name.
 - Constraints:
   - Order matches round sequence.
 - Dependencies:
@@ -647,10 +666,12 @@ Score = 5000 * e ^ (-10 * distance / size)
 - Acceptance Criteria:
   - Accepts 360 image with GPS EXIF.
   - Upload returns URL and metadata.
+  - Images with GPS coordinates are automatically tagged with the nearest building/landmark name via geospatial lookup against the `locations` collection (exact polygon match, with 15m proximity fallback).
 - Constraints:
   - File size limit enforced.
 - Dependencies:
   - EXIF extraction and Spaces upload.
+  - Locations collection seeded from OpenStreetMap GeoJSON.
 - Edge Cases:
   - Unsupported file types.
 - Data Contracts:

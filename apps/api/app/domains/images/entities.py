@@ -21,6 +21,7 @@ class ImageEntity(BaseModel):
     environment: Literal["indoor", "outdoor"]
     original_filename: str | None = None
     file_size: int
+    location_name: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     model_config = {"populate_by_name": True}

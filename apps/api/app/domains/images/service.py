@@ -11,6 +11,7 @@ from app.config import get_settings
 from app.domains.images.entities import ImageEntity
 from app.domains.images.models import ImageUploadResult
 from app.domains.images.repository import IImageRepository
+from app.domains.locations.service import LocationService
 from app.shared.exif import extract_metadata
 from app.shared.s3 import upload_bytes
 
@@ -36,8 +37,13 @@ class ImageService:
         "image/heif",
     }
 
-    def __init__(self, image_repository: IImageRepository) -> None:
+    def __init__(
+        self,
+        image_repository: IImageRepository,
+        location_service: LocationService,
+    ) -> None:
         self.image_repository = image_repository
+        self.location_service = location_service
 
     def _validate_file(
         self, filename: str | None, content_type: str | None, file_size: int
@@ -106,6 +112,11 @@ class ImageService:
                 with contextlib.suppress(ValueError, TypeError):
                     timestamp = datetime.fromisoformat(metadata["timestamp"])
 
+            # Resolve campus location from coordinates
+            location_name = await self.location_service.resolve_location_name(
+                latitude, longitude
+            )
+
             # Create entity
             image = ImageEntity(
                 url=url,
@@ -119,6 +130,7 @@ class ImageService:
                 environment=environment,
                 original_filename=filename,
                 file_size=len(file_bytes),
+                location_name=location_name,
                 created_at=datetime.utcnow(),
             )
 
@@ -132,6 +144,7 @@ class ImageService:
                 latitude=latitude,
                 longitude=longitude,
                 environment=environment,
+                location_name=location_name,
                 file_size=len(file_bytes),
             )
 

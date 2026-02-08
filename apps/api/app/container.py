@@ -7,6 +7,8 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.db.mongo import get_database
 from app.domains.images.repository import IImageRepository, ImageRepository
 from app.domains.images.service import ImageService
+from app.domains.locations.repository import ILocationRepository, LocationRepository
+from app.domains.locations.service import LocationService
 from app.domains.users.repository import IUserRepository, UserRepository
 from app.domains.users.service import UserService
 
@@ -19,9 +21,11 @@ container[AsyncIOMotorDatabase] = lambda: get_database()
 # Register repositories
 container[IUserRepository] = UserRepository
 container[IImageRepository] = ImageRepository
+container[ILocationRepository] = LocationRepository
 
 # Register services
 container[UserService] = UserService
+container[LocationService] = LocationService
 container[ImageService] = ImageService
 
 

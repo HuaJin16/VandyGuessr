@@ -17,7 +17,7 @@
 | Backend | `structlog` | Structured JSON logging |
 | Frontend | `axios` | HTTP client |
 | Frontend | `@tanstack/svelte-query` | Server state management & caching |
-| Frontend | `svelte-spa-router` | Client-side routing |
+| Frontend | `svelte-routing` | History-mode client-side routing |
 | Frontend | `bits-ui` | Headless component primitives |
 | Frontend | `tailwind-variants` | Variant-based component styling |
 
@@ -54,6 +54,11 @@ apps/api/app/
 │   │   └── exceptions.py            # Domain-specific errors
 │   ├── images/
 │   │   └── ...
+│   ├── locations/
+│   │   ├── __init__.py
+│   │   ├── repository.py            # Geospatial queries (2dsphere index)
+│   │   ├── entities.py              # LocationEntity document schema
+│   │   └── service.py               # Location resolution (no router — internal only)
 │   └── games/
 │       └── ...
 └── shared/                          # Cross-cutting utilities
@@ -485,7 +490,7 @@ Error boundaries catch unexpected runtime errors and display a fallback UI:
 
 **Note:** Svelte Query handles API errors gracefully via `isError` state. Error boundaries catch unexpected runtime errors (render crashes, etc.).
 
-### Routing with svelte-spa-router
+### Routing with svelte-routing
 
 ```typescript
 // routes.ts
@@ -505,16 +510,20 @@ export const routes = {
 ```svelte
 <!-- App.svelte -->
 <script>
-  import Router from 'svelte-spa-router';
-  import { routes } from './routes';
+  import { Router, Route } from 'svelte-routing';
   import { QueryClientProvider } from '@tanstack/svelte-query';
   import { queryClient } from '$lib/shared/api/queryClient';
   import ErrorBoundary from '$lib/shared/components/ErrorBoundary.svelte';
+  import Home from '$lib/pages/Home.svelte';
+  import Login from '$lib/pages/Login.svelte';
 </script>
 
 <ErrorBoundary>
   <QueryClientProvider client={queryClient}>
-    <Router {routes} />
+    <Router>
+      <Route path="/" component={Home} />
+      <Route path="/login" component={Login} />
+    </Router>
   </QueryClientProvider>
 </ErrorBoundary>
 ```
@@ -648,6 +657,46 @@ apps/api/app/domains/images/
     "environment": "indoor" | "outdoor",
     "original_filename": str | None,
     "file_size": int,
+    "location_name": str | None,   # Auto-tagged building/landmark name
     "created_at": datetime
 }
+```
+
+### Locations Domain & Data Seeding
+
+Location data is seeded from an OpenStreetMap GeoJSON export containing Vanderbilt campus building/landmark polygons.
+
+**Seed script:** `python -m scripts.seed_locations` (run from `apps/api/`)
+
+- Source data: `apps/api/data/campus_buildings.geojson` (277 named features)
+- Idempotent: upserts by `osm_id` so re-running is safe
+- Creates `2dsphere` index on `geometry` and unique index on `osm_id`
+- Backfills existing images that have `location_name: null`
+
+**Auto-tagging on upload:** When an image is uploaded with GPS coordinates, `LocationService.resolve_location_name()` performs a two-step geospatial lookup:
+
+1. `$geoIntersects` — exact polygon match (image point falls inside a building boundary)
+2. `$near` with `$maxDistance: 15` — fallback for images taken near but not inside a boundary (15m radius)
+
+**Location Entity Schema:**
+
+```python
+{
+    "_id": ObjectId,
+    "name": str,                   # "Kirkland Hall", "Alumni Lawn", etc.
+    "osm_id": str,                 # OpenStreetMap feature ID
+    "building_type": str | None,   # "university", "residential", "hospital", etc.
+    "geometry": dict,              # GeoJSON geometry (Polygon or Point)
+    "created_at": datetime
+}
+```
+
+**Domain structure:**
+
+```
+apps/api/app/domains/locations/
+├── __init__.py
+├── entities.py      # LocationEntity document schema
+├── repository.py    # Geospatial queries (2dsphere index)
+└── service.py       # Location name resolution (internal only, no router)
 ```
