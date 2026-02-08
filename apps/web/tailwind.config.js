@@ -4,14 +4,21 @@ export default {
 	theme: {
 		extend: {
 			colors: {
-				// Vanderbilt colors
-				vandy: {
-					gold: "#CFAE70",
-					black: "#000000",
-				},
+				jungle: "#2E933C",
+				"jungle-dark": "#236E2D",
+				gold: "#F4C430",
+				terrain: "#F5F2E9",
+				charcoal: "#18181B",
+				clay: "#D95D39",
 			},
 			fontFamily: {
-				sans: ["Inter", "system-ui", "sans-serif"],
+				heading: ["Rubik", "sans-serif"],
+				body: ["Inter", "sans-serif"],
+			},
+			boxShadow: {
+				hard: "4px 4px 0px 0px rgba(0,0,0,0.1)",
+				"hard-lg": "6px 6px 0px 0px rgba(0,0,0,0.12)",
+				"3d": "0 6px 0 #236E2D",
 			},
 		},
 	},

@@ -3,13 +3,12 @@
 @tailwind utilities;
 
 :root {
-	font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+	font-family: "Inter", system-ui, Avenir, Helvetica, Arial, sans-serif;
 	line-height: 1.5;
 	font-weight: 400;
 
-	color-scheme: light dark;
-	color: rgba(255, 255, 255, 0.87);
-	background-color: #000000;
+	color: #18181b;
+	background-color: #f5f2e9;
 
 	font-synthesis: none;
 	text-rendering: optimizeLegibility;
@@ -24,4 +23,45 @@ body {
 
 #app {
 	min-height: 100vh;
+}
+
+@layer components {
+	.glass-card {
+		background: rgba(255, 255, 255, 0.92);
+		backdrop-filter: blur(20px);
+		-webkit-backdrop-filter: blur(20px);
+		border-radius: 24px;
+		border: 1px solid rgba(255, 255, 255, 0.5);
+		box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 0.12);
+	}
+
+	.btn-3d {
+		background: #2e933c;
+		color: white;
+		font-family: "Rubik", sans-serif;
+		font-weight: 700;
+		padding: 16px 24px;
+		border-radius: 12px;
+		box-shadow: 0 6px 0 #236e2d;
+		transition: transform 0.1s, box-shadow 0.1s;
+	}
+
+	.btn-3d:hover {
+		background: #236e2d;
+	}
+
+	.btn-3d:active {
+		transform: translateY(6px);
+		box-shadow: 0 0px 0 #236e2d;
+	}
+
+	.hud-pill {
+		background: rgba(255, 255, 255, 0.95);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+		border-radius: 9999px;
+		padding: 8px;
+		border: 1px solid rgba(255, 255, 255, 0.5);
+		box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.1);
+	}
 }

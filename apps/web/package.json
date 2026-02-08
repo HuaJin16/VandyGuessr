@@ -30,6 +30,7 @@
 		"axios": "^1.13.4",
 		"bits-ui": "0.21",
 		"clsx": "^2.1.1",
+		"lucide-svelte": "^0.563.0",
 		"svelte-spa-router": "^4.0.1",
 		"tailwind-merge": "^3.4.0",
 		"tailwind-variants": "^3.2.2"
