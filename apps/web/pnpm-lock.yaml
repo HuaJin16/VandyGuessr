@@ -29,6 +29,9 @@ importers:
       svelte-routing:
         specifier: ^2.13.0
         version: 2.13.0
+      svelte-sonner:
+        specifier: 0.3.28
+        version: 0.3.28(svelte@4.2.20)
       tailwind-merge:
         specifier: ^3.4.0
         version: 3.4.0
@@ -1068,6 +1071,11 @@ packages:
   svelte-routing@2.13.0:
     resolution: {integrity: sha512-/NTxqTwLc7Dq306hARJrH2HLXOBtKd7hu8nxgoFDlK0AC4SOKnzisiX/9m8Uksei1QAWtlAEdF91YphNM8iDMg==}
 
+  svelte-sonner@0.3.28:
+    resolution: {integrity: sha512-K3AmlySeFifF/cKgsYNv5uXqMVNln0NBAacOYgmkQStLa/UoU0LhfAACU6Gr+YYC8bOCHdVmFNoKuDbMEsppJg==}
+    peerDependencies:
+      svelte: ^3.0.0 || ^4.0.0 || ^5.0.0-next.1
+
   svelte@4.2.20:
     resolution: {integrity: sha512-eeEgGc2DtiUil5ANdtd8vPwt9AgaMdnuUFnPft9F5oMvU/FHu5IHFic+p1dR/UOB7XU2mX2yHW+NcTch4DCh5Q==}
     engines: {node: '>=16'}
@@ -2021,6 +2029,10 @@ snapshots:
       typescript: 5.9.3
 
   svelte-routing@2.13.0: {}
+
+  svelte-sonner@0.3.28(svelte@4.2.20):
+    dependencies:
+      svelte: 4.2.20
 
   svelte@4.2.20:
     dependencies:

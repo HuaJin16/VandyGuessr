@@ -66,4 +66,38 @@ body {
 		border: 1px solid rgba(255, 255, 255, 0.5);
 		box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.1);
 	}
+
+	.sonner-toast {
+		font-family: "Inter", sans-serif;
+		padding: 14px 18px;
+		border-radius: 12px;
+		width: 100%;
+		max-width: 420px;
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	}
+
+	.sonner-toast--error {
+		background: #991b1b;
+		color: white;
+	}
+
+	.sonner-toast--success {
+		background: #236e2d;
+		color: white;
+	}
+
+	.sonner-title {
+		font-size: 14px;
+		font-weight: 600;
+		line-height: 1.4;
+	}
+
+	.sonner-description {
+		font-size: 13px;
+		opacity: 0.85;
+		line-height: 1.4;
+	}
 }

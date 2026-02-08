@@ -6,12 +6,12 @@ import { auth, isAuthenticated, isLoading } from "$lib/shared/auth/auth.store";
 import { QueryClientProvider } from "@tanstack/svelte-query";
 import { onMount } from "svelte";
 import { Route, Router, navigate } from "svelte-routing";
+import { Toaster } from "svelte-sonner";
 
 onMount(() => {
 	auth.initialize();
 });
 
-// Reactive navigation based on auth state
 $: if (!$isLoading) {
 	if ($isAuthenticated) {
 		navigate("/", { replace: true });
@@ -21,15 +21,23 @@ $: if (!$isLoading) {
 }
 </script>
 
+<Toaster
+  position="bottom-center"
+  toastOptions={{
+    unstyled: true,
+    classes: {
+      toast: "sonner-toast",
+      error: "sonner-toast--error",
+      success: "sonner-toast--success",
+      title: "sonner-title",
+      description: "sonner-description",
+    },
+  }}
+/>
+
 <QueryClientProvider client={queryClient}>
-  {#if $isLoading}
-    <main>
-      <p>Loading...</p>
-    </main>
-  {:else}
-    <Router>
-      <Route path="/" component={Home} />
-      <Route path="/login" component={Login} />
-    </Router>
-  {/if}
+  <Router>
+    <Route path="/" component={Home} />
+    <Route path="/login" component={Login} />
+  </Router>
 </QueryClientProvider>
