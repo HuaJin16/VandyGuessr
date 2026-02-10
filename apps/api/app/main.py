@@ -16,6 +16,7 @@ from app.core.db import (
     connect_to_mongo,
     connect_to_redis,
 )
+from app.domains.games.router import router as games_router
 from app.domains.images.router import router as images_router
 from app.domains.users.router import router as users_router
 
@@ -59,6 +60,7 @@ def create_app() -> FastAPI:
     )
 
     # Include domain routers under /v1 prefix
+    app.include_router(games_router, prefix="/v1")
     app.include_router(images_router, prefix="/v1")
     app.include_router(users_router, prefix="/v1")
 

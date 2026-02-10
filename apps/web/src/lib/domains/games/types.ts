@@ -9,6 +9,8 @@ export interface GameMode {
 export interface Round {
 	roundId: number;
 	imageId: string;
+	imageUrl: string;
+	actual: { lat: number; lng: number } | null;
 	guess: { lat: number; lng: number } | null;
 	distanceMeters: number | null;
 	score: number | null;

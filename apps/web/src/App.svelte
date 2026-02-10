@@ -1,4 +1,5 @@
 <script lang="ts">
+import Game from "$lib/pages/Game.svelte";
 import Home from "$lib/pages/Home.svelte";
 import Login from "$lib/pages/Login.svelte";
 import { queryClient } from "$lib/shared/api/queryClient";
@@ -13,8 +14,11 @@ onMount(() => {
 });
 
 $: if (!$isLoading) {
+	const path = window.location.pathname;
 	if ($isAuthenticated) {
-		navigate("/", { replace: true });
+		if (path === "/login") {
+			navigate("/", { replace: true });
+		}
 	} else {
 		navigate("/login", { replace: true });
 	}
@@ -38,6 +42,7 @@ $: if (!$isLoading) {
 <QueryClientProvider client={queryClient}>
   <Router>
     <Route path="/" component={Home} />
+    <Route path="/game/:id" component={Game} />
     <Route path="/login" component={Login} />
   </Router>
 </QueryClientProvider>

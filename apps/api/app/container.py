@@ -5,6 +5,9 @@ from lagom import Container
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.db.mongo import get_database
+from app.domains.games.daily import DailyChallengeRepository, IDailyChallengeRepository
+from app.domains.games.repository import GameRepository, IGameRepository
+from app.domains.games.service import GameService
 from app.domains.images.repository import IImageRepository, ImageRepository
 from app.domains.images.service import ImageService
 from app.domains.locations.repository import ILocationRepository, LocationRepository
@@ -22,11 +25,14 @@ container[AsyncIOMotorDatabase] = lambda: get_database()
 container[IUserRepository] = UserRepository
 container[IImageRepository] = ImageRepository
 container[ILocationRepository] = LocationRepository
+container[IGameRepository] = GameRepository
+container[IDailyChallengeRepository] = DailyChallengeRepository
 
 # Register services
 container[UserService] = UserService
 container[LocationService] = LocationService
 container[ImageService] = ImageService
+container[GameService] = GameService
 
 
 def deps[T](cls: type[T]) -> T:

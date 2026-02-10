@@ -22,10 +22,13 @@ async def get_current_user_profile(
         name=current_user["name"],
     )
 
+    stats = await user_service.get_stats_response(user_doc)
+
     return UserResponse(
         id=str(user_doc["_id"]),
         email=user_doc["email"],
         username=user_doc["username"],
         name=user_doc["name"],
         avatar_url=user_doc.get("avatar_url"),
+        stats=stats,
     )

@@ -75,13 +75,14 @@ VandyGuessr is a GeoGuessr-style game for Vanderbilt students using 360-degree (
 Primary formula (from PM notes):
 
 ```
-Score = 5000 * e ^ (-10 * distance / size)
+Score = 5000 * e ^ (-5 * distance / size)
 ```
 
 - distance: meters from guess to actual
 - size: diagonal distance of campus bounding box
 - score is rounded
 - score clamped at 0 for very large distances
+- **building match bonus**: if the guess resolves to the same building/landmark as the actual location (via the locations collection geometry), the player receives a perfect score of 5000 regardless of distance
 
 ## 8) Maps & Tiles (Free, Campus-Only)
 - Map rendering: Leaflet

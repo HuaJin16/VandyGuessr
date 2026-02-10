@@ -7,6 +7,8 @@ export const gamesService = {
 
 	getById: (id: string) => apiClient.get<Game>(`/v1/games/${id}`).then((r) => r.data),
 
+	getActive: () => apiClient.get<Game | null>("/v1/games/active").then((r) => r.data),
+
 	list: (params?: { status?: string; limit?: number; offset?: number }) =>
 		apiClient.get<Game[]>("/v1/games", { params }).then((r) => r.data),
 

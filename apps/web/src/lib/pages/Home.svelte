@@ -1,5 +1,6 @@
 <script lang="ts">
 import { gamesService } from "$lib/domains/games/api/games.service";
+import { gameQueries } from "$lib/domains/games/queries/games.queries";
 import type { Environment, GameMode } from "$lib/domains/games/types";
 import { userQueries } from "$lib/domains/users/queries/users.queries";
 import { auth } from "$lib/shared/auth/auth.store";
@@ -18,7 +19,8 @@ import { navigate } from "svelte-routing";
 import { toast } from "svelte-sonner";
 import logo from "../../assets/logo.webp";
 
-const user = createQuery(userQueries.me());
+$: user = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
+$: activeGame = createQuery({ ...gameQueries.active(), enabled: $auth.isInitialized });
 
 $: stats = $user.data?.stats;
 $: initials = ($user.data?.name ?? "")
@@ -27,6 +29,10 @@ $: initials = ($user.data?.name ?? "")
 	.join("")
 	.slice(0, 2)
 	.toUpperCase();
+
+$: activeRoundNumber = $activeGame.data
+	? $activeGame.data.rounds.filter((r) => r.guess || r.skipped).length + 1
+	: 0;
 
 let timed = false;
 let environment: Environment = "any";
@@ -124,6 +130,25 @@ async function startGame(daily: boolean) {
 			</div>
 
 		<div class="bg-terrain/30 px-4 py-4 sm:p-6">
+			{#if $activeGame.data}
+				<button
+					class="resume-banner"
+					on:click={() => navigate(`/game/${$activeGame.data?.id}`)}
+				>
+					<div class="flex items-center gap-3">
+						<div class="resume-dot" />
+						<div class="min-w-0 flex-1 text-left">
+							<span class="font-heading text-sm font-bold text-charcoal">Game in Progress</span>
+							<p class="text-[13px] text-charcoal/50">
+								Round {activeRoundNumber}/{$activeGame.data.rounds.length}
+								&middot; {$activeGame.data.totalScore.toLocaleString()} pts
+							</p>
+						</div>
+						<ChevronRight size={18} class="flex-shrink-0 text-charcoal/30" />
+					</div>
+				</button>
+			{/if}
+
 			<!-- Daily Challenge banner -->
 			<button
 				class="daily-banner"
@@ -206,6 +231,37 @@ async function startGame(daily: boolean) {
 		background: rgba(244, 196, 48, 0.06);
 		cursor: pointer;
 		transition: all 0.15s;
+	}
+
+	.resume-banner {
+		display: block;
+		width: 100%;
+		border-radius: 12px;
+		padding: 14px 16px;
+		margin-bottom: 12px;
+		border: 1.5px solid rgba(46, 147, 60, 0.3);
+		background: rgba(46, 147, 60, 0.06);
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+
+	.resume-banner:hover {
+		border-color: rgba(46, 147, 60, 0.6);
+		background: rgba(46, 147, 60, 0.1);
+	}
+
+	.resume-dot {
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		background: #2e933c;
+		box-shadow: 0 0 0 3px rgba(46, 147, 60, 0.2);
+		animation: pulse-dot 2s ease-in-out infinite;
+	}
+
+	@keyframes pulse-dot {
+		0%, 100% { box-shadow: 0 0 0 3px rgba(46, 147, 60, 0.2); }
+		50% { box-shadow: 0 0 0 6px rgba(46, 147, 60, 0.1); }
 	}
 
 	.daily-banner:hover {
