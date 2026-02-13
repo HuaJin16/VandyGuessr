@@ -9,7 +9,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 
 DAILY_SALT = "vandyguessr-daily-2025"
-ROUNDS_PER_GAME = 1
+ROUNDS_PER_GAME = 5
 
 
 class DailyChallengeEntity(BaseModel):
