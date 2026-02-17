@@ -2,7 +2,7 @@
 
 import hashlib
 import random
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Protocol
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -18,7 +18,7 @@ class DailyChallengeEntity(BaseModel):
     id: str | None = Field(default=None, alias="_id")
     date: str  # YYYY-MM-DD in CST
     image_ids: list[str]
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = {"populate_by_name": True}
 

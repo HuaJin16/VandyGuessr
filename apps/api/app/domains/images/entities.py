@@ -1,6 +1,6 @@
 """Image entity for MongoDB documents."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -22,6 +22,6 @@ class ImageEntity(BaseModel):
     original_filename: str | None = None
     file_size: int
     location_name: str | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     model_config = {"populate_by_name": True}
