@@ -9,6 +9,7 @@ import PanoramaViewer from "./PanoramaViewer.svelte";
 
 export let game: Game;
 export let onGuess: () => void;
+export let onTimerExpiry: () => void;
 export let onEndGame: () => void;
 
 let timerSeconds = 0;
@@ -32,7 +33,7 @@ function startTimer(expiresAt: string) {
 		timerSeconds = remaining;
 		if (remaining <= 0) {
 			stopTimer();
-			onGuess();
+			onTimerExpiry();
 		}
 	}
 

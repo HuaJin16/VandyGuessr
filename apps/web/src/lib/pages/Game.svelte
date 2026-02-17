@@ -34,10 +34,46 @@ async function handleGuess() {
 		gameStore.showResults(updated, $gameStore.currentRoundIndex);
 		queryClient.setQueryData(["games", id], updated);
 	} catch (err: unknown) {
-		const e = err as { response?: { data?: { detail?: string } }; message?: string };
+		const e = err as {
+			response?: { status?: number; data?: { detail?: string } };
+			message?: string;
+		};
+		if (e?.response?.status === 409) {
+			await refetchAndReconcile("Round expired — moving to next round.");
+			return;
+		}
 		toast.error(e?.response?.data?.detail || e?.message || "Failed to submit guess");
 	} finally {
 		gameStore.setSubmitting(false);
+	}
+}
+
+async function handleTimerExpiry() {
+	if (!game) return;
+
+	if ($gameStore.guessPosition) {
+		await handleGuess();
+		return;
+	}
+
+	toast.info("Time's up! Round skipped.");
+	await refetchAndReconcile();
+}
+
+async function refetchAndReconcile(message?: string) {
+	if (!game) return;
+	try {
+		const updated = await gamesService.getById(game.id);
+		if (!updated) return;
+		queryClient.setQueryData(["games", id], updated);
+		if (updated.status !== "active") {
+			navigate(`/game/${updated.id}/summary`, { replace: true });
+			return;
+		}
+		gameStore.setGame(updated);
+		if (message) toast.info(message);
+	} catch {
+		toast.error("Failed to refresh game state");
 	}
 }
 
@@ -85,6 +121,7 @@ onDestroy(() => {
 		<GameplayView
 			{game}
 			onGuess={handleGuess}
+			onTimerExpiry={handleTimerExpiry}
 			onEndGame={handleEndGame}
 		/>
 	{:else}

@@ -20,6 +20,7 @@ from app.shared.scoring import compute_score, haversine
 logger = structlog.get_logger()
 
 TIMED_ROUND_SECONDS = 120
+TIMED_GRACE_SECONDS = 2  # network latency buffer for timed round expiry
 UNTIMED_TIMEOUT_SECONDS = 3600  # 1 hour inactivity timeout
 
 
@@ -145,8 +146,10 @@ class GameService:
         if rd.get("skipped"):
             raise GameError(f"Round {round_number} was skipped.", 409)
 
-        # Check timed expiry for this specific round
-        if rd.get("expires_at") and datetime.now(UTC) > rd["expires_at"]:
+        # Check timed expiry for this specific round (with grace period)
+        if rd.get("expires_at") and datetime.now(UTC) > rd["expires_at"] + timedelta(
+            seconds=TIMED_GRACE_SECONDS
+        ):
             raise GameError(f"Round {round_number} has expired.", 409)
 
         distance = haversine(lat, lng, rd["actual_lat"], rd["actual_lng"])
@@ -283,7 +286,7 @@ class GameService:
         return doc
 
     async def _check_expiry(self, doc: dict) -> None:
-        """Abandon active games that have timed out due to inactivity."""
+        """Reconcile active games: abandon on inactivity, skip expired timed rounds."""
         if doc["status"] != "active":
             return
 
@@ -292,10 +295,67 @@ class GameService:
             return
 
         now = datetime.now(UTC)
-        timeout = UNTIMED_TIMEOUT_SECONDS
-        if now - last > timedelta(seconds=timeout):
+
+        # Inactivity abandonment (applies to all modes)
+        if now - last > timedelta(seconds=UNTIMED_TIMEOUT_SECONDS):
             await self.game_repo.update_game(
                 doc["_id"], {"status": "abandoned", "last_activity_at": now}
             )
             doc["status"] = "abandoned"
             logger.info("game_auto_abandoned", game_id=doc["_id"])
+            return
+
+        # Timed-round reconciliation: skip rounds whose deadline has passed
+        if not doc["mode"].get("timed"):
+            return
+
+        grace = timedelta(seconds=TIMED_GRACE_SECONDS)
+        skipped_any = False
+
+        for i, rd in enumerate(doc["rounds"]):
+            expires = rd.get("expires_at")
+            if not expires:
+                continue
+            if rd.get("guess") or rd.get("skipped"):
+                continue
+            if now > expires + grace:
+                await self.game_repo.update_round(
+                    doc["_id"], i, {"skipped": True, "score": 0}
+                )
+                doc["rounds"][i]["skipped"] = True
+                doc["rounds"][i]["score"] = 0
+                skipped_any = True
+                logger.info("round_auto_skipped", game_id=doc["_id"], round=i + 1)
+
+        if not skipped_any:
+            return
+
+        # Find next playable round and start it, or complete the game
+        next_index = next(
+            (
+                i
+                for i, rd in enumerate(doc["rounds"])
+                if not rd.get("guess") and not rd.get("skipped")
+            ),
+            None,
+        )
+
+        if next_index is not None:
+            next_round_update = {
+                "started_at": now,
+                "expires_at": now + timedelta(seconds=TIMED_ROUND_SECONDS),
+            }
+            await self.game_repo.update_round(doc["_id"], next_index, next_round_update)
+            doc["rounds"][next_index]["started_at"] = now
+            doc["rounds"][next_index]["expires_at"] = now + timedelta(
+                seconds=TIMED_ROUND_SECONDS
+            )
+        else:
+            await self.game_repo.update_game(
+                doc["_id"], {"status": "completed", "last_activity_at": now}
+            )
+            doc["status"] = "completed"
+            logger.info("game_auto_completed", game_id=doc["_id"])
+
+        await self.game_repo.update_game(doc["_id"], {"last_activity_at": now})
+        doc["last_activity_at"] = now
