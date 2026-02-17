@@ -12,6 +12,11 @@ from app.domains.games.repository import GameRepository, IGameRepository
 from app.domains.games.service import GameService
 from app.domains.images.repository import IImageRepository, ImageRepository
 from app.domains.images.service import ImageService
+from app.domains.leaderboard.repository import (
+    ILeaderboardRepository,
+    LeaderboardRepository,
+)
+from app.domains.leaderboard.service import LeaderboardService
 from app.domains.locations.repository import ILocationRepository, LocationRepository
 from app.domains.locations.service import LocationService
 from app.domains.multiplayer.connection_manager import ConnectionManager
@@ -39,8 +44,7 @@ container[IImageRepository] = ImageRepository
 container[ILocationRepository] = LocationRepository
 container[IGameRepository] = GameRepository
 container[IDailyChallengeRepository] = DailyChallengeRepository
-
-# Register multiplayer repository
+container[ILeaderboardRepository] = LeaderboardRepository
 container[IMultiplayerGameRepository] = MultiplayerGameRepository
 
 # Register services
@@ -48,6 +52,7 @@ container[UserService] = UserService
 container[LocationService] = LocationService
 container[ImageService] = ImageService
 container[GameService] = GameService
+container[LeaderboardService] = LeaderboardService
 
 # Register multiplayer services (singletons — one instance manages all connections)
 container[MultiplayerService] = MultiplayerService

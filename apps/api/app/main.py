@@ -18,6 +18,7 @@ from app.core.db import (
 )
 from app.domains.games.router import router as games_router
 from app.domains.images.router import router as images_router
+from app.domains.leaderboard.router import router as leaderboard_router
 from app.domains.users.router import router as users_router
 
 logger = structlog.get_logger()
@@ -83,6 +84,7 @@ def create_app() -> FastAPI:
     # Include domain routers under /v1 prefix
     app.include_router(games_router, prefix="/v1")
     app.include_router(images_router, prefix="/v1")
+    app.include_router(leaderboard_router, prefix="/v1")
     app.include_router(users_router, prefix="/v1")
 
     # Conditionally register multiplayer router

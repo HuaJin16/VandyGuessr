@@ -2,6 +2,7 @@
 import Game from "$lib/pages/Game.svelte";
 import GameSummary from "$lib/pages/GameSummary.svelte";
 import Home from "$lib/pages/Home.svelte";
+import Leaderboard from "$lib/pages/Leaderboard.svelte";
 import Login from "$lib/pages/Login.svelte";
 import MultiplayerGame from "$lib/pages/MultiplayerGame.svelte";
 import MultiplayerLobby from "$lib/pages/MultiplayerLobby.svelte";
@@ -49,6 +50,7 @@ $: if (!$isLoading) {
     <Route path="/" component={Home} />
     <Route path="/game/:id/summary" component={GameSummary} />
     <Route path="/game/:id" component={Game} />
+    <Route path="/leaderboard" component={Leaderboard} />
     <Route path="/login" component={Login} />
     {#if multiplayerEnabled}
       <Route path="/multiplayer/:id/lobby" component={MultiplayerLobby} />

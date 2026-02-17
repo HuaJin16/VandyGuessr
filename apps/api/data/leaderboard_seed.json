@@ -1,0 +1,30 @@
+{
+  "user": {
+    "microsoft_oid": "leaderboard-seed-000",
+    "email": "seed000@vanderbilt.edu",
+    "username": "seed000",
+    "name": "Seed User",
+    "avatar_url": null
+  },
+  "game": {
+    "user_id": "leaderboard-seed-000",
+    "mode": {
+      "timed": false,
+      "environment": "outdoor",
+      "daily": false
+    },
+    "status": "completed",
+    "rounds": [
+      {
+        "round_id": 1,
+        "image_id": "seed-image-001",
+        "image_url": "https://example.com/seed-001.jpg",
+        "actual_lat": 36.1447,
+        "actual_lng": -86.8027,
+        "guess": { "lat": 36.1449, "lng": -86.8024 },
+        "location_name": "Rand Hall"
+      }
+    ],
+    "total_score": 5000
+  }
+}
