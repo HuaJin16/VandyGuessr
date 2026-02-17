@@ -19,6 +19,14 @@ from app.shared.scoring import compute_score, haversine
 
 logger = structlog.get_logger()
 
+
+def _ensure_utc(dt: datetime | None) -> datetime | None:
+    """Attach UTC tzinfo to naive datetimes from legacy documents."""
+    if dt is not None and dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt
+
+
 TIMED_ROUND_SECONDS = 120
 TIMED_GRACE_SECONDS = 2  # network latency buffer for timed round expiry
 UNTIMED_TIMEOUT_SECONDS = 3600  # 1 hour inactivity timeout
@@ -147,7 +155,8 @@ class GameService:
             raise GameError(f"Round {round_number} was skipped.", 409)
 
         # Check timed expiry for this specific round (with grace period)
-        if rd.get("expires_at") and datetime.now(UTC) > rd["expires_at"] + timedelta(
+        expires = _ensure_utc(rd.get("expires_at"))
+        if expires and datetime.now(UTC) > expires + timedelta(
             seconds=TIMED_GRACE_SECONDS
         ):
             raise GameError(f"Round {round_number} has expired.", 409)
@@ -290,7 +299,7 @@ class GameService:
         if doc["status"] != "active":
             return
 
-        last = doc.get("last_activity_at")
+        last = _ensure_utc(doc.get("last_activity_at"))
         if not last:
             return
 
@@ -313,7 +322,7 @@ class GameService:
         skipped_any = False
 
         for i, rd in enumerate(doc["rounds"]):
-            expires = rd.get("expires_at")
+            expires = _ensure_utc(rd.get("expires_at"))
             if not expires:
                 continue
             if rd.get("guess") or rd.get("skipped"):
