@@ -33,6 +33,10 @@ export function createMultiplayerWs(options: MultiplayerWsOptions) {
 	}
 
 	async function connect() {
+		if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+			return;
+		}
+
 		const token = await getAccessToken();
 		if (!token) {
 			setConnectionState("disconnected");
@@ -50,8 +54,10 @@ export function createMultiplayerWs(options: MultiplayerWsOptions) {
 		};
 
 		ws.onmessage = (event) => {
-			const data = JSON.parse(event.data) as ServerMessage;
-			onMessage(data);
+			try {
+				const data = JSON.parse(event.data) as ServerMessage;
+				onMessage(data);
+			} catch {}
 		};
 
 		ws.onclose = (event) => {
@@ -62,7 +68,7 @@ export function createMultiplayerWs(options: MultiplayerWsOptions) {
 			}
 
 			// Non-recoverable close codes — don't reconnect
-			const noReconnectCodes = [4001, 4003, 4004, 4010, 4011, 4012];
+			const noReconnectCodes = [1000, 4001, 4003, 4004, 4010, 4011, 4012];
 			if (noReconnectCodes.includes(event.code)) {
 				setConnectionState("disconnected");
 				return;
@@ -83,10 +89,23 @@ export function createMultiplayerWs(options: MultiplayerWsOptions) {
 		};
 	}
 
-	function send(message: Record<string, unknown>) {
+	function send(message: Record<string, unknown>): boolean {
 		if (ws?.readyState === WebSocket.OPEN) {
 			ws.send(JSON.stringify(message));
+			return true;
 		}
+
+		return false;
+	}
+
+	function reconnect() {
+		intentionalClose = false;
+		reconnectAttempts = 0;
+		if (reconnectTimer) {
+			clearTimeout(reconnectTimer);
+			reconnectTimer = null;
+		}
+		void connect();
 	}
 
 	function close() {
@@ -112,6 +131,7 @@ export function createMultiplayerWs(options: MultiplayerWsOptions) {
 	return {
 		connectionState: { subscribe: connectionState.subscribe },
 		send,
+		reconnect,
 		close,
 		refreshToken,
 	};

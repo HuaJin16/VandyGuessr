@@ -3,6 +3,7 @@
 import secrets
 import string
 from datetime import UTC, datetime
+from typing import Literal, cast
 
 import redis.asyncio as redis
 import structlog
@@ -66,6 +67,7 @@ class MultiplayerService:
 
         invite_code = await self._generate_invite_code()
         now = datetime.now(UTC)
+        mode_environment = cast(Literal["indoor", "outdoor", "any"], environment)
 
         rounds = [
             MultiplayerRoundEntity(
@@ -89,7 +91,7 @@ class MultiplayerService:
         game = MultiplayerGameEntity(
             host_id=host_id,
             invite_code=invite_code,
-            mode=MultiplayerModeEntity(environment=environment),
+            mode=MultiplayerModeEntity(environment=mode_environment),
             players=[host_player],
             rounds=rounds,
             created_at=now,
@@ -120,7 +122,7 @@ class MultiplayerService:
         name: str,
         avatar_url: str | None,
         code: str,
-    ) -> dict:
+    ) -> tuple[dict, MultiplayerPlayerEntity | None]:
         code = code.upper().strip()
 
         game_id = await self.redis.get(f"mp:lobby:{code}")
@@ -140,12 +142,13 @@ class MultiplayerService:
         if doc["status"] != "waiting":
             raise MultiplayerError("This game is no longer accepting players.", 409)
 
-        if len(doc["players"]) >= MAX_PLAYERS:
-            raise MultiplayerError("Game is full.", 409)
-
         for p in doc["players"]:
             if p["user_id"] == user_id:
-                return doc
+                return doc, None
+
+        existing = await self.repo.find_active_by_user(user_id)
+        if existing and str(existing["_id"]) != game_id:
+            raise MultiplayerError("You already have an active multiplayer game.")
 
         player = MultiplayerPlayerEntity(
             user_id=user_id,
@@ -154,12 +157,29 @@ class MultiplayerService:
             joined_at=datetime.now(UTC),
         )
 
-        await self.repo.add_player(game_id, player)
-        await self.repo.update_game(game_id, {"last_activity_at": datetime.now(UTC)})
+        joined = await self.repo.add_player_if_waiting_and_not_full(
+            game_id,
+            player,
+            MAX_PLAYERS,
+        )
+
+        if not joined:
+            fresh = await self._reload(game_id)
+            if fresh["status"] != "waiting":
+                raise MultiplayerError("This game is no longer accepting players.", 409)
+
+            for p in fresh["players"]:
+                if p["user_id"] == user_id:
+                    return fresh, None
+
+            if len(fresh["players"]) >= MAX_PLAYERS:
+                raise MultiplayerError("Game is full.", 409)
+
+            raise MultiplayerError("Unable to join game. Please try again.", 409)
 
         logger.info("player_joined_multiplayer", game_id=game_id, user_id=user_id)
 
-        return await self._reload(game_id)
+        return await self._reload(game_id), player
 
     async def get_game(self, game_id: str, user_id: str) -> dict:
         doc = await self.repo.find_by_id(game_id)

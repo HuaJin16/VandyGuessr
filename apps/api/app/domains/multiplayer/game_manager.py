@@ -27,6 +27,11 @@ RATE_LIMIT_MAX = 10
 RATE_LIMIT_WINDOW = 1.0
 
 
+def _iso_utc(value: datetime) -> str:
+    dt = value if value.tzinfo else value.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
 class GameManager:
     def __init__(
         self,
@@ -158,11 +163,16 @@ class GameManager:
         if not doc:
             return
 
+        player = next((p for p in doc["players"] if p["user_id"] == user_id), None)
+        if not player:
+            return
+
         reconnect_key = f"{game_id}:{user_id}"
         if reconnect_key in self._reconnect_tasks:
             self._reconnect_tasks[reconnect_key].cancel()
             del self._reconnect_tasks[reconnect_key]
 
+        if player.get("status") == "disconnected":
             await self.repo.update_player(
                 game_id,
                 user_id,
@@ -186,9 +196,10 @@ class GameManager:
             self._abandon_tasks[abandon_key].cancel()
             del self._abandon_tasks[abandon_key]
 
-        if doc["status"] == "active":
+        if doc["status"] in ("active", "waiting"):
             await self._send_game_state(game_id, user_id, doc)
-        elif doc["status"] == "waiting" and game_id not in self._lobby_tasks:
+
+        if doc["status"] == "waiting" and game_id not in self._lobby_tasks:
             self._lobby_tasks[game_id] = asyncio.create_task(
                 self._lobby_expiry_watcher(game_id, doc["invite_code"], doc["host_id"])
             )
@@ -199,7 +210,16 @@ class GameManager:
             return
 
         player = next((p for p in doc["players"] if p["user_id"] == user_id), None)
-        if player and player["status"] == "forfeited":
+        if not player:
+            return
+
+        if player["status"] == "forfeited":
+            return
+
+        if player["status"] == "disconnected":
+            return
+
+        if self.cm.has_local_connection(game_id, user_id):
             return
 
         await self.repo.update_player(
@@ -218,19 +238,24 @@ class GameManager:
             {
                 "type": ServerEvent.PLAYER_DISCONNECTED,
                 "userId": user_id,
-                "reconnectDeadline": deadline.isoformat() + "Z",
+                "reconnectDeadline": _iso_utc(deadline),
             },
         )
 
         reconnect_key = f"{game_id}:{user_id}"
         self._reconnect_tasks[reconnect_key] = asyncio.create_task(
-            self._reconnect_timeout(game_id, user_id, doc)
+            self._reconnect_timeout(game_id, user_id)
         )
 
-        connected = self.cm.get_local_connections(game_id)
+        fresh = await self._load(game_id)
+        active_players = [
+            p for p in (fresh["players"] if fresh else []) if p["status"] != "forfeited"
+        ]
         if (
-            not connected
-            and doc["status"] == "active"
+            fresh
+            and fresh["status"] == "active"
+            and active_players
+            and all(p["status"] == "disconnected" for p in active_players)
             and game_id not in self._abandon_tasks
         ):
             self._abandon_tasks[game_id] = asyncio.create_task(
@@ -312,9 +337,21 @@ class GameManager:
 
         await asyncio.sleep(COUNTDOWN_SECONDS)
 
+        fresh = await self._load(game_id)
+        if not fresh:
+            return
+
+        if fresh["status"] != "waiting" or fresh["host_id"] != user_id:
+            return
+
+        active_players = [p for p in fresh["players"] if p["status"] != "forfeited"]
+        if len(active_players) < 2:
+            return
+
         now = datetime.now(UTC)
-        await self.repo.update_game(
+        started = await self.repo.update_game_if_status(
             game_id,
+            "waiting",
             {
                 "status": "active",
                 "started_at": now,
@@ -322,6 +359,9 @@ class GameManager:
                 "last_activity_at": now,
             },
         )
+
+        if not started:
+            return
 
         await self._start_round(game_id, 0)
 
@@ -345,6 +385,7 @@ class GameManager:
             return
 
         round_index = doc["current_round"] - 1
+        submitted_round = doc["current_round"]
         rd = doc["rounds"][round_index]
 
         if user_id in rd.get("guesses", {}):
@@ -370,25 +411,35 @@ class GameManager:
             submitted_at=now,
         )
 
-        await self.repo.set_guess(game_id, round_index, user_id, guess)
+        set_guess = await self.repo.set_guess(game_id, round_index, user_id, guess)
+        if not set_guess:
+            return
 
-        player = next((p for p in doc["players"] if p["user_id"] == user_id), None)
-        if player:
-            new_total = player.get("total_score", 0) + score
-            await self.repo.update_player(game_id, user_id, {"total_score": new_total})
+        await self.repo.increment_player_score(game_id, user_id, score)
 
         await self.cm.send_to_player(
             game_id,
             user_id,
             {
                 "type": ServerEvent.GUESS_ACCEPTED,
-                "round": doc["current_round"],
+                "round": submitted_round,
             },
         )
 
-        active_players = [p for p in doc["players"] if p["status"] != "forfeited"]
-        guesses = rd.get("guesses", {})
-        guessed_count = len(guesses) + 1  # +1 for the guess we just recorded
+        refreshed = await self._load(game_id)
+        if not refreshed:
+            return
+
+        current_round_index = refreshed["current_round"] - 1
+        if current_round_index != round_index:
+            return
+
+        if current_round_index < 0 or current_round_index >= len(refreshed["rounds"]):
+            return
+
+        active_players = [p for p in refreshed["players"] if p["status"] != "forfeited"]
+        guesses = refreshed["rounds"][current_round_index].get("guesses", {})
+        guessed_count = len(guesses)
         remaining = len(active_players) - guessed_count
 
         await self.cm.broadcast(
@@ -402,7 +453,7 @@ class GameManager:
         )
 
         if remaining <= 0:
-            await self._try_resolve_round(game_id, round_index)
+            await self._try_resolve_round(game_id, current_round_index)
 
     async def _handle_forfeit(self, game_id: str, user_id: str) -> None:
         await self.repo.update_player(game_id, user_id, {"status": "forfeited"})
@@ -484,8 +535,17 @@ class GameManager:
             return
 
         await self.repo.remove_player(game_id, user_id)
+        await self.repo.update_game(game_id, {"last_activity_at": datetime.now(UTC)})
 
-        player_count = len(doc["players"]) - 1
+        reconnect_key = f"{game_id}:{user_id}"
+        if reconnect_key in self._reconnect_tasks:
+            self._reconnect_tasks[reconnect_key].cancel()
+            del self._reconnect_tasks[reconnect_key]
+
+        fresh = await self._load(game_id)
+        player_count = (
+            len(fresh["players"]) if fresh else max(0, len(doc["players"]) - 1)
+        )
         await self.cm.broadcast(
             game_id,
             {
@@ -535,7 +595,7 @@ class GameManager:
                 "type": ServerEvent.ROUND_START,
                 "round": round_index + 1,
                 "imageUrl": rd["image_url"],
-                "expiresAt": expires_at.isoformat() + "Z",
+                "expiresAt": _iso_utc(expires_at),
             },
         )
 
@@ -565,13 +625,9 @@ class GameManager:
             if round_index >= len(doc["rounds"]):
                 return
 
-            rd = doc["rounds"][round_index]
-
-            # Check if already resolved (round_result was already broadcast)
-            if rd.get("started_at") and rd.get("_resolved"):
+            resolved = await self.repo.mark_round_resolved(game_id, round_index)
+            if not resolved:
                 return
-
-            await self.repo.update_round(game_id, round_index, {"_resolved": True})
 
             timer_key = f"{game_id}:round:{round_index}"
             if timer_key in self._timer_tasks:
@@ -612,31 +668,14 @@ class GameManager:
 
             results.sort(key=lambda r: r["score"], reverse=True)
 
-            # Rebuild standings from the refreshed doc
-            standings = []
-            for p in doc["players"]:
-                p_guesses = guesses.get(p["user_id"])
-                round_score = p_guesses["score"] if p_guesses else 0
-                standings.append(
-                    {
-                        "userId": p["user_id"],
-                        "name": p["name"],
-                        "totalScore": p.get("total_score", 0)
-                        + (round_score if p["user_id"] not in guesses else 0),
-                    }
-                )
-
-            # Recalculate from actual player totals
-            refreshed_doc = await self._load(game_id)
-            if refreshed_doc:
-                standings = [
-                    {
-                        "userId": p["user_id"],
-                        "name": p["name"],
-                        "totalScore": p.get("total_score", 0),
-                    }
-                    for p in refreshed_doc["players"]
-                ]
+            standings = [
+                {
+                    "userId": p["user_id"],
+                    "name": p["name"],
+                    "totalScore": p.get("total_score", 0),
+                }
+                for p in doc["players"]
+            ]
 
             standings.sort(key=lambda s: s["totalScore"], reverse=True)
             for i, s in enumerate(standings):
@@ -739,9 +778,23 @@ class GameManager:
     # Timeout handlers
     # ------------------------------------------------------------------
 
-    async def _reconnect_timeout(self, game_id: str, user_id: str, doc: dict) -> None:
+    async def _reconnect_timeout(self, game_id: str, user_id: str) -> None:
         try:
             await asyncio.sleep(RECONNECT_TIMEOUT_SECONDS)
+
+            doc = await self._load(game_id)
+            if not doc:
+                return
+
+            player = next((p for p in doc["players"] if p["user_id"] == user_id), None)
+            if not player:
+                return
+
+            if player["status"] != "disconnected":
+                return
+
+            if self.cm.has_local_connection(game_id, user_id):
+                return
 
             if doc["status"] == "waiting":
                 if doc["host_id"] == user_id:
@@ -756,7 +809,12 @@ class GameManager:
                     await self.cleanup_game(game_id)
                 else:
                     await self.repo.remove_player(game_id, user_id)
-                    remaining = len(doc["players"]) - 1
+                    fresh = await self._load(game_id)
+                    remaining = (
+                        len(fresh["players"])
+                        if fresh
+                        else max(0, len(doc["players"]) - 1)
+                    )
                     await self.cm.broadcast(
                         game_id,
                         {
@@ -779,29 +837,65 @@ class GameManager:
                     await self._check_last_player_standing(game_id, fresh_doc)
         except asyncio.CancelledError:
             pass
+        finally:
+            reconnect_key = f"{game_id}:{user_id}"
+            self._reconnect_tasks.pop(reconnect_key, None)
 
     async def _abandon_timeout(self, game_id: str) -> None:
         try:
             await asyncio.sleep(ABANDON_TIMEOUT_SECONDS)
-            await self.repo.update_game(game_id, {"status": "abandoned"})
+
+            doc = await self._load(game_id)
+            if not doc or doc["status"] != "active":
+                return
+
+            active_players = [p for p in doc["players"] if p["status"] != "forfeited"]
+            if not active_players:
+                return
+            if any(p["status"] != "disconnected" for p in active_players):
+                return
+
+            abandoned = await self.repo.update_game_if_status(
+                game_id,
+                "active",
+                {
+                    "status": "abandoned",
+                    "last_activity_at": datetime.now(UTC),
+                },
+            )
+            if not abandoned:
+                return
+
             logger.info("game_abandoned", game_id=game_id)
             await self.cleanup_game(game_id)
         except asyncio.CancelledError:
             pass
+        finally:
+            self._abandon_tasks.pop(game_id, None)
 
     async def _lobby_expiry_watcher(
         self, game_id: str, invite_code: str, host_id: str
     ) -> None:
         try:
-            warned = False
+            last_warned_extension = -1
             while True:
                 await asyncio.sleep(30)
+
+                doc = await self._load(game_id)
+                if not doc or doc["status"] != "waiting":
+                    return
+
                 ttl = await self.redis.ttl(f"mp:lobby:{invite_code}")
 
                 if ttl < 0:
-                    doc = await self._load(game_id)
-                    if doc and doc["status"] == "waiting":
-                        await self.repo.update_game(game_id, {"status": "cancelled"})
+                    if doc["status"] == "waiting":
+                        await self.repo.update_game(
+                            game_id,
+                            {
+                                "status": "cancelled",
+                                "last_activity_at": datetime.now(UTC),
+                            },
+                        )
                         await self.cm.broadcast(
                             game_id,
                             {
@@ -812,8 +906,12 @@ class GameManager:
                         await self.cleanup_game(game_id)
                     return
 
-                if ttl <= LOBBY_EXPIRY_WARNING_SECONDS and not warned:
-                    warned = True
+                extension_count = doc.get("lobby_extensions", 0)
+                if (
+                    ttl <= LOBBY_EXPIRY_WARNING_SECONDS
+                    and extension_count != last_warned_extension
+                ):
+                    last_warned_extension = extension_count
                     await self.cm.send_to_player(
                         game_id,
                         host_id,
@@ -823,6 +921,8 @@ class GameManager:
                     )
         except asyncio.CancelledError:
             pass
+        finally:
+            self._lobby_tasks.pop(game_id, None)
 
     # ------------------------------------------------------------------
     # State sync
@@ -842,7 +942,7 @@ class GameManager:
             round_data = {
                 "round": current_round,
                 "imageUrl": rd["image_url"],
-                "expiresAt": rd["expires_at"].isoformat() + "Z"
+                "expiresAt": _iso_utc(rd["expires_at"])
                 if rd.get("expires_at")
                 else None,
             }

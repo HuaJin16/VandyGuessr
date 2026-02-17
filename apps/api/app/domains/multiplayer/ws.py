@@ -175,8 +175,9 @@ async def multiplayer_ws(
     finally:
         if expiry_task:
             expiry_task.cancel()
-        await connection_manager.disconnect(game_id, user_id, ws)
-        await game_manager.on_player_disconnected(game_id, user_id)
+        disconnected = await connection_manager.disconnect(game_id, user_id, ws)
+        if disconnected:
+            await game_manager.on_player_disconnected(game_id, user_id)
 
 
 async def _token_expiry_watcher(

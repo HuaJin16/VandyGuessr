@@ -1,10 +1,13 @@
 """Multiplayer HTTP and WebSocket endpoints."""
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, HTTPException, WebSocket
 
 from app.container import deps
 from app.core.auth import CurrentUser
 from app.domains.multiplayer.connection_manager import ConnectionManager
+from app.domains.multiplayer.events import ServerEvent
 from app.domains.multiplayer.game_manager import GameManager
 from app.domains.multiplayer.models import (
     CreateMultiplayerRequest,
@@ -20,6 +23,14 @@ from app.domains.multiplayer.ws import multiplayer_ws
 router = APIRouter(prefix="/multiplayer", tags=["multiplayer"])
 
 
+def _iso_utc(value: object) -> str:
+    if not isinstance(value, datetime):
+        return str(value)
+
+    dt = value if value.tzinfo else value.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
 def _to_response(doc: dict) -> MultiplayerGameResponse:
     """Map a raw multiplayer game document to the API response model."""
     players = [
@@ -29,9 +40,7 @@ def _to_response(doc: dict) -> MultiplayerGameResponse:
             avatarUrl=p.get("avatar_url"),
             totalScore=p.get("total_score", 0),
             status=p.get("status", "connected"),
-            joinedAt=p["joined_at"].isoformat() + "Z"
-            if hasattr(p["joined_at"], "isoformat")
-            else str(p["joined_at"]),
+            joinedAt=_iso_utc(p["joined_at"]),
         )
         for p in doc["players"]
     ]
@@ -46,9 +55,7 @@ def _to_response(doc: dict) -> MultiplayerGameResponse:
                     lng=g["lng"],
                     distanceMeters=g["distance_meters"],
                     score=g["score"],
-                    submittedAt=g["submitted_at"].isoformat() + "Z"
-                    if hasattr(g["submitted_at"], "isoformat")
-                    else str(g["submitted_at"]),
+                    submittedAt=_iso_utc(g["submitted_at"]),
                 )
                 for uid, g in rd["guesses"].items()
             }
@@ -65,12 +72,8 @@ def _to_response(doc: dict) -> MultiplayerGameResponse:
                 if has_resolved
                 else None,
                 locationName=rd.get("location_name") if has_resolved else None,
-                startedAt=rd["started_at"].isoformat() + "Z"
-                if has_started and hasattr(rd["started_at"], "isoformat")
-                else None,
-                expiresAt=rd["expires_at"].isoformat() + "Z"
-                if rd.get("expires_at") and hasattr(rd["expires_at"], "isoformat")
-                else None,
+                startedAt=_iso_utc(rd["started_at"]) if has_started else None,
+                expiresAt=_iso_utc(rd["expires_at"]) if rd.get("expires_at") else None,
                 guesses=guesses if has_resolved else None,
             )
         )
@@ -92,15 +95,9 @@ def _to_response(doc: dict) -> MultiplayerGameResponse:
         players=players,
         rounds=rounds,
         currentRound=doc.get("current_round", 0),
-        createdAt=doc["created_at"].isoformat() + "Z"
-        if hasattr(doc["created_at"], "isoformat")
-        else str(doc["created_at"]),
-        startedAt=doc["started_at"].isoformat() + "Z"
-        if doc.get("started_at") and hasattr(doc["started_at"], "isoformat")
-        else None,
-        lastActivityAt=doc["last_activity_at"].isoformat() + "Z"
-        if hasattr(doc["last_activity_at"], "isoformat")
-        else str(doc["last_activity_at"]),
+        createdAt=_iso_utc(doc["created_at"]),
+        startedAt=_iso_utc(doc["started_at"]) if doc.get("started_at") else None,
+        lastActivityAt=_iso_utc(doc["last_activity_at"]),
     )
 
 
@@ -131,9 +128,10 @@ async def join_game(
     body: JoinMultiplayerRequest,
     current_user: CurrentUser,
     service: MultiplayerService = deps(MultiplayerService),
+    connection_manager: ConnectionManager = deps(ConnectionManager),
 ) -> MultiplayerGameResponse:
     try:
-        doc = await service.join_game(
+        doc, joined_player = await service.join_game(
             user_id=_user_id(current_user),
             name=current_user.get("name") or "Player",
             avatar_url=None,
@@ -141,6 +139,21 @@ async def join_game(
         )
     except MultiplayerError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message) from e
+
+    if joined_player:
+        await connection_manager.broadcast(
+            doc["_id"],
+            {
+                "type": ServerEvent.PLAYER_JOINED,
+                "player": {
+                    "userId": joined_player.user_id,
+                    "name": joined_player.name,
+                    "avatarUrl": joined_player.avatar_url,
+                },
+                "playerCount": len(doc["players"]),
+            },
+        )
+
     return _to_response(doc)
 
 

@@ -2,10 +2,19 @@ import { derived, writable } from "svelte/store";
 import type {
 	ConnectionState,
 	MultiplayerGame,
+	MultiplayerGameStatus,
 	MultiplayerPhase,
+	MultiplayerPlayer,
 	RoundResult,
 	Standing,
 } from "../types";
+
+function statusToPhase(status: MultiplayerGameStatus): MultiplayerPhase {
+	if (status === "active") return "playing";
+	if (status === "completed") return "game_over";
+	if (status === "cancelled" || status === "abandoned") return "lobby";
+	return "lobby";
+}
 
 interface MultiplayerState {
 	connection: ConnectionState;
@@ -43,7 +52,7 @@ function createMultiplayerStore() {
 	return {
 		subscribe,
 		setGame(game: MultiplayerGame) {
-			update((s) => ({ ...s, game }));
+			update((s) => ({ ...s, game, phase: statusToPhase(game.status) }));
 		},
 		setConnection(connection: ConnectionState) {
 			update((s) => ({ ...s, connection }));
@@ -92,25 +101,73 @@ function createMultiplayerStore() {
 				...s,
 				phase: "game_over",
 				standings,
+				game: s.game ? { ...s.game, status: "completed" } : s.game,
 			}));
+		},
+		updatePlayerStatus(userId: string, status: MultiplayerPlayer["status"]) {
+			update((s) => {
+				if (!s.game) return s;
+				return {
+					...s,
+					game: {
+						...s.game,
+						players: s.game.players.map((player) =>
+							player.userId === userId ? { ...player, status } : player,
+						),
+					},
+				};
+			});
 		},
 		setSubmitting(v: boolean) {
 			update((s) => ({ ...s, submitting: v }));
 		},
 		applyGameState(payload: {
+			status: MultiplayerGameStatus;
 			currentRound: number;
-			round: { round: number; imageUrl: string; expiresAt: string } | null;
+			round: { round: number; imageUrl: string; expiresAt: string | null } | null;
 			playersGuessed: string[];
 			hasGuessedThisRound: boolean;
+			players: Array<{
+				userId: string;
+				name: string;
+				status: MultiplayerPlayer["status"];
+				totalScore: number;
+			}>;
 		}) {
+			const standings = [...payload.players]
+				.sort((a, b) => b.totalScore - a.totalScore)
+				.map((player, index) => ({
+					userId: player.userId,
+					name: player.name,
+					totalScore: player.totalScore,
+					rank: index + 1,
+				}));
+
 			update((s) => ({
 				...s,
-				phase: payload.round ? "playing" : s.phase,
+				phase: payload.round ? "playing" : statusToPhase(payload.status),
 				currentRound: payload.currentRound,
-				imageUrl: payload.round?.imageUrl ?? s.imageUrl,
-				expiresAt: payload.round?.expiresAt ?? s.expiresAt,
+				imageUrl: payload.round?.imageUrl ?? null,
+				expiresAt: payload.round?.expiresAt ?? null,
 				playersGuessed: payload.playersGuessed,
 				hasGuessedThisRound: payload.hasGuessedThisRound,
+				standings,
+				game: s.game
+					? {
+							...s.game,
+							status: payload.status,
+							currentRound: payload.currentRound,
+							players: s.game.players.map((player) => {
+								const next = payload.players.find((p) => p.userId === player.userId);
+								if (!next) return player;
+								return {
+									...player,
+									status: next.status,
+									totalScore: next.totalScore,
+								};
+							}),
+						}
+					: s.game,
 			}));
 		},
 		reset() {

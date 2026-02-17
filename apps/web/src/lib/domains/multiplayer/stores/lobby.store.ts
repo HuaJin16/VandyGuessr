@@ -1,6 +1,12 @@
 import { derived, writable } from "svelte/store";
 import type { LobbyStatus, MultiplayerGame, MultiplayerPlayer } from "../types";
 
+function toLobbyStatus(status: MultiplayerGame["status"]): LobbyStatus {
+	if (status === "waiting") return "waiting";
+	if (status === "active") return "starting";
+	return "cancelled";
+}
+
 interface LobbyState {
 	game: MultiplayerGame | null;
 	players: MultiplayerPlayer[];
@@ -25,29 +31,46 @@ function createLobbyStore() {
 				...s,
 				game,
 				players: game.players,
-				status: game.status === "waiting" ? "waiting" : s.status,
+				status: toLobbyStatus(game.status),
+			}));
+		},
+		setPlayers(players: MultiplayerPlayer[]) {
+			update((s) => ({
+				...s,
+				players,
+				game: s.game ? { ...s.game, players } : s.game,
 			}));
 		},
 		addPlayer(player: MultiplayerPlayer) {
 			update((s) => {
 				const exists = s.players.some((p) => p.userId === player.userId);
+				const players = exists ? s.players : [...s.players, player];
 				return {
 					...s,
-					players: exists ? s.players : [...s.players, player],
+					players,
+					game: s.game ? { ...s.game, players } : s.game,
 				};
 			});
 		},
 		removePlayer(userId: string) {
-			update((s) => ({
-				...s,
-				players: s.players.filter((p) => p.userId !== userId),
-			}));
+			update((s) => {
+				const players = s.players.filter((p) => p.userId !== userId);
+				return {
+					...s,
+					players,
+					game: s.game ? { ...s.game, players } : s.game,
+				};
+			});
 		},
 		updatePlayerStatus(userId: string, status: MultiplayerPlayer["status"]) {
-			update((s) => ({
-				...s,
-				players: s.players.map((p) => (p.userId === userId ? { ...p, status } : p)),
-			}));
+			update((s) => {
+				const players = s.players.map((p) => (p.userId === userId ? { ...p, status } : p));
+				return {
+					...s,
+					players,
+					game: s.game ? { ...s.game, players } : s.game,
+				};
+			});
 		},
 		setCountdown(countdown: number | null) {
 			update((s) => ({ ...s, countdown, status: countdown !== null ? "starting" : s.status }));

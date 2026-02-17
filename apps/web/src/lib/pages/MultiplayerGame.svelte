@@ -25,7 +25,10 @@ $: gameQuery = createQuery({
 	enabled: $auth.isInitialized,
 });
 
-$: if ($gameQuery.data) {
+let hydratedFromQuery = false;
+
+$: if ($gameQuery.data && !hydratedFromQuery) {
+	hydratedFromQuery = true;
 	multiplayerStore.setGame($gameQuery.data);
 }
 
@@ -94,7 +97,7 @@ function handleMessage(msg: ServerMessage) {
 					userId: string;
 					name: string;
 					score: number;
-					distanceMeters: number;
+					distanceMeters: number | null;
 					guess: { lat: number; lng: number } | null;
 				}>;
 				actual: { lat: number; lng: number };
@@ -125,28 +128,49 @@ function handleMessage(msg: ServerMessage) {
 		case ServerEvent.PlayerDisconnected: {
 			const data = msg as unknown as { userId: string };
 			toast.info("A player disconnected (30s to reconnect)");
-			// Update player status on game object if we have it
-			void data;
+			multiplayerStore.updatePlayerStatus(data.userId, "disconnected");
 			break;
 		}
 		case ServerEvent.PlayerReconnected: {
+			const data = msg as unknown as { userId: string };
 			toast.info("Player reconnected");
+			multiplayerStore.updatePlayerStatus(data.userId, "connected");
 			break;
 		}
 		case ServerEvent.PlayerForfeited: {
+			const data = msg as unknown as { userId: string };
+			multiplayerStore.updatePlayerStatus(data.userId, "forfeited");
 			toast.info("A player has left the game");
+			if (data.userId === currentUserId) {
+				setTimeout(() => navigate("/", { replace: true }), 1200);
+			}
 			break;
 		}
 		case ServerEvent.GameState: {
 			const data = msg as unknown as {
+				status: "waiting" | "active" | "completed" | "cancelled" | "abandoned";
 				currentRound: number;
-				round: { round: number; imageUrl: string; expiresAt: string } | null;
+				round: { round: number; imageUrl: string; expiresAt: string | null } | null;
 				playersGuessed: string[];
 				hasGuessedThisRound: boolean;
+				players: Array<{
+					userId: string;
+					name: string;
+					status: "connected" | "disconnected" | "forfeited";
+					totalScore: number;
+				}>;
 			};
+			if (data.status === "cancelled" || data.status === "abandoned") {
+				toast.error("Game is no longer active");
+				setTimeout(() => navigate("/", { replace: true }), 1200);
+				break;
+			}
+
 			multiplayerStore.applyGameState(data);
-			if (data.round) {
+			if (data.round?.expiresAt) {
 				startTimerTick();
+			} else {
+				stopTimerTick();
 			}
 			break;
 		}
@@ -162,6 +186,7 @@ function handleMessage(msg: ServerMessage) {
 		}
 		case ServerEvent.Error: {
 			const data = msg as unknown as { message: string };
+			multiplayerStore.setSubmitting(false);
 			toast.error(data.message);
 			break;
 		}
@@ -177,9 +202,18 @@ $: if ($auth.isInitialized && $gameQuery.data) {
 		ws = createMultiplayerWs({
 			gameId: id,
 			onMessage: handleMessage,
-			onConnectionChange: (state) => multiplayerStore.setConnection(state),
+			onConnectionChange: (state) => {
+				multiplayerStore.setConnection(state);
+				if (state === "disconnected") {
+					multiplayerStore.setSubmitting(false);
+				}
+			},
 		});
 	}
+}
+
+function reconnect() {
+	ws?.reconnect();
 }
 
 function handleMapClick(pos: { lat: number; lng: number }) {
@@ -188,12 +222,16 @@ function handleMapClick(pos: { lat: number; lng: number }) {
 
 function submitGuess() {
 	if (!guessPosition || hasGuessed || submitting) return;
-	multiplayerStore.setSubmitting(true);
-	ws?.send({
+	const sent = ws?.send({
 		type: ClientEvent.SubmitGuess,
 		lat: guessPosition.lat,
 		lng: guessPosition.lng,
 	});
+	if (!sent) {
+		toast.error("Connection lost. Reconnect to submit your guess.");
+		return;
+	}
+	multiplayerStore.setSubmitting(true);
 }
 
 function handleTimerExpiry() {
@@ -213,7 +251,8 @@ function goHome() {
 }
 
 $: currentUserId = $auth.account?.localAccountId ?? "";
-$: totalPlayers = $multiplayerStore.game?.players.length ?? 0;
+$: totalPlayers =
+	$multiplayerStore.game?.players.filter((player) => player.status !== "forfeited").length ?? 0;
 
 onMount(() => {
 	return () => {
@@ -250,11 +289,7 @@ onDestroy(() => {
 		</div>
 	{:else if phase === "results" && roundResult}
 		<div class="center-content">
-			<MultiplayerResultsView
-				result={roundResult}
-				totalRounds={5}
-				isLastRound={roundResult.round >= 5}
-			/>
+			<MultiplayerResultsView result={roundResult} />
 		</div>
 	{:else if phase === "playing" && imageUrl}
 		<div class="gameplay-layer">
@@ -288,11 +323,17 @@ onDestroy(() => {
 			{/if}
 
 			<button class="forfeit-btn" on:click={forfeit}>Forfeit</button>
+			{#if $multiplayerStore.connection === "disconnected"}
+				<button class="reconnect-btn" on:click={reconnect}>Reconnect</button>
+			{/if}
 		</div>
 	{:else}
 		<div class="center-content">
 			<div class="loading-spinner" />
 			<p class="waiting-text">Waiting for round to start...</p>
+			{#if $multiplayerStore.connection === "disconnected"}
+				<button class="btn-3d" on:click={reconnect}>Reconnect</button>
+			{/if}
 		</div>
 	{/if}
 </div>
@@ -365,6 +406,24 @@ onDestroy(() => {
 	}
 	.forfeit-btn:hover {
 		color: #d95d39;
+	}
+	.reconnect-btn {
+		position: fixed;
+		bottom: 24px;
+		right: 20px;
+		z-index: 40;
+		background: rgba(255, 255, 255, 0.92);
+		border: 1px solid rgba(0, 0, 0, 0.1);
+		border-radius: 9999px;
+		padding: 6px 12px;
+		font-family: "Rubik", sans-serif;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: #18181b;
+		cursor: pointer;
+	}
+	.reconnect-btn:hover {
+		background: white;
 	}
 	.waiting-text {
 		font-size: 0.875rem;

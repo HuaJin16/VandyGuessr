@@ -5,6 +5,7 @@ import { multiplayerQueries } from "$lib/domains/multiplayer/queries/multiplayer
 import { lobbyStore } from "$lib/domains/multiplayer/stores/lobby.store";
 import {
 	ClientEvent,
+	type ConnectionState,
 	type MultiplayerPlayer,
 	ServerEvent,
 	type ServerMessage,
@@ -23,13 +24,24 @@ $: gameQuery = createQuery({
 	enabled: $auth.isInitialized,
 });
 
-$: if ($gameQuery.data) {
+let hydratedFromQuery = false;
+
+$: if ($gameQuery.data && !hydratedFromQuery) {
+	hydratedFromQuery = true;
 	lobbyStore.setGame($gameQuery.data);
 }
 
 $: game = $lobbyStore.game;
 $: players = $lobbyStore.players;
 $: lobbyStatus = $lobbyStore.status;
+
+$: if (game?.status === "active") {
+	navigate(`/multiplayer/${id}`, { replace: true });
+}
+
+$: if (game && (game.status === "cancelled" || game.status === "abandoned")) {
+	lobbyStore.setCancelled();
+}
 
 function handleMessage(msg: ServerMessage) {
 	switch (msg.type) {
@@ -76,6 +88,42 @@ function handleMessage(msg: ServerMessage) {
 			setTimeout(() => navigate("/", { replace: true }), 2000);
 			break;
 		}
+		case ServerEvent.GameState: {
+			const data = msg as unknown as {
+				status: "waiting" | "active" | "completed" | "cancelled" | "abandoned";
+				players: Array<{
+					userId: string;
+					name: string;
+					status: MultiplayerPlayer["status"];
+					totalScore: number;
+				}>;
+			};
+
+			if (data.status === "active") {
+				navigate(`/multiplayer/${id}`, { replace: true });
+				break;
+			}
+
+			if (data.status === "cancelled" || data.status === "abandoned") {
+				lobbyStore.setCancelled();
+				break;
+			}
+
+			lobbyStore.setPlayers(
+				data.players.map((player) => {
+					const existing = players.find((p) => p.userId === player.userId);
+					return {
+						userId: player.userId,
+						name: player.name,
+						avatarUrl: existing?.avatarUrl ?? null,
+						totalScore: player.totalScore,
+						status: player.status,
+						joinedAt: existing?.joinedAt ?? new Date().toISOString(),
+					};
+				}),
+			);
+			break;
+		}
 		case ServerEvent.LobbyExpiring: {
 			lobbyExpiring = true;
 			toast.info("Lobby is about to expire. Extend or start the game.");
@@ -100,24 +148,37 @@ function handleMessage(msg: ServerMessage) {
 }
 
 let ws: ReturnType<typeof createMultiplayerWs> | null = null;
+let connectionState: ConnectionState = "connecting";
 
 $: if ($auth.isInitialized && $gameQuery.data) {
 	if (!ws) {
 		ws = createMultiplayerWs({
 			gameId: id,
 			onMessage: handleMessage,
+			onConnectionChange: (state) => {
+				connectionState = state;
+			},
 		});
 	}
 }
 
 let countdownValue: number | null = null;
+let countdownInterval: ReturnType<typeof setInterval> | null = null;
 let lobbyExpiring = false;
 
 function runCountdown(from: number) {
+	if (countdownInterval) {
+		clearInterval(countdownInterval);
+		countdownInterval = null;
+	}
+
 	countdownValue = from;
-	const interval = setInterval(() => {
+	countdownInterval = setInterval(() => {
 		if (countdownValue === null || countdownValue <= 1) {
-			clearInterval(interval);
+			if (countdownInterval) {
+				clearInterval(countdownInterval);
+				countdownInterval = null;
+			}
 			countdownValue = null;
 			return;
 		}
@@ -126,11 +187,15 @@ function runCountdown(from: number) {
 }
 
 function startGame() {
-	ws?.send({ type: ClientEvent.StartGame });
+	if (!ws?.send({ type: ClientEvent.StartGame })) {
+		toast.error("Not connected. Try reconnecting.");
+	}
 }
 
 function extendLobby() {
-	ws?.send({ type: ClientEvent.ExtendLobby });
+	if (!ws?.send({ type: ClientEvent.ExtendLobby })) {
+		toast.error("Not connected. Try reconnecting.");
+	}
 }
 
 function leaveLobby() {
@@ -139,9 +204,17 @@ function leaveLobby() {
 	navigate("/", { replace: true });
 }
 
+function reconnect() {
+	ws?.reconnect();
+}
+
 $: isHost = game?.hostId === $auth.account?.localAccountId;
 
 onDestroy(() => {
+	if (countdownInterval) {
+		clearInterval(countdownInterval);
+		countdownInterval = null;
+	}
 	ws?.close();
 	ws = null;
 	lobbyStore.reset();
@@ -173,6 +246,10 @@ onDestroy(() => {
 				</div>
 
 				<div class="lobby-actions">
+					{#if connectionState === "disconnected"}
+						<button class="extend-btn" on:click={reconnect}>Reconnect</button>
+					{/if}
+
 					{#if isHost}
 						<button
 							class="btn-3d start-btn"

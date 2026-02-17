@@ -67,7 +67,7 @@ export interface RoundPlayerResult {
 	userId: string;
 	name: string;
 	score: number;
-	distanceMeters: number;
+	distanceMeters: number | null;
 	guess: { lat: number; lng: number } | null;
 }
 
@@ -89,7 +89,7 @@ export interface RoundResult {
 export interface PreviousRound {
 	round: number;
 	score: number;
-	distanceMeters: number;
+	distanceMeters: number | null;
 }
 
 export interface GameStatePayload {
@@ -98,7 +98,7 @@ export interface GameStatePayload {
 	round: {
 		round: number;
 		imageUrl: string;
-		expiresAt: string;
+		expiresAt: string | null;
 	} | null;
 	playersGuessed: string[];
 	hasGuessedThisRound: boolean;
@@ -219,7 +219,7 @@ export interface GameStateMessage {
 	type: ServerEvent.GameState;
 	status: MultiplayerGameStatus;
 	currentRound: number;
-	round: { round: number; imageUrl: string; expiresAt: string } | null;
+	round: { round: number; imageUrl: string; expiresAt: string | null } | null;
 	playersGuessed: string[];
 	hasGuessedThisRound: boolean;
 	players: Array<{

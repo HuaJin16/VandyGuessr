@@ -1,12 +1,7 @@
 <script lang="ts">
-import { createEventDispatcher } from "svelte";
 import type { RoundResult } from "../types";
 
 export let result: RoundResult;
-export let totalRounds: number;
-export let isLastRound: boolean;
-
-const dispatch = createEventDispatcher<{ nextRound: undefined }>();
 
 const playerColors = ["#2e933c", "#3b82f6", "#f4c430", "#d95d39", "#8b5cf6"];
 </script>
@@ -21,7 +16,7 @@ const playerColors = ["#2e933c", "#3b82f6", "#f4c430", "#d95d39", "#8b5cf6"];
 				<div class="color-dot" style="background: {playerColors[i % playerColors.length]}" />
 				<span class="player-name">{entry.name}</span>
 				<span class="distance">
-					{entry.guess
+					{entry.guess && entry.distanceMeters !== null
 						? `${Math.round(entry.distanceMeters)}m`
 						: "No guess"}
 				</span>
@@ -40,12 +35,6 @@ const playerColors = ["#2e933c", "#3b82f6", "#f4c430", "#d95d39", "#8b5cf6"];
 			</div>
 		{/each}
 	</div>
-
-	{#if !isLastRound}
-		<button class="btn-3d next-btn" on:click={() => dispatch("nextRound")}>
-			Next Round ({result.round}/{totalRounds})
-		</button>
-	{/if}
 </div>
 
 <style>
@@ -147,9 +136,5 @@ const playerColors = ["#2e933c", "#3b82f6", "#f4c430", "#d95d39", "#8b5cf6"];
 		font-size: 0.875rem;
 		color: #18181b;
 		font-variant-numeric: tabular-nums;
-	}
-	.next-btn {
-		width: 100%;
-		text-align: center;
 	}
 </style>

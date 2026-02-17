@@ -48,7 +48,7 @@ async function createMultiplayerGame() {
 }
 
 async function joinMultiplayerGame() {
-	if (!joinCode.trim()) return;
+	if (!joinCode.trim() || joiningGame) return;
 	joiningGame = true;
 	try {
 		const game = await multiplayerService.join({ code: joinCode.trim().toUpperCase() });

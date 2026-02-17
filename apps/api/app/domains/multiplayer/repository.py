@@ -1,5 +1,6 @@
 """Multiplayer game repository for MongoDB access."""
 
+from datetime import UTC, datetime
 from typing import Protocol
 
 from bson import ObjectId
@@ -18,18 +19,31 @@ class IMultiplayerGameRepository(Protocol):
     async def find_by_invite_code(self, code: str) -> dict | None: ...
     async def find_active_by_user(self, user_id: str) -> dict | None: ...
     async def update_game(self, game_id: str, update: dict) -> None: ...
+    async def update_game_if_status(
+        self, game_id: str, expected_status: str, update: dict
+    ) -> bool: ...
     async def add_player(
         self, game_id: str, player: MultiplayerPlayerEntity
     ) -> None: ...
+    async def add_player_if_waiting_and_not_full(
+        self,
+        game_id: str,
+        player: MultiplayerPlayerEntity,
+        max_players: int,
+    ) -> bool: ...
     async def remove_player(self, game_id: str, user_id: str) -> None: ...
     async def update_player(self, game_id: str, user_id: str, update: dict) -> None: ...
+    async def increment_player_score(
+        self, game_id: str, user_id: str, score: int
+    ) -> None: ...
     async def set_guess(
         self,
         game_id: str,
         round_index: int,
         user_id: str,
         guess: MultiplayerGuessEntity,
-    ) -> None: ...
+    ) -> bool: ...
+    async def mark_round_resolved(self, game_id: str, round_index: int) -> bool: ...
     async def update_round(
         self, game_id: str, round_index: int, update: dict
     ) -> None: ...
@@ -65,11 +79,44 @@ class MultiplayerGameRepository:
             {"$set": update},
         )
 
+    async def update_game_if_status(
+        self, game_id: str, expected_status: str, update: dict
+    ) -> bool:
+        result = await self.collection.update_one(
+            {
+                "_id": ObjectId(game_id),
+                "status": expected_status,
+            },
+            {"$set": update},
+        )
+        return result.modified_count == 1
+
     async def add_player(self, game_id: str, player: MultiplayerPlayerEntity) -> None:
         await self.collection.update_one(
             {"_id": ObjectId(game_id)},
             {"$push": {"players": player.model_dump()}},
         )
+
+    async def add_player_if_waiting_and_not_full(
+        self,
+        game_id: str,
+        player: MultiplayerPlayerEntity,
+        max_players: int,
+    ) -> bool:
+        now = datetime.now(UTC)
+        result = await self.collection.update_one(
+            {
+                "_id": ObjectId(game_id),
+                "status": "waiting",
+                "players.user_id": {"$ne": player.user_id},
+                f"players.{max_players - 1}": {"$exists": False},
+            },
+            {
+                "$push": {"players": player.model_dump()},
+                "$set": {"last_activity_at": now},
+            },
+        )
+        return result.modified_count == 1
 
     async def remove_player(self, game_id: str, user_id: str) -> None:
         await self.collection.update_one(
@@ -84,18 +131,49 @@ class MultiplayerGameRepository:
             {"$set": set_fields},
         )
 
+    async def increment_player_score(
+        self, game_id: str, user_id: str, score: int
+    ) -> None:
+        await self.collection.update_one(
+            {
+                "_id": ObjectId(game_id),
+                "players.user_id": user_id,
+            },
+            {
+                "$inc": {"players.$.total_score": score},
+            },
+        )
+
     async def set_guess(
         self,
         game_id: str,
         round_index: int,
         user_id: str,
         guess: MultiplayerGuessEntity,
-    ) -> None:
+    ) -> bool:
         key = f"rounds.{round_index}.guesses.{user_id}"
-        await self.collection.update_one(
-            {"_id": ObjectId(game_id)},
+        result = await self.collection.update_one(
+            {
+                "_id": ObjectId(game_id),
+                key: {"$exists": False},
+            },
             {"$set": {key: guess.model_dump()}},
         )
+        return result.modified_count == 1
+
+    async def mark_round_resolved(self, game_id: str, round_index: int) -> bool:
+        key = f"rounds.{round_index}._resolved"
+        result = await self.collection.update_one(
+            {
+                "_id": ObjectId(game_id),
+                "status": "active",
+                key: {"$ne": True},
+            },
+            {
+                "$set": {key: True},
+            },
+        )
+        return result.modified_count == 1
 
     async def update_round(self, game_id: str, round_index: int, update: dict) -> None:
         set_fields = {f"rounds.{round_index}.{k}": v for k, v in update.items()}
