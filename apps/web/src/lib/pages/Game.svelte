@@ -60,8 +60,8 @@ function handleNextRound() {
 }
 
 function handleFinish() {
-	// Game summary page is deferred — navigate home for now
-	navigate("/", { replace: true });
+	if (!game) return;
+	navigate(`/game/${game.id}/summary`, { replace: true });
 }
 
 onDestroy(() => {
