@@ -1,7 +1,7 @@
 """User service for business logic."""
 
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 
 import structlog
 
@@ -67,7 +67,7 @@ class UserService:
             email=email,
             username=username,
             name=display_name,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
         )
 
         user_id = await self.user_repository.create(user)

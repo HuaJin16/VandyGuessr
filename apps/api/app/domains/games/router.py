@@ -34,10 +34,10 @@ def _to_response(doc: dict) -> GameResponse:
                 guess=rd.get("guess"),
                 distanceMeters=rd.get("distance_meters"),
                 score=rd.get("score"),
-                startedAt=rd["started_at"].isoformat()
+                startedAt=rd["started_at"].isoformat() + "Z"
                 if rd.get("started_at")
                 else None,
-                expiresAt=rd["expires_at"].isoformat()
+                expiresAt=rd["expires_at"].isoformat() + "Z"
                 if rd.get("expires_at")
                 else None,
                 skipped=rd.get("skipped", False),
@@ -57,8 +57,8 @@ def _to_response(doc: dict) -> GameResponse:
         status=doc["status"],
         rounds=rounds,
         totalScore=doc["total_score"],
-        createdAt=doc["created_at"].isoformat(),
-        lastActivityAt=doc["last_activity_at"].isoformat(),
+        createdAt=doc["created_at"].isoformat() + "Z",
+        lastActivityAt=doc["last_activity_at"].isoformat() + "Z",
     )
 
 

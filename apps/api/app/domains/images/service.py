@@ -2,7 +2,7 @@
 
 import contextlib
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 import structlog
@@ -131,7 +131,7 @@ class ImageService:
                 original_filename=filename,
                 file_size=len(file_bytes),
                 location_name=location_name,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(UTC),
             )
 
             # Persist to MongoDB

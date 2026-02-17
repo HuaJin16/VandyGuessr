@@ -6,7 +6,7 @@ Run from apps/api/:
 
 import asyncio
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -53,7 +53,7 @@ async def seed() -> None:
             {"osm_id": doc["osm_id"]},
             {
                 "$set": doc,
-                "$setOnInsert": {"created_at": datetime.utcnow()},
+                "$setOnInsert": {"created_at": datetime.now(UTC)},
             },
             upsert=True,
         )

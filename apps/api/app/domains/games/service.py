@@ -1,6 +1,6 @@
 """Game service containing all gameplay business logic."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import structlog
 
@@ -63,7 +63,7 @@ class GameService:
                 f"found {len(images)})."
             )
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         rounds = [
             RoundEntity(
                 round_id=i + 1,
@@ -146,7 +146,7 @@ class GameService:
             raise GameError(f"Round {round_number} was skipped.", 409)
 
         # Check timed expiry for this specific round
-        if rd.get("expires_at") and datetime.utcnow() > rd["expires_at"]:
+        if rd.get("expires_at") and datetime.now(UTC) > rd["expires_at"]:
             raise GameError(f"Round {round_number} has expired.", 409)
 
         distance = haversine(lat, lng, rd["actual_lat"], rd["actual_lng"])
@@ -160,7 +160,7 @@ class GameService:
         )
         score = compute_score(distance, same_building=same_building)
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         round_update = {
             "guess": {"lat": lat, "lng": lng},
             "distance_meters": round(distance, 2),
@@ -209,7 +209,7 @@ class GameService:
         if doc["status"] != "active":
             raise GameError("This game is not active.", 409)
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         for i, rd in enumerate(doc["rounds"]):
             if not rd.get("guess") and not rd.get("skipped"):
                 await self.game_repo.update_round(game_id, i, {"skipped": True})
@@ -291,7 +291,7 @@ class GameService:
         if not last:
             return
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         timeout = UNTIMED_TIMEOUT_SECONDS
         if now - last > timedelta(seconds=timeout):
             await self.game_repo.update_game(
