@@ -30,9 +30,30 @@ async def lifespan(_app: FastAPI):
     await connect_to_mongo()
     await connect_to_redis()
 
+    settings = get_settings()
+    if settings.feature_multiplayer:
+        from app.container import container
+        from app.domains.multiplayer.connection_manager import ConnectionManager
+        from app.domains.multiplayer.repository import IMultiplayerGameRepository
+
+        cm = container.resolve(ConnectionManager)
+        await cm.start()
+
+        repo = container.resolve(IMultiplayerGameRepository)
+        await repo.ensure_indexes()
+
+        logger.info("multiplayer_enabled")
+
     yield
 
     # Shutdown
+    if settings.feature_multiplayer:
+        from app.container import container
+        from app.domains.multiplayer.connection_manager import ConnectionManager
+
+        cm = container.resolve(ConnectionManager)
+        await cm.stop()
+
     await close_mongo_connection()
     await close_redis_connection()
 
@@ -63,6 +84,12 @@ def create_app() -> FastAPI:
     app.include_router(games_router, prefix="/v1")
     app.include_router(images_router, prefix="/v1")
     app.include_router(users_router, prefix="/v1")
+
+    # Conditionally register multiplayer router
+    if settings.feature_multiplayer:
+        from app.domains.multiplayer.router import router as multiplayer_router
+
+        app.include_router(multiplayer_router, prefix="/v1")
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(

@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     upload_secret_code: str = ""
     upload_max_bytes: int = 50 * 1024 * 1024
 
+    # Feature flags
+    feature_multiplayer: bool = False
+
     # DigitalOcean Spaces (S3-compatible)
     spaces_region: str = ""
     spaces_endpoint: str = ""

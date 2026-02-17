@@ -2,6 +2,8 @@
 import { gamesService } from "$lib/domains/games/api/games.service";
 import { gameQueries } from "$lib/domains/games/queries/games.queries";
 import type { Environment, GameMode } from "$lib/domains/games/types";
+import { multiplayerService } from "$lib/domains/multiplayer/api/multiplayer.service";
+import type { Environment as MpEnvironment } from "$lib/domains/multiplayer/types";
 import { userQueries } from "$lib/domains/users/queries/users.queries";
 import { auth } from "$lib/shared/auth/auth.store";
 import Avatar from "$lib/shared/components/Avatar.svelte";
@@ -10,6 +12,8 @@ import { createQuery } from "@tanstack/svelte-query";
 import { CalendarDays, ChevronRight, Clock, Globe, Sofa, TreePine } from "lucide-svelte";
 import { navigate } from "svelte-routing";
 import { toast } from "svelte-sonner";
+
+const multiplayerEnabled = import.meta.env.VITE_FEATURE_MULTIPLAYER === "true";
 
 $: user = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
 $: activeGame = createQuery({ ...gameQueries.active(), enabled: $auth.isInitialized });
@@ -24,6 +28,38 @@ let timed = false;
 let environment: Environment = "any";
 
 let starting = false;
+
+let mpEnvironment: MpEnvironment = "any";
+let creatingGame = false;
+let joinCode = "";
+let joiningGame = false;
+
+async function createMultiplayerGame() {
+	creatingGame = true;
+	try {
+		const game = await multiplayerService.create({ environment: mpEnvironment });
+		navigate(`/multiplayer/${game.id}/lobby`);
+	} catch (err: unknown) {
+		const e = err as { response?: { data?: { detail?: string } }; message?: string };
+		toast.error(e?.response?.data?.detail || e?.message || "Failed to create game");
+	} finally {
+		creatingGame = false;
+	}
+}
+
+async function joinMultiplayerGame() {
+	if (!joinCode.trim()) return;
+	joiningGame = true;
+	try {
+		const game = await multiplayerService.join({ code: joinCode.trim().toUpperCase() });
+		navigate(`/multiplayer/${game.id}/lobby`);
+	} catch (err: unknown) {
+		const e = err as { response?: { data?: { detail?: string } }; message?: string };
+		toast.error(e?.response?.data?.detail || e?.message || "Failed to join game");
+	} finally {
+		joiningGame = false;
+	}
+}
 
 async function startGame(daily: boolean) {
 	starting = true;
@@ -170,6 +206,49 @@ async function startGame(daily: boolean) {
 				{starting ? "Starting..." : "Start Guessing"}
 			</button>
 
+			{#if multiplayerEnabled}
+				<div class="multiplayer-section">
+					<div class="section-divider">
+						<span class="divider-text">Multiplayer</span>
+					</div>
+
+					<button
+						class="mp-create-btn"
+						disabled={creatingGame}
+						on:click={createMultiplayerGame}
+					>
+						<div class="flex items-center gap-3">
+							<div class="mp-icon">VS</div>
+							<div class="min-w-0 flex-1 text-left">
+								<span class="font-heading text-sm font-bold text-charcoal">Create Game</span>
+								<p class="text-[13px] text-charcoal/50">Start a lobby and invite friends</p>
+							</div>
+							<ChevronRight size={18} class="flex-shrink-0 text-charcoal/30" />
+						</div>
+					</button>
+
+					<div class="join-row">
+						<input
+							type="text"
+							class="join-input"
+							placeholder="Enter code"
+							maxlength={6}
+							bind:value={joinCode}
+							on:keydown={(e) => {
+								if (e.key === "Enter") joinMultiplayerGame();
+							}}
+						/>
+						<button
+							class="join-btn"
+							disabled={joiningGame || !joinCode.trim()}
+							on:click={joinMultiplayerGame}
+						>
+							{joiningGame ? "Joining..." : "Join"}
+						</button>
+					</div>
+				</div>
+			{/if}
+
 			</div>
 		</div>
 	</main>
@@ -287,5 +366,134 @@ async function startGame(daily: boolean) {
 
 	.toggle-inactive:hover {
 		background: rgba(46, 147, 60, 0.08);
+	}
+
+	.multiplayer-section {
+		margin-top: 24px;
+	}
+
+	.section-divider {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin-bottom: 16px;
+	}
+
+	.section-divider::before,
+	.section-divider::after {
+		content: "";
+		flex: 1;
+		height: 1px;
+		background: rgba(0, 0, 0, 0.08);
+	}
+
+	.divider-text {
+		font-family: "Rubik", sans-serif;
+		font-weight: 600;
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: rgba(24, 24, 27, 0.4);
+	}
+
+	.mp-create-btn {
+		display: block;
+		width: 100%;
+		border-radius: 12px;
+		padding: 14px 16px;
+		border: 1.5px solid rgba(59, 130, 246, 0.3);
+		background: rgba(59, 130, 246, 0.06);
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+
+	.mp-create-btn:hover {
+		border-color: rgba(59, 130, 246, 0.6);
+		background: rgba(59, 130, 246, 0.1);
+	}
+
+	.mp-create-btn:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.mp-icon {
+		width: 36px;
+		height: 36px;
+		border-radius: 8px;
+		background: #3b82f6;
+		color: white;
+		font-family: "Rubik", sans-serif;
+		font-weight: 800;
+		font-size: 0.75rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	.join-row {
+		display: flex;
+		gap: 8px;
+		margin-top: 10px;
+	}
+
+	.join-input {
+		flex: 1;
+		padding: 12px 16px;
+		border-radius: 12px;
+		border: 1px solid rgba(0, 0, 0, 0.1);
+		background: white;
+		font-family: "Rubik Mono One", monospace;
+		font-size: 0.9375rem;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		text-align: center;
+		outline: none;
+		transition: border-color 0.15s;
+	}
+
+	.join-input:focus {
+		border-color: #3b82f6;
+	}
+
+	.join-input::placeholder {
+		font-family: "Rubik", sans-serif;
+		font-weight: 400;
+		letter-spacing: normal;
+		text-transform: none;
+		color: rgba(24, 24, 27, 0.3);
+	}
+
+	.join-btn {
+		padding: 12px 24px;
+		border-radius: 12px;
+		background: #3b82f6;
+		color: white;
+		font-family: "Rubik", sans-serif;
+		font-weight: 700;
+		font-size: 0.875rem;
+		border: none;
+		cursor: pointer;
+		box-shadow: 0 4px 0 #2563eb;
+		transition: transform 0.1s, box-shadow 0.1s;
+	}
+
+	.join-btn:hover {
+		background: #2563eb;
+		transform: translateY(2px);
+		box-shadow: 0 2px 0 #2563eb;
+	}
+
+	.join-btn:active {
+		transform: translateY(4px);
+		box-shadow: 0 0 0 #2563eb;
+	}
+
+	.join-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+		transform: none;
+		box-shadow: 0 4px 0 #2563eb;
 	}
 </style>

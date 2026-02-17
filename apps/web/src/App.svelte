@@ -3,12 +3,16 @@ import Game from "$lib/pages/Game.svelte";
 import GameSummary from "$lib/pages/GameSummary.svelte";
 import Home from "$lib/pages/Home.svelte";
 import Login from "$lib/pages/Login.svelte";
+import MultiplayerGame from "$lib/pages/MultiplayerGame.svelte";
+import MultiplayerLobby from "$lib/pages/MultiplayerLobby.svelte";
 import { queryClient } from "$lib/shared/api/queryClient";
 import { auth, isAuthenticated, isLoading } from "$lib/shared/auth/auth.store";
 import { QueryClientProvider } from "@tanstack/svelte-query";
 import { onMount } from "svelte";
 import { Route, Router, navigate } from "svelte-routing";
 import { Toaster } from "svelte-sonner";
+
+const multiplayerEnabled = import.meta.env.VITE_FEATURE_MULTIPLAYER === "true";
 
 onMount(() => {
 	auth.initialize();
@@ -46,5 +50,9 @@ $: if (!$isLoading) {
     <Route path="/game/:id/summary" component={GameSummary} />
     <Route path="/game/:id" component={Game} />
     <Route path="/login" component={Login} />
+    {#if multiplayerEnabled}
+      <Route path="/multiplayer/:id/lobby" component={MultiplayerLobby} />
+      <Route path="/multiplayer/:id" component={MultiplayerGame} />
+    {/if}
   </Router>
 </QueryClientProvider>
