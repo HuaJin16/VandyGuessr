@@ -4,31 +4,17 @@ import { gameQueries } from "$lib/domains/games/queries/games.queries";
 import type { Environment, GameMode } from "$lib/domains/games/types";
 import { userQueries } from "$lib/domains/users/queries/users.queries";
 import { auth } from "$lib/shared/auth/auth.store";
+import Avatar from "$lib/shared/components/Avatar.svelte";
+import Navbar from "$lib/shared/components/Navbar.svelte";
 import { createQuery } from "@tanstack/svelte-query";
-import {
-	CalendarDays,
-	ChevronRight,
-	Clock,
-	Globe,
-	LogOut,
-	Sofa,
-	TreePine,
-	Trophy as TrophyIcon,
-} from "lucide-svelte";
+import { CalendarDays, ChevronRight, Clock, Globe, Sofa, TreePine } from "lucide-svelte";
 import { navigate } from "svelte-routing";
 import { toast } from "svelte-sonner";
-import logo from "../../assets/logo.webp";
 
 $: user = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
 $: activeGame = createQuery({ ...gameQueries.active(), enabled: $auth.isInitialized });
 
 $: stats = $user.data?.stats;
-$: initials = ($user.data?.name ?? "")
-	.split(" ")
-	.map((w) => w[0])
-	.join("")
-	.slice(0, 2)
-	.toUpperCase();
 
 $: activeRoundNumber = $activeGame.data
 	? $activeGame.data.rounds.filter((r) => r.guess || r.skipped).length + 1
@@ -60,41 +46,13 @@ async function startGame(daily: boolean) {
 </script>
 
 <div class="min-h-screen bg-terrain font-body">
-	<header class="sticky top-0 z-50 border-b border-gray-100 bg-white">
-		<div class="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-			<div class="flex items-center gap-2 sm:gap-3">
-				<img src={logo} alt="VandyGuessr" class="h-9 w-9 sm:h-10 sm:w-10" />
-				<span class="font-heading text-base font-bold text-charcoal sm:text-xl">
-					VandyGuessr
-				</span>
-			</div>
-
-			<div class="flex items-center gap-1 sm:gap-2">
-				<a
-					href="/leaderboard"
-					class="flex items-center gap-1.5 rounded-lg p-2 text-xs font-medium text-charcoal/60 transition-colors hover:bg-charcoal/5 hover:text-jungle sm:text-sm"
-				>
-					<TrophyIcon size={18} />
-					Leaderboard
-				</a>
-				<button
-					class="flex items-center gap-1.5 rounded-lg p-2 text-xs font-medium text-charcoal/50 transition-colors hover:bg-charcoal/5 hover:text-clay sm:text-sm"
-					on:click={() => auth.logout()}
-				>
-					<LogOut size={18} />
-					Logout
-				</button>
-			</div>
-		</div>
-	</header>
+	<Navbar activePage="home" />
 
 	<main class="flex flex-1 items-center justify-center px-3 py-6 sm:px-4 sm:py-12">
 		<div class="glass-card w-full max-w-2xl overflow-hidden border border-white/50 shadow-hard-lg">
 			<div class="px-4 py-4 sm:px-8 sm:py-6">
 				<div class="flex items-center gap-3 sm:gap-4">
-					<div class="avatar-initials flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full font-heading text-base font-bold text-white shadow-hard sm:h-16 sm:w-16 sm:text-xl">
-						{initials || "?"}
-					</div>
+					<Avatar name={$user.data?.name ?? ""} size="lg" />
 					<div class="min-w-0 flex-1">
 						<h2 class="truncate font-heading text-lg font-bold text-charcoal sm:text-2xl">
 							{$user.data?.name ?? "Loading..."}
@@ -218,10 +176,6 @@ async function startGame(daily: boolean) {
 </div>
 
 <style>
-	.avatar-initials {
-		background: linear-gradient(135deg, #2e933c 0%, #236e2d 100%);
-	}
-
 	.daily-banner {
 		display: block;
 		width: 100%;

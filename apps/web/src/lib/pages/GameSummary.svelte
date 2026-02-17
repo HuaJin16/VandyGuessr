@@ -1,13 +1,11 @@
 <script lang="ts">
-import { gamesService } from "$lib/domains/games/api/games.service";
 import { gameQueries } from "$lib/domains/games/queries/games.queries";
 import type { Game, Round } from "$lib/domains/games/types";
 import { auth } from "$lib/shared/auth/auth.store";
+import Navbar from "$lib/shared/components/Navbar.svelte";
 import { createQuery } from "@tanstack/svelte-query";
-import { LogOut, Trophy as TrophyIcon } from "lucide-svelte";
 import { navigate } from "svelte-routing";
 import { toast } from "svelte-sonner";
-import logo from "../../assets/logo.webp";
 
 export let id: string;
 
@@ -85,20 +83,8 @@ function roundStatus(
 	return "normal";
 }
 
-let starting = false;
-
-async function playAgain() {
-	if (!game || starting) return;
-	starting = true;
-	try {
-		const newGame = await gamesService.start({ mode: game.mode });
-		navigate(`/game/${newGame.id}`);
-	} catch (err: unknown) {
-		const e = err as { response?: { data?: { detail?: string } }; message?: string };
-		toast.error(e?.response?.data?.detail || e?.message || "Failed to start game");
-	} finally {
-		starting = false;
-	}
+function playAgain() {
+	navigate("/", { replace: true });
 }
 </script>
 
@@ -120,31 +106,7 @@ async function playAgain() {
 		</div>
 
 		<div class="relative z-10 min-h-screen flex flex-col">
-			<!-- Navbar -->
-			<header class="sticky top-0 z-50 border-b border-gray-100 bg-white">
-				<div class="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-					<a href="/" class="flex items-center gap-2 sm:gap-3">
-						<img src={logo} alt="VandyGuessr" class="h-9 w-9 sm:h-10 sm:w-10" />
-						<span class="font-heading text-lg font-bold text-charcoal hidden sm:block">VandyGuessr</span>
-					</a>
-					<div class="flex items-center gap-1 sm:gap-2">
-						<a
-							href="/leaderboard"
-							class="flex items-center gap-1.5 rounded-lg p-2 text-xs font-medium text-charcoal/60 transition-colors hover:bg-charcoal/5 hover:text-jungle sm:text-sm"
-						>
-							<TrophyIcon size={18} />
-							<span class="hidden sm:inline">Leaderboard</span>
-						</a>
-						<button
-							class="flex items-center gap-1.5 rounded-lg p-2 text-xs font-medium text-charcoal/50 transition-colors hover:bg-charcoal/5 hover:text-clay sm:text-sm"
-							on:click={() => auth.logout()}
-						>
-							<LogOut size={18} />
-							<span class="hidden sm:inline">Logout</span>
-						</button>
-					</div>
-				</div>
-			</header>
+			<Navbar />
 
 			<!-- Content -->
 			<main class="flex-1 flex flex-col items-center px-4 py-6 sm:py-8 gap-4 sm:gap-5">
@@ -407,12 +369,11 @@ async function playAgain() {
 					<div class="px-5 sm:px-8 pb-6 sm:pb-8">
 						<button
 							class="btn-3d w-full flex flex-col items-center justify-center transition-colors mb-3"
-							disabled={starting}
 							on:click={playAgain}
 						>
 							<div class="flex items-center gap-2">
 								<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">replay</span>
-								<span class="text-base sm:text-lg">{starting ? "Starting..." : "Play Again"}</span>
+								<span class="text-base sm:text-lg">Play Again</span>
 							</div>
 							<span class="text-white/60 text-[10px] sm:text-xs font-normal mt-0.5">{modeLabel(game)}</span>
 						</button>
