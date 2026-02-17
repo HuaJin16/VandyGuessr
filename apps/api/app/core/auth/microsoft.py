@@ -102,6 +102,35 @@ async def verify_token(
         ) from e
 
 
+def _build_display_name(token_payload: dict) -> str | None:
+    """Build a display name from token claims.
+
+    Azure AD enterprise tenants populate the ``name`` claim as
+    "Last, First MI".  We prefer the explicit ``given_name`` /
+    ``family_name`` claims when available, falling back to
+    comma-reversal of the ``name`` claim.
+    """
+    given = token_payload.get("given_name", "").strip()
+    family = token_payload.get("family_name", "").strip()
+
+    if given and family:
+        return f"{given} {family}"
+    if given:
+        return given
+
+    raw_name = token_payload.get("name", "").strip()
+    if not raw_name:
+        return None
+
+    # "Last, First MI" → "First MI Last"
+    if "," in raw_name:
+        parts = [p.strip() for p in raw_name.split(",", 1)]
+        if len(parts) == 2 and parts[0] and parts[1]:
+            return f"{parts[1]} {parts[0]}"
+
+    return raw_name
+
+
 async def get_current_user(
     token_payload: Annotated[dict, Depends(verify_token)],
 ) -> dict:
@@ -120,7 +149,7 @@ async def get_current_user(
         "sub": token_payload.get("sub"),
         "oid": token_payload.get("oid"),
         "email": email,
-        "name": token_payload.get("name"),
+        "name": _build_display_name(token_payload),
     }
 
 

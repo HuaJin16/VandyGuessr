@@ -56,6 +56,9 @@ class UserService:
         """
         user_doc = await self.user_repository.find_by_microsoft_oid(oid)
         if user_doc:
+            if name and user_doc.get("name") != name:
+                await self.user_repository.update_name(oid, name)
+                user_doc["name"] = name
             return user_doc, False
 
         display_name = name or email.split("@")[0]

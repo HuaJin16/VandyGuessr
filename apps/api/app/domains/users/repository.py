@@ -22,6 +22,10 @@ class IUserRepository(Protocol):
         """Create a new user and return the inserted ID."""
         ...
 
+    async def update_name(self, oid: str, name: str) -> None:
+        """Update a user's display name by their Microsoft OID."""
+        ...
+
 
 class UserRepository:
     """MongoDB implementation of the user repository."""
@@ -43,3 +47,9 @@ class UserRepository:
             user.model_dump(by_alias=True, exclude={"id"})
         )
         return str(result.inserted_id)
+
+    async def update_name(self, oid: str, name: str) -> None:
+        """Update a user's display name by their Microsoft OID."""
+        await self.collection.update_one(
+            {"microsoft_oid": oid}, {"$set": {"name": name}}
+        )
