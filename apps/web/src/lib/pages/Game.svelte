@@ -16,7 +16,10 @@ const queryClient = useQueryClient();
 $: gameQueryOptions = { ...gameQueries.byId(id), enabled: $auth.isInitialized };
 $: gameQuery = createQuery(gameQueryOptions);
 
-$: if ($gameQuery.data) {
+let hydratedFromQuery = false;
+
+$: if ($gameQuery.data && !hydratedFromQuery) {
+	hydratedFromQuery = true;
 	gameStore.setGame($gameQuery.data);
 }
 
