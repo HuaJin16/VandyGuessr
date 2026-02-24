@@ -1,4 +1,5 @@
 <script lang="ts">
+import { getInitials } from "$lib/shared/utils/initials";
 import type { QueryObserverResult } from "@tanstack/svelte-query";
 import { onMount, tick } from "svelte";
 import type { LeaderboardEntry, LeaderboardResponse } from "../types";
@@ -30,16 +31,6 @@ $: entries = leaderboard.data?.entries ?? [];
 $: userEntry = leaderboard.data?.userEntry ?? null;
 $: contextEntries = leaderboard.data?.contextEntries ?? [];
 $: totalCount = leaderboard.data?.totalCount ?? entries.length;
-
-function initialsFor(name: string) {
-	return name
-		.split(" ")
-		.filter(Boolean)
-		.map((w) => w[0])
-		.join("")
-		.slice(0, 2)
-		.toUpperCase();
-}
 
 function isCurrentUser(entry: LeaderboardEntry) {
 	return entry.userId === currentUserId;
@@ -215,7 +206,7 @@ $: visibleTopEntries = entries.slice(0, topCount);
 					avgScore: 0,
 					gamesPlayed: 0,
 				}}
-				initialsFor={initialsFor}
+				initialsFor={getInitials}
 				formatScore={formatScore}
 				showUsername={false}
 				showMedal={false}
@@ -227,7 +218,7 @@ $: visibleTopEntries = entries.slice(0, topCount);
 					{#each visibleTopEntries as entry}
 						<LeaderboardRow
 							{entry}
-							initialsFor={initialsFor}
+							initialsFor={getInitials}
 							formatScore={formatScore}
 							isCurrentUser={isCurrentUser(entry)}
 							highlightUser={isCurrentUser(entry)}
@@ -245,7 +236,7 @@ $: visibleTopEntries = entries.slice(0, topCount);
 					{#each contextAbove as entry}
 						<LeaderboardRow
 							{entry}
-							initialsFor={initialsFor}
+							initialsFor={getInitials}
 							formatScore={formatScore}
 							showMedal={false}
 						/>
@@ -262,7 +253,7 @@ $: visibleTopEntries = entries.slice(0, topCount);
 								avgScore: userEntry.avgScore,
 								gamesPlayed: userEntry.gamesPlayed,
 							}}
-							initialsFor={initialsFor}
+							initialsFor={getInitials}
 							formatScore={formatScore}
 							isCurrentUser={true}
 							highlightUser={true}
@@ -275,7 +266,7 @@ $: visibleTopEntries = entries.slice(0, topCount);
 					{#each contextBelow as entry}
 						<LeaderboardRow
 							{entry}
-							initialsFor={initialsFor}
+							initialsFor={getInitials}
 							formatScore={formatScore}
 							showMedal={false}
 						/>

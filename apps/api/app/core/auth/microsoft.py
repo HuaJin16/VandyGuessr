@@ -122,11 +122,20 @@ def _build_display_name(token_payload: dict) -> str | None:
     if not raw_name:
         return None
 
-    # "Last, First MI" → "First MI Last"
+    # "Last, First MI" -> "First Last"
     if "," in raw_name:
         parts = [p.strip() for p in raw_name.split(",", 1)]
         if len(parts) == 2 and parts[0] and parts[1]:
-            return f"{parts[1]} {parts[0]}"
+            first_tokens = parts[1].split()
+            filtered_first_tokens = [
+                token for token in first_tokens if len(token.rstrip(".")) > 1
+            ]
+            first = (
+                " ".join(filtered_first_tokens)
+                if filtered_first_tokens
+                else first_tokens[0]
+            )
+            return f"{first} {parts[0]}"
 
     return raw_name
 

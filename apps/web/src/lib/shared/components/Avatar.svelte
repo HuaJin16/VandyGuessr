@@ -1,17 +1,10 @@
 <script lang="ts">
+import { getInitials } from "$lib/shared/utils/initials";
+
 export let name: string;
 export let size: "sm" | "md" | "lg" = "md";
 
-$: initials =
-	name
-		.split(" ")
-		.filter(Boolean)
-		.map((w) => w[0])
-		.join("")
-		.slice(0, 2)
-		.toUpperCase() ||
-	name.slice(0, 2).toUpperCase() ||
-	"?";
+$: initials = getInitials(name);
 
 const sizes = {
 	sm: "w-8 h-8 text-xs",
