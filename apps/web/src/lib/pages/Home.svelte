@@ -8,6 +8,8 @@ import { userQueries } from "$lib/domains/users/queries/users.queries";
 import { auth } from "$lib/shared/auth/auth.store";
 import Avatar from "$lib/shared/components/Avatar.svelte";
 import Navbar from "$lib/shared/components/Navbar.svelte";
+import TogglePills from "$lib/shared/components/TogglePills.svelte";
+import type { ToggleOption } from "$lib/shared/components/TogglePills.svelte";
 import { createQuery } from "@tanstack/svelte-query";
 import { CalendarDays, ChevronRight, Clock, Globe, Sofa, TreePine } from "lucide-svelte";
 import { navigate } from "svelte-routing";
@@ -23,6 +25,17 @@ $: stats = $user.data?.stats;
 $: activeRoundNumber = $activeGame.data
 	? $activeGame.data.rounds.filter((r) => r.guess || r.skipped).length + 1
 	: 0;
+
+const timingOptions = [
+	{ value: "untimed", label: "Untimed", icon: Globe },
+	{ value: "timed", label: "Timed", icon: Clock },
+] satisfies ToggleOption[];
+
+const locationOptions = [
+	{ value: "any", label: "Any" },
+	{ value: "indoor", label: "Indoor", icon: Sofa },
+	{ value: "outdoor", label: "Outdoor", icon: TreePine },
+] satisfies ToggleOption[];
 
 let timed = false;
 let environment: Environment = "any";
@@ -166,34 +179,32 @@ async function startGame(daily: boolean) {
 			<div class="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-3">
 				<div>
 					<div class="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-charcoal/40">Timing</div>
-					<div class="toggle-group">
-						<button
-							class={timed ? "toggle-inactive" : "toggle-active"}
-							on:click={() => { timed = false; }}
-						><Globe size={14} /> Untimed</button>
-						<button
-							class={timed ? "toggle-active" : "toggle-inactive"}
-							on:click={() => { timed = true; }}
-						><Clock size={14} /> Timed</button>
-					</div>
+					<TogglePills
+						ariaLabel="Game timing"
+						selected={timed ? "timed" : "untimed"}
+						options={timingOptions}
+						on:change={(event) => {
+							timed = event.detail === "timed";
+						}}
+					/>
 				</div>
 
 				<div>
 					<div class="mb-1.5 text-[11px] font-medium uppercase tracking-wider text-charcoal/40">Location</div>
-					<div class="toggle-group">
-						<button
-							class={environment === "any" ? "toggle-active" : "toggle-inactive"}
-							on:click={() => { environment = "any"; }}
-						>Any</button>
-						<button
-							class={environment === "indoor" ? "toggle-active" : "toggle-inactive"}
-							on:click={() => { environment = "indoor"; }}
-						><Sofa size={14} /> Indoor</button>
-						<button
-							class={environment === "outdoor" ? "toggle-active" : "toggle-inactive"}
-							on:click={() => { environment = "outdoor"; }}
-						><TreePine size={14} /> Outdoor</button>
-					</div>
+					<TogglePills
+						ariaLabel="Game location"
+						selected={environment}
+						options={locationOptions}
+						on:change={(event) => {
+							if (
+								event.detail === "any" ||
+								event.detail === "indoor" ||
+								event.detail === "outdoor"
+							) {
+								environment = event.detail;
+							}
+						}}
+					/>
 				</div>
 			</div>
 
@@ -307,66 +318,6 @@ async function startGame(daily: boolean) {
 		cursor: not-allowed;
 	}
 
-	.toggle-group {
-		display: flex;
-		border-radius: 9999px;
-		padding: 3px;
-		border: 1px solid rgba(0, 0, 0, 0.08);
-		background: white;
-	}
-
-	@media (min-width: 640px) {
-		.toggle-group {
-			display: inline-flex;
-		}
-	}
-
-	.toggle-active {
-		display: inline-flex;
-		flex: 1;
-		align-items: center;
-		justify-content: center;
-		gap: 5px;
-		background: #2e933c;
-		color: white;
-		border-radius: 9999px;
-		padding: 7px 16px;
-		font-size: 13px;
-		font-weight: 600;
-		transition: all 0.15s;
-	}
-
-	@media (min-width: 640px) {
-		.toggle-active {
-			flex: none;
-		}
-	}
-
-	.toggle-inactive {
-		display: inline-flex;
-		flex: 1;
-		align-items: center;
-		justify-content: center;
-		gap: 5px;
-		background: transparent;
-		color: #18181b;
-		border-radius: 9999px;
-		padding: 7px 16px;
-		font-size: 13px;
-		font-weight: 500;
-		transition: all 0.15s;
-		cursor: pointer;
-	}
-
-	@media (min-width: 640px) {
-		.toggle-inactive {
-			flex: none;
-		}
-	}
-
-	.toggle-inactive:hover {
-		background: rgba(46, 147, 60, 0.08);
-	}
 
 	.multiplayer-section {
 		margin-top: 24px;
