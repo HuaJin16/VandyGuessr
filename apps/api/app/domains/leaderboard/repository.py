@@ -51,15 +51,12 @@ class LeaderboardRepository:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.collection = db.games
 
-    def _build_match(
+    def _build_base_match(
         self,
-        mode: str,
         start: datetime | None,
         end: datetime | None,
     ) -> dict:
         match: dict = {"status": "completed"}
-        if mode != "all":
-            match["mode.environment"] = mode
         if start and end:
             match["created_at"] = {"$gte": start, "$lt": end}
         elif start:
@@ -69,15 +66,67 @@ class LeaderboardRepository:
         return match
 
     @staticmethod
-    def _group_stage() -> dict:
+    def _unwind_and_filter_rounds() -> list[dict]:
+        return [
+            {"$unwind": "$rounds"},
+            {
+                "$match": {
+                    "rounds.skipped": {"$ne": True},
+                    "rounds.score": {"$ne": None},
+                }
+            },
+        ]
+
+    @staticmethod
+    def _env_lookup_stages(mode: str) -> list[dict]:
+        return [
+            {
+                "$lookup": {
+                    "from": "images",
+                    "let": {"image_id": "$rounds.image_id"},
+                    "pipeline": [
+                        {
+                            "$match": {
+                                "$expr": {
+                                    "$eq": ["$_id", {"$toObjectId": "$$image_id"}]
+                                },
+                                "environment": mode,
+                            }
+                        }
+                    ],
+                    "as": "image",
+                }
+            },
+            {"$unwind": "$image"},
+        ]
+
+    @staticmethod
+    def _round_group_stage() -> dict:
         return {
             "$group": {
                 "_id": "$user_id",
-                "total_points": {"$sum": "$total_score"},
-                "avg_score": {"$avg": "$total_score"},
-                "games_played": {"$sum": 1},
+                "total_points": {"$sum": "$rounds.score"},
+                "avg_score": {"$avg": "$rounds.score"},
+                "game_ids": {"$addToSet": "$_id"},
             }
         }
+
+    @staticmethod
+    def _games_played_stage() -> dict:
+        return {"$addFields": {"games_played": {"$size": "$game_ids"}}}
+
+    def _build_round_pipeline(
+        self,
+        mode: str,
+        start: datetime | None,
+        end: datetime | None,
+    ) -> list[dict]:
+        pipeline: list[dict] = [{"$match": self._build_base_match(start, end)}]
+        pipeline.extend(self._unwind_and_filter_rounds())
+        if mode != "all":
+            pipeline.extend(self._env_lookup_stages(mode))
+        pipeline.extend([self._round_group_stage(), self._games_played_stage()])
+        return pipeline
 
     @staticmethod
     def _sort_stage() -> dict:
@@ -124,10 +173,8 @@ class LeaderboardRepository:
         limit: int,
         offset: int,
     ) -> tuple[list[dict], int]:
-        match = self._build_match(mode, start, end)
         pipeline = [
-            {"$match": match},
-            self._group_stage(),
+            *self._build_round_pipeline(mode, start, end),
             self._sort_stage(),
             {
                 "$facet": {
@@ -159,10 +206,8 @@ class LeaderboardRepository:
         offset: int,
         limit: int,
     ) -> list[dict]:
-        match = self._build_match(mode, start, end)
         pipeline = [
-            {"$match": match},
-            self._group_stage(),
+            *self._build_round_pipeline(mode, start, end),
             self._sort_stage(),
             {"$skip": offset},
             {"$limit": limit},
@@ -178,10 +223,8 @@ class LeaderboardRepository:
         start: datetime | None,
         end: datetime | None,
     ) -> dict | None:
-        match = self._build_match(mode, start, end)
         pipeline = [
-            {"$match": match},
-            self._group_stage(),
+            *self._build_round_pipeline(mode, start, end),
             {"$match": {"_id": user_id}},
             *self._lookup_user_stage(),
         ]
@@ -199,7 +242,6 @@ class LeaderboardRepository:
         start: datetime | None,
         end: datetime | None,
     ) -> int:
-        match = self._build_match(mode, start, end)
         ahead_match = {
             "$or": [
                 {"avg_score": {"$gt": avg_score}},
@@ -221,8 +263,7 @@ class LeaderboardRepository:
             ]
         }
         pipeline = [
-            {"$match": match},
-            self._group_stage(),
+            *self._build_round_pipeline(mode, start, end),
             {"$match": ahead_match},
             {"$count": "ahead"},
         ]

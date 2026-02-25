@@ -39,7 +39,7 @@ class LeaderboardService:
         offset: int,
     ) -> dict:
         start, end = self._timeframe_bounds(timeframe)
-        cache_key = f"leaderboard:{timeframe}:{mode}:{offset}:{limit}"
+        cache_key = f"lb:v2:{timeframe}:{mode}:{offset}:{limit}"
         cached = await self._read_cache(cache_key)
 
         if cached is None:
