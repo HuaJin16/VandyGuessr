@@ -102,42 +102,35 @@ async def verify_token(
         ) from e
 
 
-def _build_display_name(token_payload: dict) -> str | None:
-    """Build a display name from token claims.
+def _first_last(value: str) -> str:
+    parts = value.split()
+    if len(parts) >= 2:
+        return f"{parts[0]} {parts[-1]}"
+    if parts:
+        return parts[0]
+    return ""
 
-    Azure AD enterprise tenants populate the ``name`` claim as
-    "Last, First MI".  We prefer the explicit ``given_name`` /
-    ``family_name`` claims when available, falling back to
-    comma-reversal of the ``name`` claim.
-    """
+
+def _build_display_name(token_payload: dict) -> str | None:
+    """Build a display name from token claims normalized to first + last."""
     given = token_payload.get("given_name", "").strip()
     family = token_payload.get("family_name", "").strip()
 
     if given and family:
-        return f"{given} {family}"
+        return _first_last(f"{given} {family}")
     if given:
-        return given
+        return _first_last(given)
 
     raw_name = token_payload.get("name", "").strip()
     if not raw_name:
         return None
 
-    # "Last, First MI" -> "First Last"
     if "," in raw_name:
         parts = [p.strip() for p in raw_name.split(",", 1)]
         if len(parts) == 2 and parts[0] and parts[1]:
-            first_tokens = parts[1].split()
-            filtered_first_tokens = [
-                token for token in first_tokens if len(token.rstrip(".")) > 1
-            ]
-            first = (
-                " ".join(filtered_first_tokens)
-                if filtered_first_tokens
-                else first_tokens[0]
-            )
-            return f"{first} {parts[0]}"
+            return _first_last(f"{parts[1]} {parts[0]}")
 
-    return raw_name
+    return _first_last(raw_name)
 
 
 async def get_current_user(
