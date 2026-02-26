@@ -157,7 +157,3 @@ Images are stored in DigitalOcean Spaces (S3-compatible) and metadata is persist
 ## Microsoft OAuth Setup
 
 See `docs/AZURE_AUTH_SETUP.md` for the full Azure app registration flow.
-
-## License
-
-MIT
