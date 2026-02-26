@@ -1,3 +1,4 @@
+import { auth } from "$lib/shared/auth/auth.store";
 import { getAccessToken } from "$lib/shared/auth/msalInstance";
 import { writable } from "svelte/store";
 import { ClientEvent, type ConnectionState, type ServerMessage } from "../types";
@@ -32,6 +33,11 @@ export function createMultiplayerWs(options: MultiplayerWsOptions) {
 		onConnectionChange?.(state);
 	}
 
+	function handleSessionExpired() {
+		setConnectionState("disconnected");
+		auth.logout();
+	}
+
 	async function connect() {
 		if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
 			return;
@@ -39,7 +45,7 @@ export function createMultiplayerWs(options: MultiplayerWsOptions) {
 
 		const token = await getAccessToken();
 		if (!token) {
-			setConnectionState("disconnected");
+			handleSessionExpired();
 			return;
 		}
 
@@ -67,8 +73,13 @@ export function createMultiplayerWs(options: MultiplayerWsOptions) {
 				return;
 			}
 
+			if (event.code === 4001) {
+				handleSessionExpired();
+				return;
+			}
+
 			// Non-recoverable close codes — don't reconnect
-			const noReconnectCodes = [1000, 4001, 4003, 4004, 4010, 4011, 4012];
+			const noReconnectCodes = [1000, 4003, 4004, 4010, 4011, 4012];
 			if (noReconnectCodes.includes(event.code)) {
 				setConnectionState("disconnected");
 				return;
@@ -123,7 +134,10 @@ export function createMultiplayerWs(options: MultiplayerWsOptions) {
 		const token = await getAccessToken();
 		if (token) {
 			send({ type: ClientEvent.RefreshToken, token });
+			return;
 		}
+
+		handleSessionExpired();
 	}
 
 	connect();
