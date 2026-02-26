@@ -379,20 +379,22 @@ function playAgain() {
 						</button>
 
 						<div class="flex gap-3">
-							<a
-								href="/"
+							<button
+								type="button"
 								class="flex-1 px-4 py-2.5 sm:py-3 rounded-xl border-2 border-charcoal/15 text-charcoal font-heading font-bold text-sm sm:text-base hover:bg-charcoal/5 transition-colors flex items-center justify-center gap-1.5"
+								on:click={() => navigate("/")}
 							>
 								<span class="material-symbols-outlined text-lg">home</span>
 								<span>Home</span>
-							</a>
-							<a
-								href="/leaderboard"
+							</button>
+							<button
+								type="button"
 								class="flex-1 px-4 py-2.5 sm:py-3 rounded-xl border-2 border-charcoal/15 text-charcoal font-heading font-bold text-sm sm:text-base hover:bg-charcoal/5 transition-colors flex items-center justify-center gap-1.5"
+								on:click={() => navigate("/leaderboard")}
 							>
 								<span class="material-symbols-outlined text-lg">leaderboard</span>
 								<span>Ranks</span>
-							</a>
+							</button>
 							<button
 								class="px-4 py-2.5 sm:py-3 rounded-xl border-2 border-gold/40 text-gold hover:bg-gold/5 font-heading font-bold text-sm sm:text-base transition-colors flex items-center justify-center gap-1.5"
 								on:click={() => toast.success("Share feature coming soon!")}

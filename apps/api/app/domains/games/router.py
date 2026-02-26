@@ -125,6 +125,24 @@ async def get_game(
     return _to_response(doc)
 
 
+@router.post("/{game_id}/round/{round_number}/start", response_model=GameResponse)
+async def start_round(
+    game_id: str,
+    round_number: int,
+    current_user: CurrentUser,
+    service: GameService = deps(GameService),
+) -> GameResponse:
+    try:
+        doc = await service.start_round(
+            game_id=game_id,
+            user_id=_user_id(current_user),
+            round_number=round_number,
+        )
+    except GameError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message) from e
+    return _to_response(doc)
+
+
 @router.post("/{game_id}/round/{round_number}/guess", response_model=GameResponse)
 async def submit_guess(
     game_id: str,
