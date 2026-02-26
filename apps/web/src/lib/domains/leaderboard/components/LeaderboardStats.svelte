@@ -2,11 +2,12 @@
 export let rank: number | null;
 export let avgScore: number;
 export let gamesPlayed: number;
+export let roundsPlayed: number;
 export let formatScore: (value: number) => string;
 export let element: HTMLDivElement | undefined = undefined;
 </script>
 
-<div bind:this={element} class="mt-5 grid grid-cols-3 gap-3 sm:mt-6 sm:gap-4">
+<div bind:this={element} class="mt-5 grid grid-cols-2 gap-3 sm:mt-6 sm:grid-cols-4 sm:gap-4">
 	<div class="stats-card">
 		<p class="stats-label">Your Rank</p>
 		<p class="stats-value">{rank ? `#${rank}` : "—"}</p>
@@ -18,6 +19,10 @@ export let element: HTMLDivElement | undefined = undefined;
 	<div class="stats-card">
 		<p class="stats-label">Games</p>
 		<p class="stats-value">{gamesPlayed}</p>
+	</div>
+	<div class="stats-card">
+		<p class="stats-label">Rounds</p>
+		<p class="stats-value">{roundsPlayed}</p>
 	</div>
 </div>
 

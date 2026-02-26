@@ -39,7 +39,7 @@ class LeaderboardService:
         offset: int,
     ) -> dict:
         start, end = self._timeframe_bounds(timeframe)
-        cache_key = f"lb:v2:{timeframe}:{mode}:{offset}:{limit}"
+        cache_key = f"lb:v3:{timeframe}:{mode}:{offset}:{limit}"
         cached = await self._read_cache(cache_key)
 
         if cached is None:
@@ -111,6 +111,7 @@ class LeaderboardService:
             "total_points": int(raw["total_points"]),
             "avg_score": float(raw["avg_score"]),
             "games_played": int(raw["games_played"]),
+            "rounds_played": int(raw["rounds_played"]),
         }
 
     async def _build_user_entry(

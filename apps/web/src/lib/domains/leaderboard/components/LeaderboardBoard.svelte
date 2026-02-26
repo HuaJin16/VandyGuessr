@@ -173,9 +173,10 @@ $: visibleTopEntries = entries.slice(0, topCount);
 		<div class="bg-terrain/50 px-4 py-3 sm:px-6 sm:py-4" bind:this={tableHeaderEl}>
 			<div class="grid grid-cols-12 gap-2 text-[10px] font-semibold uppercase tracking-wider text-charcoal/50 sm:gap-4 sm:text-xs">
 				<div class="col-span-1 text-center">#</div>
-				<div class="col-span-6 sm:col-span-5">Player</div>
-				<div class="col-span-3 text-right">Avg Score</div>
-				<div class="col-span-2 text-right sm:col-span-3">Games</div>
+				<div class="col-span-4 sm:col-span-4">Player</div>
+				<div class="col-span-3 text-right whitespace-nowrap sm:col-span-3">Avg Score</div>
+				<div class="col-span-2 text-right">Games</div>
+				<div class="col-span-2 text-right">Rounds</div>
 			</div>
 		</div>
 
@@ -205,6 +206,7 @@ $: visibleTopEntries = entries.slice(0, topCount);
 					totalPoints: 0,
 					avgScore: 0,
 					gamesPlayed: 0,
+					roundsPlayed: 0,
 				}}
 				initialsFor={getInitials}
 				formatScore={formatScore}
@@ -252,6 +254,7 @@ $: visibleTopEntries = entries.slice(0, topCount);
 								totalPoints: userEntry.totalPoints,
 								avgScore: userEntry.avgScore,
 								gamesPlayed: userEntry.gamesPlayed,
+								roundsPlayed: userEntry.roundsPlayed,
 							}}
 							initialsFor={getInitials}
 							formatScore={formatScore}
@@ -280,6 +283,7 @@ $: visibleTopEntries = entries.slice(0, topCount);
 		rank={userEntry ? userEntry.rank : null}
 		avgScore={userEntry ? userEntry.avgScore : 0}
 		gamesPlayed={userEntry ? userEntry.gamesPlayed : 0}
+		roundsPlayed={userEntry ? userEntry.roundsPlayed : 0}
 		formatScore={formatScore}
 		bind:element={statsEl}
 	/>

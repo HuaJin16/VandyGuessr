@@ -13,6 +13,7 @@ class LeaderboardEntry(BaseModel):
     totalPoints: int
     avgScore: float
     gamesPlayed: int
+    roundsPlayed: int
 
 
 class LeaderboardResponse(BaseModel):

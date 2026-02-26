@@ -38,7 +38,7 @@ function rankIcon(rank: number) {
 				</span>
 			{/if}
 		</div>
-		<div class="col-span-6 flex items-center gap-2 sm:col-span-5 sm:gap-3">
+		<div class="col-span-4 flex items-center gap-2 sm:col-span-4 sm:gap-3">
 			<div
 				class={`avatar-initials flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${
 					highlightAvatar ? "avatar-highlight text-charcoal" : "text-white"
@@ -62,14 +62,19 @@ function rankIcon(rank: number) {
 				</span>
 			{/if}
 		</div>
-		<div class="col-span-3 text-right">
+		<div class="col-span-3 text-right sm:col-span-3">
 			<span class="font-mono text-sm font-bold text-charcoal sm:text-lg">
 				{formatScore(entry.avgScore)}
 			</span>
 		</div>
-		<div class="col-span-2 text-right sm:col-span-3">
+		<div class="col-span-2 text-right">
 			<span class="font-mono text-xs text-charcoal/70 sm:text-base">
 				{entry.gamesPlayed}
+			</span>
+		</div>
+		<div class="col-span-2 text-right">
+			<span class="font-mono text-xs text-charcoal/70 sm:text-base">
+				{entry.roundsPlayed}
 			</span>
 		</div>
 	</div>

@@ -21,6 +21,7 @@ def _to_entry(doc: dict) -> LeaderboardEntry:
         totalPoints=doc["total_points"],
         avgScore=doc["avg_score"],
         gamesPlayed=doc["games_played"],
+        roundsPlayed=doc["rounds_played"],
     )
 
 

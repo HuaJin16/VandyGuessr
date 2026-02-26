@@ -9,6 +9,7 @@ export interface LeaderboardEntry {
 	totalPoints: number;
 	avgScore: number;
 	gamesPlayed: number;
+	roundsPlayed: number;
 }
 
 export interface LeaderboardResponse {

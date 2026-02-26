@@ -107,6 +107,7 @@ class LeaderboardRepository:
                 "_id": "$user_id",
                 "total_points": {"$sum": "$rounds.score"},
                 "avg_score": {"$avg": "$rounds.score"},
+                "rounds_played": {"$sum": 1},
                 "game_ids": {"$addToSet": "$_id"},
             }
         }
@@ -161,6 +162,7 @@ class LeaderboardRepository:
                     "total_points": 1,
                     "avg_score": 1,
                     "games_played": 1,
+                    "rounds_played": 1,
                 }
             },
         ]
