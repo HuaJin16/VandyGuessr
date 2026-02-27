@@ -17,8 +17,6 @@ $: gameQueryOptions = { ...gameQueries.byId(id), enabled: $auth.isInitialized };
 $: gameQuery = createQuery(gameQueryOptions);
 
 let hydratedFromQuery = false;
-let startingRound = false;
-let autoStartRoundId: number | null = null;
 
 $: if ($gameQuery.data && !hydratedFromQuery) {
 	hydratedFromQuery = true;
@@ -28,38 +26,6 @@ $: if ($gameQuery.data && !hydratedFromQuery) {
 $: game = $gameStore.game;
 $: round = $currentRound;
 $: phase = $gameStore.phase;
-
-$: if (phase === "playing" && round?.startedAt) {
-	autoStartRoundId = null;
-}
-
-$: if (phase === "playing" && round && !round.startedAt && autoStartRoundId !== round.roundId) {
-	autoStartRoundId = round.roundId;
-	void startRound(round.roundId);
-}
-
-async function startRound(roundNumber: number) {
-	if (!game || startingRound) return;
-
-	startingRound = true;
-	try {
-		const updated = await gamesService.startRound(game.id, roundNumber);
-		queryClient.setQueryData(["games", id], updated);
-		gameStore.setGame(updated);
-	} catch (err: unknown) {
-		const e = err as {
-			response?: { status?: number; data?: { detail?: string } };
-			message?: string;
-		};
-		if (e?.response?.status === 409) {
-			await refetchAndReconcile("Round state changed — refreshing game.");
-			return;
-		}
-		toast.error(e?.response?.data?.detail || e?.message || "Failed to start round");
-	} finally {
-		startingRound = false;
-	}
-}
 
 async function handleGuess() {
 	if (!game || !round || !$gameStore.guessPosition) return;
@@ -128,11 +94,8 @@ async function handleEndGame() {
 	}
 }
 
-async function handleNextRound() {
-	if (!game || startingRound) return;
-	const nextRoundNumber = $gameStore.currentRoundIndex + 2;
-	if (nextRoundNumber > game.rounds.length) return;
-	await startRound(nextRoundNumber);
+function handleNextRound() {
+	gameStore.nextRound();
 }
 
 function handleFinish() {
@@ -170,7 +133,6 @@ onDestroy(() => {
 			{round}
 			roundIndex={$gameStore.currentRoundIndex}
 			onNextRound={handleNextRound}
-			isTransitioning={startingRound}
 			onFinish={handleFinish}
 		/>
 	{/if}

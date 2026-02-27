@@ -7,9 +7,8 @@ import ResultsMap from "./ResultsMap.svelte";
 export let game: Game;
 export let round: Round;
 export let roundIndex: number;
-export let onNextRound: () => void | Promise<void>;
+export let onNextRound: () => void;
 export let onFinish: () => void;
-export let isTransitioning = false;
 
 $: isLastRound = roundIndex >= game.rounds.length - 1;
 $: roundNumber = roundIndex + 1;
@@ -37,7 +36,7 @@ function computeAccuracy(score: number | null): string {
 function computeTimeTaken(r: Round): string {
 	if (!r.startedAt) return "—";
 	const start = new Date(r.startedAt).getTime();
-	const end = r.guess ? new Date(game.lastActivityAt).getTime() : start;
+	const end = r.guess ? Date.now() : start;
 	const diffMs = Math.max(0, end - start);
 	const totalSec = Math.floor(diffMs / 1000);
 	const mins = String(Math.floor(totalSec / 60)).padStart(2, "0");
@@ -128,8 +127,8 @@ $: timeTaken = computeTimeTaken(round);
 				<span class="material-symbols-outlined btn-icon">arrow_forward</span>
 			</button>
 		{:else}
-			<button class="btn-3d next-btn" on:click={onNextRound} disabled={isTransitioning}>
-				<span>{isTransitioning ? "Starting..." : "Next Round"}</span>
+			<button class="btn-3d next-btn" on:click={onNextRound}>
+				<span>Next Round</span>
 				<span class="material-symbols-outlined btn-icon">arrow_forward</span>
 			</button>
 		{/if}
@@ -335,16 +334,6 @@ $: timeTaken = computeTimeTaken(round);
 	.next-btn:active {
 		transform: translateY(6px);
 		box-shadow: 0 0 0 #236e2d;
-	}
-
-	.next-btn:disabled {
-		cursor: not-allowed;
-		opacity: 0.8;
-	}
-
-	.next-btn:disabled:active {
-		transform: none;
-		box-shadow: 0 6px 0 #236e2d;
 	}
 
 	.btn-icon {

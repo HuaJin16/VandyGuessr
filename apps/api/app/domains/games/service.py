@@ -117,49 +117,6 @@ class GameService:
         await self._check_expiry(doc)
         return doc
 
-    async def start_round(self, game_id: str, user_id: str, round_number: int) -> dict:
-        """Start the current playable round when the user enters it."""
-        doc = await self._load_game(game_id, user_id)
-        await self._check_expiry(doc)
-
-        if doc["status"] != "active":
-            raise GameError("This game is no longer active.", 409)
-
-        round_index = round_number - 1
-        if round_index < 0 or round_index >= len(doc["rounds"]):
-            raise GameError(f"Invalid round number: {round_number}")
-
-        rd = doc["rounds"][round_index]
-        if rd.get("guess"):
-            raise GameError(f"Round {round_number} already has a guess.", 409)
-        if rd.get("skipped"):
-            raise GameError(f"Round {round_number} was skipped.", 409)
-
-        playable_index = next(
-            (
-                i
-                for i, candidate in enumerate(doc["rounds"])
-                if not candidate.get("guess") and not candidate.get("skipped")
-            ),
-            None,
-        )
-        if playable_index is None:
-            raise GameError("This game is no longer active.", 409)
-        if playable_index != round_index:
-            raise GameError(f"Round {round_number} is not ready to start.", 409)
-
-        if rd.get("started_at"):
-            return doc
-
-        now = datetime.now(UTC)
-        round_update: dict = {"started_at": now}
-        if doc["mode"].get("timed"):
-            round_update["expires_at"] = now + timedelta(seconds=TIMED_ROUND_SECONDS)
-
-        await self.game_repo.update_round(game_id, round_index, round_update)
-        await self.game_repo.update_game(game_id, {"last_activity_at": now})
-        return await self._reload(game_id)
-
     async def list_games(
         self,
         user_id: str,
@@ -230,9 +187,16 @@ class GameService:
             "last_activity_at": now,
         }
 
-        # Complete the game after the last round
+        # Start next round or complete the game
         next_index = round_index + 1
-        if next_index >= len(doc["rounds"]):
+        if next_index < len(doc["rounds"]):
+            next_round_update: dict = {"started_at": now}
+            if doc["mode"].get("timed"):
+                next_round_update["expires_at"] = now + timedelta(
+                    seconds=TIMED_ROUND_SECONDS
+                )
+            await self.game_repo.update_round(game_id, next_index, next_round_update)
+        else:
             game_update["status"] = "completed"
 
         await self.game_repo.update_game(game_id, game_update)
