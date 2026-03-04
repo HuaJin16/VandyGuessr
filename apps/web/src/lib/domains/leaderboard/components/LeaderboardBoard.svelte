@@ -30,7 +30,6 @@ const fallbackRowHeight = 64;
 
 $: entries = leaderboard.data?.entries ?? [];
 $: userEntry = leaderboard.data?.userEntry ?? null;
-$: contextEntries = leaderboard.data?.contextEntries ?? [];
 $: totalCount = leaderboard.data?.totalCount ?? entries.length;
 $: currentPage = limit > 0 ? Math.floor(offset / limit) + 1 : 1;
 $: totalPages = limit > 0 ? Math.max(1, Math.ceil(totalCount / limit)) : 1;
@@ -109,43 +108,12 @@ $: if (leaderboard.data) {
 	tick().then(updateMaxRows);
 }
 
-$: isUserInTop = !!userEntry && entries.some((entry) => entry.userId === userEntry.userId);
-$: showUserBlock = !!userEntry && !isUserInTop;
-$: contextAboveRaw =
-	showUserBlock && userEntry ? contextEntries.filter((entry) => entry.rank < userEntry.rank) : [];
-$: contextBelowRaw =
-	showUserBlock && userEntry ? contextEntries.filter((entry) => entry.rank > userEntry.rank) : [];
-$: contextAbove = [] as LeaderboardEntry[];
-$: contextBelow = [] as LeaderboardEntry[];
-$: if (showUserBlock && userEntry) {
-	const maxContext = Math.max(0, maxRows - 1);
-	const above = contextAboveRaw.slice(-1);
-	const below = contextBelowRaw.slice(0, 1);
-	if (maxContext >= 2) {
-		contextAbove = above;
-		contextBelow = below;
-	} else if (maxContext === 1) {
-		contextAbove = above.length ? above : [];
-		contextBelow = contextAbove.length ? [] : below;
-	} else {
-		contextAbove = [];
-		contextBelow = [];
-	}
-} else {
-	contextAbove = [];
-	contextBelow = [];
-}
+$: showUserFooter = !!userEntry;
 
-$: if (showUserBlock) {
-	const reservedBase = contextAbove.length + contextBelow.length + 1;
-	let available = maxRows - reservedBase;
-	const shouldShowEllipsis = available > 0;
-	if (shouldShowEllipsis) {
-		available -= 1;
-	}
-	const nextTopCount = Math.max(0, Math.min(entries.length, available));
-	showEllipsis = shouldShowEllipsis && nextTopCount > 0;
-	topCount = nextTopCount;
+$: if (showUserFooter) {
+	const available = maxRows - 2;
+	topCount = Math.max(0, Math.min(entries.length, available));
+	showEllipsis = false;
 } else {
 	const maxTop = Math.min(entries.length, maxRows);
 	const hasMore = totalCount > maxTop;
@@ -221,54 +189,30 @@ $: visibleTopEntries = entries.slice(0, topCount);
 				{/each}
 			{/if}
 
-			{#if showEllipsis}
-				<div class="separator">
-					{#if showUserBlock}
-						Your Ranking
-					{:else}
-						&middot; &middot; &middot;
-					{/if}
-				</div>
+			{#if showUserFooter}
+				<div class="separator">Your Ranking</div>
+			{:else if showEllipsis}
+				<div class="separator">&middot; &middot; &middot;</div>
 			{/if}
 
-			{#if showUserBlock}
-				{#each contextAbove as entry}
-					<LeaderboardRow
-						{entry}
-						initialsFor={getInitials}
-						formatScore={formatScore}
-						showMedal={false}
-					/>
-				{/each}
-
-				{#if userEntry}
-					<LeaderboardRow
-						entry={{
-							rank: userEntry.rank,
-							userId: userEntry.userId,
-							name: userEntry.name || currentUserName,
-							username: userEntry.username,
-							totalPoints: userEntry.totalPoints,
-							avgScore: userEntry.avgScore,
-							gamesPlayed: userEntry.gamesPlayed,
-							roundsPlayed: userEntry.roundsPlayed,
-						}}
-						initialsFor={getInitials}
-						formatScore={formatScore}
-						isCurrentUser={true}
-						highlightUser={true}
-						showMedal={false}
-					/>
-				{/if}
-
-				{#each contextBelow as entry}
-					<LeaderboardRow
-						{entry}
-						initialsFor={getInitials}
-						formatScore={formatScore}
-						showMedal={false}
-					/>
-				{/each}
+			{#if showUserFooter && userEntry}
+				<LeaderboardRow
+					entry={{
+						rank: userEntry.rank,
+						userId: userEntry.userId,
+						name: userEntry.name || currentUserName,
+						username: userEntry.username,
+						totalPoints: userEntry.totalPoints,
+						avgScore: userEntry.avgScore,
+						gamesPlayed: userEntry.gamesPlayed,
+						roundsPlayed: userEntry.roundsPlayed,
+					}}
+					initialsFor={getInitials}
+					formatScore={formatScore}
+					isCurrentUser={true}
+					highlightUser={true}
+					showMedal={false}
+				/>
 			{/if}
 		{/if}
 	</section>
