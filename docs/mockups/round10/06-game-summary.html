@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VandyGuessr Round 10 - Game Summary</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <style>
+    :root {
+      --brand: #2e933c;
+      --brand-dark: #236e2d;
+      --brand-light: rgba(46, 147, 60, 0.1);
+      --gold: #e8a817;
+      --gold-dark: #c48d10;
+      --gold-light: rgba(232, 168, 23, 0.12);
+      --gold-ink: #6b4c00;
+      --ink: #1a1a1a;
+      --muted: #5c6370;
+      --line: #e5e2db;
+      --line-strong: #c4c0b8;
+      --surface: #ffffff;
+      --canvas: #f7f5f0;
+      --danger: #dc4a3a;
+      --danger-dark: #b33a2c;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-pill: 9999px;
+      --shadow-sm: 3px 3px 0 0 rgba(0, 0, 0, 0.06);
+      --ring: 0 0 0 3px rgba(46, 147, 60, 0.35);
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, sans-serif;
+      color: var(--ink);
+      background: var(--canvas);
+    }
+
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .header-inner,
+    .main {
+      width: min(700px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .header-inner {
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mark {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-md);
+      background: var(--brand);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 7px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--surface);
+      text-decoration: none;
+      transition: all 120ms var(--ease);
+    }
+
+    .action:hover {
+      border-color: var(--brand);
+      color: var(--brand);
+      background: var(--brand-light);
+    }
+
+    .action:focus-visible {
+      outline: none;
+      box-shadow: var(--ring);
+    }
+
+    .main {
+      display: grid;
+      gap: 14px;
+      margin: 16px auto 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      padding: 16px;
+    }
+
+    .overline {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .score-area {
+      margin-top: 12px;
+    }
+
+    .score-left { }
+
+    .round-chart-wrap {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .score-left { flex-shrink: 0; }
+
+    .score-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .score {
+      margin: 0;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 48px;
+      line-height: 1;
+      font-weight: 700;
+      color: var(--brand);
+    }
+
+    .score-unit {
+      margin: 0;
+      font-family: "IBM Plex Mono", monospace;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .round-chart-wrap {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .round-chart-label {
+      margin: 0 0 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .round-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 64px;
+    }
+
+    .round-bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .round-bar {
+      width: 100%;
+      border-radius: 3px 3px 0 0;
+      background: var(--line);
+      transition: background 120ms var(--ease);
+    }
+
+    .round-bar.best { background: var(--brand); }
+    .round-bar.worst { background: var(--danger); }
+
+    .round-bar-num {
+      font-size: 10px;
+      font-family: "IBM Plex Mono", monospace;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      background: #faf9f6;
+      text-align: center;
+    }
+
+    .stat-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      margin: 6px 0 0;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .buttons {
+      margin-top: 18px;
+    }
+
+    .button {
+      border: none;
+      border-radius: var(--radius-md);
+      background: var(--brand);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 12px 14px;
+      box-shadow: 0 4px 0 var(--brand-dark);
+      cursor: pointer;
+      transition: all 120ms var(--ease);
+    }
+
+    .button:hover { background: #278234; }
+    .button:active { transform: translateY(4px); box-shadow: 0 0 0 var(--brand-dark); }
+    .button:focus-visible { outline: none; box-shadow: 0 4px 0 var(--brand-dark), var(--ring); }
+
+    .button-ghost {
+      border: 2px solid var(--line-strong);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 700;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 120ms var(--ease);
+    }
+
+    .button-ghost:hover { background: rgba(0, 0, 0, 0.05); border-color: #aaa; }
+    .button-ghost:active { background: rgba(0, 0, 0, 0.08); }
+    .button-ghost:focus-visible { outline: none; box-shadow: var(--ring); }
+
+    .round-list {
+      display: grid;
+      gap: 0;
+      margin-top: 12px;
+    }
+
+    .round-card {
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+      padding: 12px 6px 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .round-card:last-child { border-bottom: none; }
+
+    .round-card.best { background: rgba(46, 147, 60, 0.04); }
+    .round-card.worst { background: rgba(220, 74, 58, 0.04); }
+
+    .mini-map {
+      width: 80px;
+      height: 60px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: #ece7d8;
+      flex-shrink: 0;
+    }
+
+    .round-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .round-meta h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+
+    .round-detail {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .round-score {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink);
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    .round-score.skipped {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: Inter, sans-serif;
+    }
+
+    .small-note {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    @media (min-width: 700px) {
+      .card { padding: 18px; }
+      .round-card { padding: 14px 6px 14px 0; }
+      .mini-map { width: 100px; height: 70px; }
+    }
+
+    @media (max-width: 500px) {
+      .score {
+        font-size: 36px;
+      }
+
+      .mini-map {
+        width: 60px;
+        height: 45px;
+      }
+
+      .round-score {
+        font-size: 15px;
+      }
+
+      .round-meta h3 {
+        font-size: 14px;
+      }
+
+      .stats {
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 6px;
+      }
+
+      .stat {
+        padding: 8px 6px;
+      }
+
+      .stat-value {
+        font-size: 14px;
+      }
+
+      .buttons {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="mark">VG</div>
+        <h1>Game Summary</h1>
+      </div>
+      <div class="header-actions">
+        <a class="action" href="02-home.html">Home</a>
+        <a class="action" href="05-leaderboard.html">Leaderboard</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="card">
+      <p class="overline">Final Score</p>
+      <div class="score-area">
+        <div class="score-left">
+          <div class="score-row">
+            <h1 class="score">17,550</h1>
+            <p class="score-unit">points</p>
+          </div>
+        </div>
+        <div class="round-chart-wrap">
+          <p class="round-chart-label">Per Round</p>
+          <div class="round-chart">
+            <div class="round-bar-col">
+              <div class="round-bar" style="height: 52px;"></div>
+              <span class="round-bar-num">4850</span>
+            </div>
+            <div class="round-bar-col">
+              <div class="round-bar" style="height: 42px;"></div>
+              <span class="round-bar-num">3900</span>
+            </div>
+            <div class="round-bar-col">
+              <div class="round-bar best" style="height: 53px;"></div>
+              <span class="round-bar-num">4950</span>
+            </div>
+            <div class="round-bar-col">
+              <div class="round-bar worst" style="height: 42px;"></div>
+              <span class="round-bar-num">3850</span>
+            </div>
+            <div class="round-bar-col">
+              <div class="round-bar" style="height: 2px;"></div>
+              <span class="round-bar-num">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <article class="stat">
+          <p class="stat-label">Avg</p>
+          <p class="stat-value">3,510</p>
+        </article>
+        <article class="stat">
+          <p class="stat-label">Best</p>
+          <p class="stat-value" style="color:var(--brand);">4,950</p>
+        </article>
+        <article class="stat">
+          <p class="stat-label">Worst</p>
+          <p class="stat-value" style="color:var(--danger);">3,850</p>
+        </article>
+      </div>
+
+      <div class="buttons">
+        <button class="button" type="button">Play Again</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <p class="overline">Per Location Breakdown</p>
+      <div class="round-list">
+        <article class="round-card">
+          <div id="mini-map-1" class="mini-map" aria-label="Round 1 map thumbnail"></div>
+          <div class="round-meta">
+            <h3>Round 1 — Kirkland Hall</h3>
+            <p class="round-detail">125m · 00:47</p>
+          </div>
+          <span class="round-score">4,850</span>
+        </article>
+
+        <article class="round-card">
+          <div id="mini-map-2" class="mini-map" aria-label="Round 2 map thumbnail"></div>
+          <div class="round-meta">
+            <h3>Round 2 — Alumni Lawn</h3>
+            <p class="round-detail">210m · 01:03</p>
+          </div>
+          <span class="round-score">3,900</span>
+        </article>
+
+        <article class="round-card best">
+          <div id="mini-map-3" class="mini-map" aria-label="Round 3 map thumbnail"></div>
+          <div class="round-meta">
+            <h3>Round 3 — Stevenson Library</h3>
+            <p class="round-detail">41m · 00:32</p>
+          </div>
+          <span class="round-score">4,950</span>
+        </article>
+
+        <article class="round-card worst">
+          <div id="mini-map-4" class="mini-map" aria-label="Round 4 map thumbnail"></div>
+          <div class="round-meta">
+            <h3>Round 4 — Rand Hall</h3>
+            <p class="round-detail">550m · 01:18</p>
+          </div>
+          <span class="round-score">3,850</span>
+        </article>
+
+        <article class="round-card">
+          <div id="mini-map-5" class="mini-map" aria-label="Round 5 map thumbnail"></div>
+          <div class="round-meta">
+            <h3>Round 5 — Commons Center</h3>
+            <p class="round-detail">Skipped</p>
+          </div>
+          <span class="round-score skipped">Skipped</span>
+        </article>
+      </div>
+      <p class="small-note">Mini map thumbnails are rendered with Leaflet to match the app map library direction.</p>
+    </section>
+  </main>
+
+  <script>
+    const rounds = [
+      { id: "mini-map-1", guess: [36.1458, -86.8024], actual: [36.1472, -86.8007] },
+      { id: "mini-map-2", guess: [36.1439, -86.8042], actual: [36.1455, -86.8012] },
+      { id: "mini-map-3", guess: [36.1483, -86.8021], actual: [36.1481, -86.8019] },
+      { id: "mini-map-4", guess: [36.1419, -86.8084], actual: [36.1465, -86.8014] },
+      { id: "mini-map-5", guess: [36.1427, -86.8062], actual: [36.1471, -86.8031] },
+    ];
+
+    function createMiniMap(round) {
+      const map = L.map(round.id, {
+        zoomControl: false,
+        attributionControl: false,
+        dragging: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        touchZoom: false,
+        tap: false,
+      });
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+
+      const bounds = L.latLngBounds([round.guess, round.actual]);
+      map.fitBounds(bounds.pad(0.85), { maxZoom: 17 });
+
+      L.polyline([round.guess, round.actual], {
+        color: "#5c6370",
+        weight: 2,
+        dashArray: "5 4",
+      }).addTo(map);
+
+      L.circleMarker(round.guess, {
+        radius: 6,
+        color: "#2e933c",
+        fillColor: "#2e933c",
+        fillOpacity: 1,
+        weight: 2,
+      }).addTo(map);
+
+      L.circleMarker(round.actual, {
+        radius: 6,
+        color: "#e8a817",
+        fillColor: "#e8a817",
+        fillOpacity: 1,
+        weight: 2,
+      }).addTo(map);
+    }
+
+    rounds.forEach(createMiniMap);
+  </script>
+</body>
+</html>

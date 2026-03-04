@@ -8,7 +8,7 @@ export let onTimeframeChange: (value: LeaderboardTimeframe) => void;
 export let onModeChange: (value: LeaderboardMode) => void;
 </script>
 
-<div class="mb-5 flex flex-wrap gap-3 sm:mb-6 sm:gap-4">
+<div class="filters">
 	<TogglePills
 		ariaLabel="Leaderboard timeframe"
 		selected={timeframe}
@@ -47,3 +47,11 @@ export let onModeChange: (value: LeaderboardMode) => void;
 		}}
 	/>
 </div>
+
+<style>
+	.filters {
+		display: flex;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+</style>

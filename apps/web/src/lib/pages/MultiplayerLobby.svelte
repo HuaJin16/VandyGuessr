@@ -16,6 +16,7 @@ import { createQuery } from "@tanstack/svelte-query";
 import { onDestroy } from "svelte";
 import { navigate } from "svelte-routing";
 import { toast } from "svelte-sonner";
+import logo from "../../assets/logo.webp";
 
 export let id: string;
 
@@ -209,6 +210,37 @@ function reconnect() {
 }
 
 $: isHost = game?.hostId === $auth.account?.localAccountId;
+$: currentUserId = $auth.account?.localAccountId ?? "";
+
+function getInitials(name: string): string {
+	return name
+		.split(" ")
+		.map((w) => w[0])
+		.join("")
+		.toUpperCase()
+		.slice(0, 2);
+}
+
+const PLAYER_COLORS = [
+	"var(--p-you)",
+	"var(--p-blue)",
+	"var(--p-purple)",
+	"var(--p-orange)",
+	"var(--p-cyan)",
+	"var(--p-pink)",
+];
+
+function getPlayerColor(player: MultiplayerPlayer, index: number): string {
+	if (player.userId === currentUserId) return PLAYER_COLORS[0];
+	let opponentIdx = 0;
+	for (let i = 0; i < players.length; i++) {
+		if (players[i].userId === currentUserId) continue;
+		if (players[i].userId === player.userId)
+			return PLAYER_COLORS[opponentIdx + 1] ?? PLAYER_COLORS[1];
+		opponentIdx++;
+	}
+	return PLAYER_COLORS[(index + 1) % PLAYER_COLORS.length];
+}
 
 onDestroy(() => {
 	if (countdownInterval) {
@@ -221,177 +253,316 @@ onDestroy(() => {
 });
 </script>
 
-<div class="lobby-screen">
+{#if countdownValue !== null}
+	<!-- Countdown Overlay -->
+	<div class="countdown-backdrop" />
+	<div class="countdown-center">
+		<div class="count-wrap">
+			<div class="ring" />
+			<div class="count-circle">
+				<span class="count-num">{countdownValue}</span>
+			</div>
+		</div>
+
+		<div class="countdown-text">
+			<h2 class="text-2xl font-extrabold text-white">Game Starting</h2>
+			<p class="mt-1.5 text-sm text-white/55">Get ready to guess!</p>
+		</div>
+
+		<div class="player-bar">
+			<div class="avatar-stack">
+				{#each players as player, i (player.userId)}
+					<div class="av" style="background: {getPlayerColor(player, i)};">
+						{getInitials(player.name)}
+					</div>
+				{/each}
+			</div>
+			<span class="font-mono text-[13px] font-semibold text-[var(--ink)]">
+				{players.length} player{players.length !== 1 ? "s" : ""}
+			</span>
+		</div>
+	</div>
+{:else}
+	<!-- Normal Lobby -->
 	{#if $gameQuery.isLoading}
-		<div class="loading-spinner" />
-	{:else if $gameQuery.isError}
-		<div class="error-container">
-			<p class="error-text">Failed to load game</p>
+		<div class="flex h-screen items-center justify-center bg-canvas">
+			<div class="loading-spinner" />
+		</div>
+	{:else if $gameQuery.isError || lobbyStatus === "cancelled"}
+		<div class="flex h-screen flex-col items-center justify-center gap-4 bg-canvas">
+			<p class="text-base font-medium text-[var(--muted)]">
+				{lobbyStatus === "cancelled" ? "This game was cancelled" : "Failed to load game"}
+			</p>
 			<button class="btn-3d" on:click={() => navigate("/", { replace: true })}>Go Home</button>
 		</div>
-	{:else if game && lobbyStatus !== "cancelled"}
-		<div class="lobby-content glass-card">
-			{#if countdownValue !== null}
-				<div class="countdown-overlay">
-					<span class="countdown-number">{countdownValue}</span>
+	{:else if game}
+		<header class="sticky top-0 z-50 border-b border-line bg-surface">
+			<div
+				class="mx-auto flex min-h-[56px] items-center justify-between gap-3"
+				style="width: min(600px, calc(100% - 32px));"
+			>
+				<a href="/" class="flex items-center gap-2.5">
+					<img src={logo} alt="VandyGuessr" class="h-[34px] w-[34px] rounded-md" />
+					<span class="text-lg font-extrabold text-ink">VandyGuessr</span>
+				</a>
+				<div class="status-indicator">
+					<div
+						class="status-dot"
+						class:connected={connectionState === "connected"}
+						class:disconnected={connectionState === "disconnected"}
+					/>
+					<span class="text-[13px] font-medium text-[var(--muted)]">
+						{connectionState === "connected" ? "Connected" : connectionState === "disconnected" ? "Disconnected" : "Connecting..."}
+					</span>
 				</div>
-			{:else}
-				<h1 class="lobby-title">Multiplayer Lobby</h1>
+			</div>
+		</header>
 
-				<InviteCodeCard code={game.inviteCode} />
+		<main
+			class="mx-auto my-4 grid gap-3.5 sm:mb-6"
+			style="width: min(600px, calc(100% - 32px));"
+		>
+			<InviteCodeCard code={game.inviteCode} />
 
-				<div class="player-section">
-					<h3 class="section-label">Players ({players.length}/5)</h3>
-					<LobbyPlayerList {players} hostId={game.hostId} />
-				</div>
+			<LobbyPlayerList {players} hostId={game.hostId} {currentUserId} />
 
-				<div class="lobby-actions">
-					{#if connectionState === "disconnected"}
-						<button class="extend-btn" on:click={reconnect}>Reconnect</button>
+			<!-- Settings -->
+			<section class="card">
+				<p class="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+					Game Settings
+				</p>
+				<div class="flex flex-wrap gap-2">
+					<span class="settings-pill">
+						<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+						</svg>
+						120s per round
+					</span>
+					<span class="settings-pill">
+						<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+						</svg>
+						5 rounds
+					</span>
+					{#if game.mode?.environment && game.mode.environment !== "any"}
+						<span class="settings-pill">
+							{game.mode.environment === "indoor" ? "Indoor" : "Outdoor"}
+						</span>
 					{/if}
+				</div>
+			</section>
 
-					{#if isHost}
-						<button
-							class="btn-3d start-btn"
-							disabled={players.length < 2}
-							on:click={startGame}
-						>
-							{players.length < 2
-								? "Waiting for players..."
-								: `Start Game (${players.length} players)`}
-						</button>
+			<!-- Actions -->
+			<div class="grid gap-1.5">
+				{#if connectionState === "disconnected"}
+					<button class="btn-3d w-full text-center" on:click={reconnect}>Reconnect</button>
+				{:else if isHost}
+					<button
+						class="btn-3d w-full text-center"
+						disabled={players.length < 2}
+						on:click={startGame}
+					>
+						{players.length < 2 ? "Waiting for players..." : "Start Game"}
+					</button>
 					{#if lobbyExpiring}
-						<button class="extend-btn" on:click={extendLobby}>
-							Extend Lobby
-						</button>
+						<button class="leave-btn" on:click={extendLobby}>Extend Lobby</button>
 					{/if}
-					{:else}
-						<p class="waiting-text">Waiting for host to start...</p>
-						<button class="leave-btn" on:click={leaveLobby}>
-							Leave Lobby
-						</button>
-					{/if}
-				</div>
-			{/if}
-		</div>
-	{:else if lobbyStatus === "cancelled"}
-		<div class="error-container">
-			<p class="error-text">This game was cancelled</p>
-			<button class="btn-3d" on:click={() => navigate("/", { replace: true })}>Go Home</button>
-		</div>
+				{:else}
+					<p class="py-2 text-center text-sm text-[var(--muted)]">Waiting for host to start...</p>
+				{/if}
+				<button class="leave-btn" on:click={leaveLobby}>Leave Lobby</button>
+			</div>
+		</main>
 	{/if}
-</div>
+{/if}
 
 <style>
-	.lobby-screen {
-		position: fixed;
-		inset: 0;
+	.status-indicator {
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		background: #f5f2e9;
-		padding: 16px;
+		gap: 6px;
 	}
-	.lobby-content {
-		width: 100%;
-		max-width: 420px;
-		padding: 32px 24px;
-		display: flex;
-		flex-direction: column;
-		gap: 24px;
+
+	.status-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--muted);
 	}
-	.lobby-title {
-		font-family: "Rubik", sans-serif;
-		font-weight: 800;
-		font-size: 1.5rem;
-		color: #18181b;
-		text-align: center;
+
+	.status-dot.connected {
+		background: var(--brand);
+		animation: pulse 2s ease-in-out infinite;
 	}
-	.section-label {
-		font-family: "Rubik", sans-serif;
+
+	.status-dot.disconnected {
+		background: var(--danger);
+	}
+
+	.settings-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		font-size: 12px;
 		font-weight: 600;
-		font-size: 0.8125rem;
-		color: #636363;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		margin-bottom: 10px;
+		padding: 6px 12px;
+		border-radius: var(--radius-pill);
+		background: #f0ede6;
+		color: var(--muted);
 	}
-	.lobby-actions {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-		align-items: center;
-	}
-	.start-btn {
+
+	.leave-btn {
 		width: 100%;
-		text-align: center;
+		border: none;
+		border-radius: var(--radius-md);
+		background: transparent;
+		color: var(--muted);
+		font-size: 14px;
+		font-weight: 600;
+		padding: 10px 14px;
+		cursor: pointer;
+		transition: all 120ms var(--ease);
 	}
-	.start-btn:disabled {
+
+	.leave-btn:hover {
+		color: var(--danger);
+		background: var(--danger-light);
+	}
+
+	.btn-3d:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
 		transform: none;
-		box-shadow: 0 6px 0 #236e2d;
 	}
-	.extend-btn, .leave-btn {
-		background: none;
-		border: none;
-		font-family: "Rubik", sans-serif;
-		font-weight: 500;
-		font-size: 0.875rem;
-		color: #636363;
-		cursor: pointer;
-		padding: 4px 8px;
+
+	.btn-3d:disabled:active {
+		transform: none;
+		box-shadow: 0 4px 0 var(--brand-dark);
 	}
-	.extend-btn:hover, .leave-btn:hover {
-		color: #18181b;
-	}
-	.leave-btn {
-		color: #d95d39;
-	}
-	.leave-btn:hover {
-		color: #b84a2f;
-	}
-	.waiting-text {
-		font-size: 0.875rem;
-		color: #636363;
-	}
-	.countdown-overlay {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-height: 200px;
-	}
-	.countdown-number {
-		font-family: "Rubik Mono One", monospace;
-		font-size: 5rem;
-		color: #2e933c;
-		animation: pop 1s ease-in-out infinite;
-	}
+
 	.loading-spinner {
 		width: 40px;
 		height: 40px;
 		border: 4px solid rgba(24, 24, 27, 0.1);
-		border-top-color: #2e933c;
+		border-top-color: var(--brand);
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
 	}
-	.error-container {
+
+	/* Countdown overlay styles */
+	.countdown-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(26, 26, 26, 0.65);
+		z-index: 100;
+	}
+
+	.countdown-center {
+		position: fixed;
+		inset: 0;
+		z-index: 101;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 16px;
+		justify-content: center;
+		gap: 24px;
 	}
-	.error-text {
-		font-size: 16px;
-		font-weight: 500;
-		color: rgba(24, 24, 27, 0.6);
+
+	.count-wrap {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.ring {
+		position: absolute;
+		width: 140px;
+		height: 140px;
+		border-radius: 50%;
+		border: 3px solid rgba(59, 130, 246, 0.25);
+		animation: ringExpand 1.2s ease-out infinite;
+	}
+
+	.count-circle {
+		width: 140px;
+		height: 140px;
+		border-radius: 50%;
+		background: var(--brand);
+		box-shadow: var(--shadow-lg);
+		display: grid;
+		place-items: center;
+		animation: countPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	}
+
+	.count-num {
+		font-family: "IBM Plex Mono", monospace;
+		font-size: 72px;
+		font-weight: 600;
+		color: #fff;
+		line-height: 1;
+	}
+
+	.countdown-text {
+		text-align: center;
+		animation: fadeUp 0.4s ease-out 0.2s both;
+	}
+
+	.player-bar {
+		display: inline-flex;
+		align-items: center;
+		gap: 14px;
+		background: rgba(255, 255, 255, 0.93);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-pill);
+		padding: 8px 16px 8px 8px;
+		box-shadow: var(--shadow-md);
+		animation: fadeUp 0.4s ease-out 0.35s both;
+	}
+
+	.avatar-stack {
+		display: flex;
+	}
+
+	.avatar-stack .av {
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		color: #fff;
+		font-size: 11px;
+		font-weight: 700;
+		display: grid;
+		place-items: center;
+		border: 2px solid #fff;
+		margin-left: -8px;
+	}
+
+	.avatar-stack .av:first-child {
+		margin-left: 0;
 	}
 
 	@keyframes spin {
 		to { transform: rotate(360deg); }
 	}
-	@keyframes pop {
-		0%, 100% { transform: scale(1); }
-		50% { transform: scale(1.15); }
+
+	@keyframes pulse {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.4; }
+	}
+
+	@keyframes ringExpand {
+		0% { transform: scale(0.6); opacity: 0.6; }
+		100% { transform: scale(2.2); opacity: 0; }
+	}
+
+	@keyframes countPop {
+		0% { transform: scale(0.3); opacity: 0; }
+		60% { transform: scale(1.12); opacity: 1; }
+		100% { transform: scale(1); }
+	}
+
+	@keyframes fadeUp {
+		0% { transform: translateY(10px); opacity: 0; }
+		100% { transform: translateY(0); opacity: 1; }
 	}
 </style>

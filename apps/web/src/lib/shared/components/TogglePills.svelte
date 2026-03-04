@@ -30,7 +30,7 @@ export type ToggleOption = {
 	{#each options as option (option.value)}
 		<button
 			type="button"
-			class={`toggle-button ${selected === option.value ? "toggle-active" : "toggle-inactive"}`}
+			class="toggle-button {selected === option.value ? 'toggle-active' : 'toggle-inactive'}"
 			aria-pressed={selected === option.value}
 			on:click={() => handleClick(option.value)}
 		>
@@ -47,11 +47,12 @@ export type ToggleOption = {
 <style>
 	.toggle-group {
 		display: flex;
-		border-radius: 9999px;
-		padding: 4px;
-		border: 1px solid rgba(0, 0, 0, 0.08);
-		background: white;
-		box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.1);
+		border-radius: var(--radius-pill);
+		padding: 3px;
+		gap: 3px;
+		border: 1px solid var(--line);
+		background: var(--surface);
+		box-shadow: var(--shadow-sm);
 	}
 
 	@media (min-width: 640px) {
@@ -66,17 +67,18 @@ export type ToggleOption = {
 		align-items: center;
 		justify-content: center;
 		gap: 5px;
-		border-radius: 9999px;
-		padding: 7px 16px;
+		border-radius: var(--radius-pill);
+		padding: 7px 13px;
 		font-size: 13px;
-		transition: all 0.15s;
+		font-weight: 600;
 		cursor: pointer;
 		border: none;
 		outline: none;
 		background: transparent;
-		color: #18181b;
-		font-weight: 500;
+		color: var(--muted);
 		appearance: none;
+		transition: all var(--duration-fast) var(--ease);
+		text-align: center;
 	}
 
 	@media (min-width: 640px) {
@@ -85,17 +87,28 @@ export type ToggleOption = {
 		}
 	}
 
+	.toggle-button:hover {
+		color: var(--ink);
+		background: rgba(0, 0, 0, 0.05);
+	}
+
 	.toggle-button:focus-visible {
-		box-shadow: 0 0 0 2px rgba(46, 147, 60, 0.35);
+		outline: none;
+		box-shadow: var(--ring);
 	}
 
 	.toggle-active {
-		background: #2e933c;
-		color: white;
-		font-weight: 600;
+		background: var(--brand);
+		color: #fff;
+		box-shadow: 0 2px 0 var(--brand-dark);
 	}
 
-	.toggle-inactive:hover {
-		background: rgba(46, 147, 60, 0.08);
+	.toggle-active:hover {
+		background: var(--brand);
+		color: #fff;
+	}
+
+	.toggle-active:focus-visible {
+		box-shadow: 0 2px 0 var(--brand-dark), var(--ring);
 	}
 </style>

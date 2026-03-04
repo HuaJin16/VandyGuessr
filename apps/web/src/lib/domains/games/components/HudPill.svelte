@@ -7,65 +7,93 @@ export let timerDanger = false;
 export let showCheck = false;
 </script>
 
-<div class="hud-pill">
-	<div class="hud-segment">
+<section class="hud" aria-label="Gameplay status">
+	<div class="hud-cell">
 		<span class="hud-label">Round</span>
-		<span class="hud-value font-mono">{round}/{totalRounds}</span>
+		<span class="hud-value">{round}/{totalRounds}</span>
 	</div>
-	<div class="hud-divider" />
-	<div class="hud-segment">
+	<div class="hud-cell">
 		<span class="hud-label">Score</span>
-		<span class="hud-value font-mono">{score.toLocaleString()}</span>
+		<span class="hud-value score">{score.toLocaleString()}</span>
 	</div>
 	{#if timer !== null}
-		<div class="hud-divider" />
-		<div class="hud-segment">
+		<div class="hud-cell">
 			{#if showCheck}
-				<span class="text-jungle text-xs">&#10003;</span>
+				<span class="hud-label" style="color: var(--brand);">&#10003;</span>
+			{:else}
+				<span class="hud-label">Time</span>
 			{/if}
-			<span class="hud-value font-mono" class:text-clay={timerDanger} class:text-jungle={showCheck && !timerDanger}>
-				{timer}
-			</span>
+			<span class="hud-value" class:timer={timerDanger} class:score={showCheck && !timerDanger}>{timer}</span>
 		</div>
 	{/if}
-</div>
+</section>
 
 <style>
-	.hud-pill {
+	.hud {
+		pointer-events: auto;
 		display: inline-flex;
 		align-items: center;
-		gap: 12px;
-		padding: 8px 20px;
+		gap: 0;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-pill);
 		background: rgba(255, 255, 255, 0.95);
-		backdrop-filter: blur(12px);
-		border-radius: 9999px;
-		box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.1);
-		border: 1px solid rgba(255, 255, 255, 0.5);
+		color: var(--ink);
+		box-shadow: var(--shadow-md);
+		padding: 6px 4px;
+		width: min(100%, 540px);
+		justify-content: center;
 	}
 
-	.hud-segment {
+	.hud-cell {
+		padding: 4px 12px;
 		display: flex;
 		align-items: center;
 		gap: 6px;
 	}
 
+	.hud-cell + .hud-cell {
+		border-left: 1px solid var(--line);
+	}
+
 	.hud-label {
 		font-size: 11px;
-		font-weight: 500;
+		font-weight: 600;
+		letter-spacing: 0.08em;
 		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: rgba(24, 24, 27, 0.4);
+		color: var(--muted);
 	}
 
 	.hud-value {
-		font-size: 16px;
-		font-weight: 700;
-		color: #18181b;
+		font-family: "IBM Plex Mono", monospace;
+		font-size: 14px;
+		font-weight: 600;
+		color: var(--ink);
 	}
 
-	.hud-divider {
-		width: 1px;
-		height: 20px;
-		background: rgba(24, 24, 27, 0.1);
+	.hud-value.score {
+		color: var(--gold-dark);
+	}
+
+	.hud-value.timer {
+		color: var(--danger);
+	}
+
+	@media (max-width: 400px) {
+		.hud {
+			padding: 4px 2px;
+		}
+
+		.hud-cell {
+			padding: 3px 8px;
+			gap: 4px;
+		}
+
+		.hud-label {
+			font-size: 10px;
+		}
+
+		.hud-value {
+			font-size: 12px;
+		}
 	}
 </style>

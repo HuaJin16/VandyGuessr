@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VandyGuessr Round 10 - Multiplayer Round Results</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --brand: #2e933c;
+      --brand-dark: #236e2d;
+      --brand-light: rgba(46, 147, 60, 0.1);
+      --gold: #e8a817;
+      --gold-dark: #c48d10;
+      --gold-light: rgba(232, 168, 23, 0.12);
+      --gold-ink: #6b4c00;
+      --ink: #1a1a1a;
+      --muted: #5c6370;
+      --line: #e5e2db;
+      --surface: #ffffff;
+      --canvas: #f7f5f0;
+      --danger: #dc4a3a;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-pill: 9999px;
+      --shadow-sm: 3px 3px 0 0 rgba(0, 0, 0, 0.06);
+      --ring: 0 0 0 3px rgba(46, 147, 60, 0.35);
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+      --p-you: #2e933c;
+      --p-blue: #3b82f6;
+      --p-purple: #8b5cf6;
+      --p-orange: #f97316;
+      --p-cyan: #06b6d4;
+      --p-pink: #ec4899;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, sans-serif;
+      color: var(--ink);
+      background: var(--canvas);
+    }
+
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .header-inner,
+    .main {
+      width: min(700px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .header-inner {
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; }
+
+    .mark {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-md);
+      background: var(--brand);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .action {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 7px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--surface);
+      text-decoration: none;
+    }
+
+    .main {
+      display: grid;
+      gap: 14px;
+      margin: 16px auto 24px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+      padding: 16px;
+    }
+
+    .overline {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* Map with multi-player pins */
+    .map {
+      height: 300px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background-color: #ece7d8;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(92, 99, 112, 0.17) 0 1px, transparent 1px 24px),
+        repeating-linear-gradient(90deg, rgba(92, 99, 112, 0.17) 0 1px, transparent 1px 24px);
+      position: relative;
+    }
+
+    .map-pin {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transform: translate(-50%, -100%);
+    }
+
+    .map-pin-label {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 2px 6px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 2px;
+      box-shadow: var(--shadow-sm);
+      white-space: nowrap;
+    }
+
+    .map-pin-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50% 50% 50% 0;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+      transform: rotate(-45deg);
+    }
+
+    .map-flag {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .map-flag-label {
+      background: var(--gold);
+      border-radius: var(--radius-sm);
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--gold-ink);
+      margin-bottom: 2px;
+      box-shadow: var(--shadow-sm);
+      white-space: nowrap;
+    }
+
+    .map-flag-icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    .map-distance {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      background: rgba(26, 26, 26, 0.88);
+      color: #fff;
+      border-radius: var(--radius-pill);
+      padding: 3px 8px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      font-weight: 600;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .legend {
+      margin-top: 10px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: var(--muted);
+      align-items: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* Round Progress Dots */
+    .progress-dots {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .pdot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--line);
+    }
+
+    .pdot.done { background: var(--brand); }
+    .pdot.current { background: var(--brand); box-shadow: 0 0 0 3px rgba(46, 147, 60, 0.25); }
+
+    /* Location heading */
+    .location {
+      margin: 6px 0 0;
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    /* Player Score Table */
+    .score-table {
+      display: grid;
+      gap: 4px;
+      margin-top: 14px;
+    }
+
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+    }
+
+    .score-row.is-you {
+      background: var(--brand-light);
+      border-color: var(--brand);
+    }
+
+    .score-rank {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .score-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .score-name {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .score-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: var(--radius-pill);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: var(--brand-light);
+      color: var(--brand-dark);
+      flex-shrink: 0;
+    }
+
+    .score-pts {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 14px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .score-dist {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.04);
+      border-radius: var(--radius-pill);
+      padding: 2px 8px;
+      flex-shrink: 0;
+    }
+
+    /* Cumulative Standings */
+    .standings-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .standings-icon {
+      width: 16px;
+      height: 16px;
+      color: var(--muted);
+    }
+
+    .standings-title {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .standings-list {
+      display: grid;
+      gap: 4px;
+    }
+
+    .standing-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+    }
+
+    .standing-row.is-you {
+      background: var(--brand-light);
+      border-color: var(--brand);
+    }
+
+    .standing-rank {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      width: 24px;
+      flex-shrink: 0;
+    }
+
+    .standing-av {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .standing-name {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .standing-pts {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 13px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    /* Buttons */
+    .button-primary {
+      width: 100%;
+      margin-top: 14px;
+      border: none;
+      border-radius: var(--radius-md);
+      background: var(--brand);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 12px 14px;
+      box-shadow: 0 4px 0 var(--brand-dark);
+      cursor: pointer;
+      transition: all 120ms var(--ease);
+    }
+
+    .button-primary:hover { background: #278234; }
+    .button-primary:active { transform: translateY(4px); box-shadow: 0 0 0 var(--brand-dark); }
+    .button-primary:focus-visible { outline: none; box-shadow: 0 4px 0 var(--brand-dark), var(--ring); }
+
+    @media (min-width: 700px) {
+      .card { padding: 18px; }
+      .map { height: 400px; }
+    }
+
+    @media (max-width: 500px) {
+      .location { font-size: 18px; }
+      .score-pts { font-size: 12px; }
+      .score-dist { display: none; }
+      .score-row { padding: 6px 8px; gap: 6px; }
+      .standing-row { padding: 6px 8px; gap: 6px; }
+      .standing-pts { font-size: 12px; }
+      .legend { font-size: 11px; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="mark">VG</div>
+        <h1>Round Results</h1>
+      </div>
+      <a class="action" href="10-multiplayer-gameplay.html">← Back</a>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- Map with multiple pins -->
+    <section class="card">
+      <p class="overline">Map Debrief</p>
+      <div class="map" role="img" aria-label="Map showing all player guesses and the actual location">
+        <!-- SVG dashed lines -->
+        <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <line x1="30" y1="55" x2="68" y2="28" stroke="#2e933c" stroke-width="0.3" stroke-dasharray="2 1.5" opacity="0.6"/>
+          <line x1="42" y1="62" x2="68" y2="28" stroke="#3b82f6" stroke-width="0.3" stroke-dasharray="2 1.5" opacity="0.6"/>
+          <line x1="22" y1="45" x2="68" y2="28" stroke="#8b5cf6" stroke-width="0.3" stroke-dasharray="2 1.5" opacity="0.6"/>
+          <line x1="55" y1="70" x2="68" y2="28" stroke="#f97316" stroke-width="0.3" stroke-dasharray="2 1.5" opacity="0.6"/>
+          <line x1="35" y1="78" x2="68" y2="28" stroke="#06b6d4" stroke-width="0.3" stroke-dasharray="2 1.5" opacity="0.6"/>
+          <line x1="75" y1="60" x2="68" y2="28" stroke="#ec4899" stroke-width="0.3" stroke-dasharray="2 1.5" opacity="0.6"/>
+        </svg>
+
+        <!-- Player Pins -->
+        <div class="map-pin" style="left:30%;top:55%;z-index:2;">
+          <span class="map-pin-label">You</span>
+          <div class="map-pin-dot" style="background:var(--p-you);"></div>
+        </div>
+        <div class="map-pin" style="left:42%;top:62%;z-index:2;">
+          <span class="map-pin-label">Sarah W.</span>
+          <div class="map-pin-dot" style="background:var(--p-blue);"></div>
+        </div>
+        <div class="map-pin" style="left:22%;top:45%;z-index:2;">
+          <span class="map-pin-label">Alex C.</span>
+          <div class="map-pin-dot" style="background:var(--p-purple);"></div>
+        </div>
+        <div class="map-pin" style="left:55%;top:70%;z-index:2;">
+          <span class="map-pin-label">Jordan T.</span>
+          <div class="map-pin-dot" style="background:var(--p-orange);"></div>
+        </div>
+        <div class="map-pin" style="left:35%;top:78%;z-index:2;">
+          <span class="map-pin-label">Mia K.</span>
+          <div class="map-pin-dot" style="background:var(--p-cyan);"></div>
+        </div>
+        <div class="map-pin" style="left:75%;top:60%;z-index:2;">
+          <span class="map-pin-label">Liam R.</span>
+          <div class="map-pin-dot" style="background:var(--p-pink);"></div>
+        </div>
+
+        <!-- Actual Location Flag -->
+        <div class="map-flag" style="left:68%;top:28%;z-index:3;">
+          <span class="map-flag-label">Kirkland Hall</span>
+          <svg class="map-flag-icon" viewBox="0 0 24 24" fill="var(--gold)" stroke="var(--gold-ink)" stroke-width="1.5"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15" stroke="var(--gold-ink)"/></svg>
+        </div>
+
+        <!-- Distance Labels -->
+        <div class="map-distance" style="left:49%;top:40%;">125m</div>
+        <div class="map-distance" style="left:56%;top:47%;">340m</div>
+        <div class="map-distance" style="left:44%;top:35%;">520m</div>
+      </div>
+
+      <div class="legend">
+        <span class="legend-item"><span class="legend-dot" style="background:var(--p-you);"></span> You</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--p-blue);"></span> Sarah</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--p-purple);"></span> Alex</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--p-orange);"></span> Jordan</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--p-cyan);"></span> Mia</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--p-pink);"></span> Liam</span>
+        <span class="legend-item"><svg width="10" height="10" viewBox="0 0 24 24" fill="var(--gold)" stroke="var(--gold-ink)" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/></svg> Actual</span>
+      </div>
+    </section>
+
+    <!-- Round Scores -->
+    <section class="card">
+      <div class="progress-dots">
+        <div class="pdot done"></div>
+        <div class="pdot done"></div>
+        <div class="pdot current"></div>
+        <div class="pdot"></div>
+        <div class="pdot"></div>
+      </div>
+
+      <p class="overline">Round 3 of 5</p>
+      <h2 class="location">Kirkland Hall</h2>
+
+      <div class="score-table">
+        <!-- 1st: You -->
+        <div class="score-row is-you">
+          <span class="score-rank">#1</span>
+          <div class="score-avatar" style="background:var(--p-you);">RM</div>
+          <p class="score-name">Ryan M.</p>
+          <span class="score-badge">You</span>
+          <span class="score-pts" style="color:var(--brand);">4,850</span>
+          <span class="score-dist">125m</span>
+        </div>
+        <!-- 2nd -->
+        <div class="score-row">
+          <span class="score-rank">#2</span>
+          <div class="score-avatar" style="background:var(--p-blue);">SW</div>
+          <p class="score-name">Sarah W.</p>
+          <span class="score-pts">3,200</span>
+          <span class="score-dist">340m</span>
+        </div>
+        <!-- 3rd -->
+        <div class="score-row">
+          <span class="score-rank">#3</span>
+          <div class="score-avatar" style="background:var(--p-purple);">AC</div>
+          <p class="score-name">Alex C.</p>
+          <span class="score-pts">2,400</span>
+          <span class="score-dist">520m</span>
+        </div>
+        <!-- 4th -->
+        <div class="score-row">
+          <span class="score-rank">#4</span>
+          <div class="score-avatar" style="background:var(--p-orange);">JT</div>
+          <p class="score-name">Jordan T.</p>
+          <span class="score-pts">1,800</span>
+          <span class="score-dist">680m</span>
+        </div>
+        <!-- 5th -->
+        <div class="score-row">
+          <span class="score-rank">#5</span>
+          <div class="score-avatar" style="background:var(--p-cyan);">MK</div>
+          <p class="score-name">Mia K.</p>
+          <span class="score-pts">1,200</span>
+          <span class="score-dist">820m</span>
+        </div>
+        <!-- 6th -->
+        <div class="score-row">
+          <span class="score-rank">#6</span>
+          <div class="score-avatar" style="background:var(--p-pink);">LR</div>
+          <p class="score-name">Liam R.</p>
+          <span class="score-pts">900</span>
+          <span class="score-dist">950m</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cumulative Standings -->
+    <section class="card">
+      <div class="standings-header">
+        <svg class="standings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        <p class="standings-title">Overall Standings</p>
+      </div>
+
+      <div class="standings-list">
+        <div class="standing-row is-you">
+          <span class="standing-rank">1st</span>
+          <div class="standing-av" style="background:var(--p-you);">RM</div>
+          <p class="standing-name">Ryan M.</p>
+          <span class="standing-pts" style="color:var(--brand);">14,200</span>
+        </div>
+        <div class="standing-row">
+          <span class="standing-rank">2nd</span>
+          <div class="standing-av" style="background:var(--p-blue);">SW</div>
+          <p class="standing-name">Sarah W.</p>
+          <span class="standing-pts">11,800</span>
+        </div>
+        <div class="standing-row">
+          <span class="standing-rank">3rd</span>
+          <div class="standing-av" style="background:var(--p-purple);">AC</div>
+          <p class="standing-name">Alex C.</p>
+          <span class="standing-pts">10,400</span>
+        </div>
+        <div class="standing-row">
+          <span class="standing-rank">4th</span>
+          <div class="standing-av" style="background:var(--p-orange);">JT</div>
+          <p class="standing-name">Jordan T.</p>
+          <span class="standing-pts">8,600</span>
+        </div>
+        <div class="standing-row">
+          <span class="standing-rank">5th</span>
+          <div class="standing-av" style="background:var(--p-cyan);">MK</div>
+          <p class="standing-name">Mia K.</p>
+          <span class="standing-pts">7,200</span>
+        </div>
+        <div class="standing-row">
+          <span class="standing-rank">6th</span>
+          <div class="standing-av" style="background:var(--p-pink);">LR</div>
+          <p class="standing-name">Liam R.</p>
+          <span class="standing-pts">5,900</span>
+        </div>
+      </div>
+
+      <button class="button-primary" type="button">Next Round</button>
+    </section>
+  </main>
+</body>
+</html>

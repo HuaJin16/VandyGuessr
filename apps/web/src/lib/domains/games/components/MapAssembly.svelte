@@ -15,91 +15,94 @@ function handleClick(e: CustomEvent<{ lat: number; lng: number }>) {
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-<div
-	class="map-assembly"
+<section
+	class="dock"
 	class:expanded
+	aria-label="Map assembly"
 	on:mouseenter={() => { expanded = true; }}
 	on:mouseleave={() => { expanded = false; }}
 >
+	<p class="dock-overline">Place Your Guess</p>
 	<div class="map-wrapper">
 		<GuessMap {position} on:click={handleClick} />
-		{#if !position}
-			<div class="map-hint">Click to place your guess</div>
-		{/if}
 	</div>
 	<button
-		class="btn-3d guess-btn"
+		class="guess-btn"
 		disabled={!position || disabled}
 		on:click={onGuess}
 	>
-		GUESS
+		Lock Guess
 	</button>
-</div>
+	{#if !position}
+		<p class="dock-note">Tap map to move marker. Pin position determines your distance score.</p>
+	{/if}
+</section>
 
 <style>
-	.map-assembly {
-		position: fixed;
-		bottom: 20px;
-		right: 20px;
-		z-index: 40;
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-		width: 300px;
-		transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-		            height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	.dock {
+		border: 1px solid rgba(255, 255, 255, 0.55);
+		border-radius: var(--radius-lg);
+		background: rgba(255, 255, 255, 0.96);
+		color: var(--ink);
+		box-shadow: var(--shadow-md);
+		padding: 10px;
+		backdrop-filter: blur(6px);
+		width: 100%;
+		transition: all 200ms var(--ease);
+		pointer-events: auto;
 	}
 
-	.map-assembly.expanded {
-		width: 480px;
+	.dock-overline {
+		margin: 0;
+		color: var(--muted);
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 	}
 
 	.map-wrapper {
 		position: relative;
-		height: 200px;
-		border-radius: 12px;
+		margin-top: 8px;
+		height: 180px;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-md);
 		overflow: hidden;
-		box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.1);
-		border: 2px solid rgba(255, 255, 255, 0.5);
-		transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		transition: height 200ms var(--ease);
 	}
 
-	.map-assembly.expanded .map-wrapper {
-		height: 320px;
-	}
-
-	.map-hint {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		text-align: center;
-		padding: 8px;
-		background: rgba(0, 0, 0, 0.6);
-		color: white;
-		font-size: 12px;
-		font-weight: 500;
-		pointer-events: none;
+	.dock.expanded .map-wrapper {
+		height: 260px;
 	}
 
 	.guess-btn {
 		width: 100%;
-		padding: 14px;
+		margin-top: 10px;
+		border: none;
+		border-radius: var(--radius-md);
+		background: var(--brand);
+		color: #fff;
+		font-family: Inter, sans-serif;
 		font-size: 16px;
 		font-weight: 700;
-		letter-spacing: 0.05em;
-		background: #2e933c;
-		color: white;
-		border: none;
-		border-radius: 12px;
+		padding: 13px 14px;
+		box-shadow: 0 4px 0 var(--brand-dark);
 		cursor: pointer;
-		box-shadow: 0 6px 0 #236e2d;
-		transition: transform 0.1s, box-shadow 0.1s;
+		transition: all 120ms var(--ease);
+	}
+
+	.guess-btn:hover:not(:disabled) {
+		background: #278234;
 	}
 
 	.guess-btn:active:not(:disabled) {
-		transform: translateY(6px);
-		box-shadow: 0 0 0 #236e2d;
+		transform: translateY(4px);
+		box-shadow: 0 0 0 var(--brand-dark);
+	}
+
+	.guess-btn:focus-visible {
+		outline: none;
+		box-shadow: 0 4px 0 var(--brand-dark), var(--ring);
 	}
 
 	.guess-btn:disabled {
@@ -107,24 +110,48 @@ function handleClick(e: CustomEvent<{ lat: number; lng: number }>) {
 		cursor: not-allowed;
 	}
 
-	@media (max-width: 640px) {
-		.map-assembly {
-			bottom: 12px;
-			right: 12px;
-			left: 12px;
-			width: auto;
+	.dock-note {
+		margin: 8px 0 0;
+		color: var(--muted);
+		font-size: 12px;
+		line-height: 1.35;
+	}
+
+	/* Mobile: dock is part of grid flow, takes full width */
+	@media (max-width: 879px) {
+		.dock {
+			align-self: end;
+		}
+	}
+
+	@media (max-width: 400px) {
+		.dock {
+			padding: 8px;
 		}
 
-		.map-assembly.expanded {
-			width: auto;
+		.guess-btn {
+			font-size: 14px;
+			padding: 11px 12px;
+		}
+
+		.dock-note {
+			font-size: 11px;
+		}
+	}
+
+	@media (min-width: 880px) {
+		.dock {
+			grid-column: 2;
+			grid-row: 2;
+			align-self: end;
 		}
 
 		.map-wrapper {
-			height: 180px;
+			height: 220px;
 		}
 
-		.map-assembly.expanded .map-wrapper {
-			height: 180px;
+		.dock.expanded .map-wrapper {
+			height: 300px;
 		}
 	}
 </style>

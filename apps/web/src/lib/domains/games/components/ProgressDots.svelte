@@ -26,19 +26,19 @@ export let current = 0;
 		width: 10px;
 		height: 10px;
 		border-radius: 50%;
-		transition: all 0.2s;
+		transition: all 200ms var(--ease);
 	}
 
 	.dot.completed {
-		background: #2e933c;
+		background: var(--brand);
 	}
 
 	.dot.current {
-		background: #f4c430;
-		box-shadow: 0 0 0 3px rgba(244, 196, 48, 0.3);
+		background: var(--gold);
+		box-shadow: 0 0 0 3px rgba(232, 168, 23, 0.3);
 	}
 
 	.dot.upcoming {
-		background: rgba(24, 24, 27, 0.15);
+		background: var(--line);
 	}
 </style>

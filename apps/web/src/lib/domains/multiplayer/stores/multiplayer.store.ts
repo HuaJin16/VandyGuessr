@@ -1,6 +1,7 @@
 import { derived, writable } from "svelte/store";
 import type {
 	ConnectionState,
+	GameOverRound,
 	MultiplayerGame,
 	MultiplayerGameStatus,
 	MultiplayerPhase,
@@ -28,6 +29,7 @@ interface MultiplayerState {
 	playersGuessed: string[];
 	roundResult: RoundResult | null;
 	standings: Standing[];
+	rounds: GameOverRound[];
 	submitting: boolean;
 }
 
@@ -43,6 +45,7 @@ const initial: MultiplayerState = {
 	playersGuessed: [],
 	roundResult: null,
 	standings: [],
+	rounds: [],
 	submitting: false,
 };
 
@@ -96,11 +99,12 @@ function createMultiplayerStore() {
 				standings: result.standings,
 			}));
 		},
-		setGameOver(standings: Standing[]) {
+		setGameOver(standings: Standing[], rounds: GameOverRound[]) {
 			update((s) => ({
 				...s,
 				phase: "game_over",
 				standings,
+				rounds,
 				game: s.game ? { ...s.game, status: "completed" } : s.game,
 			}));
 		},

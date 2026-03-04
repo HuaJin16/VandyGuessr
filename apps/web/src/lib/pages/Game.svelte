@@ -145,14 +145,14 @@ onDestroy(() => {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #f5f2e9;
+		background: var(--canvas);
 	}
 
 	.loading-spinner {
 		width: 40px;
 		height: 40px;
-		border: 4px solid rgba(24, 24, 27, 0.1);
-		border-top-color: #2e933c;
+		border: 4px solid var(--line);
+		border-top-color: var(--brand);
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
 	}
@@ -171,12 +171,12 @@ onDestroy(() => {
 		align-items: center;
 		justify-content: center;
 		gap: 16px;
-		background: #f5f2e9;
+		background: var(--canvas);
 	}
 
 	.error-text {
 		font-size: 16px;
 		font-weight: 500;
-		color: rgba(24, 24, 27, 0.6);
+		color: var(--muted);
 	}
 </style>

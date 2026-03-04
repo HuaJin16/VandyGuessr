@@ -19,6 +19,7 @@ class RoundEntity(BaseModel):
     score: int | None = None
     started_at: datetime | None = None
     expires_at: datetime | None = None
+    guessed_at: datetime | None = None
     skipped: bool = False
     location_name: str | None = None
 

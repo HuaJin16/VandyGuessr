@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VandyGuessr Round 10 - Multiplayer Gameplay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --brand: #2e933c;
+      --brand-dark: #236e2d;
+      --brand-light: rgba(46, 147, 60, 0.1);
+      --gold-dark: #c48d10;
+      --ink: #1a1a1a;
+      --muted: #5c6370;
+      --line: #e5e2db;
+      --surface: #ffffff;
+      --danger: #dc4a3a;
+      --danger-dark: #b33a2c;
+      --danger-light: rgba(220, 74, 58, 0.08);
+      --danger-ink: #8b2820;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-pill: 9999px;
+      --shadow-sm: 3px 3px 0 0 rgba(0, 0, 0, 0.15);
+      --shadow-md: 4px 4px 0 0 rgba(0, 0, 0, 0.2);
+      --ring: 0 0 0 3px rgba(46, 147, 60, 0.35);
+      --ring-danger: 0 0 0 3px rgba(220, 74, 58, 0.35);
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+      --mp: #3b82f6;
+
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, sans-serif;
+      color: #fff;
+      background: #0f1712;
+      overflow: hidden;
+    }
+
+    .scene {
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(rgba(11, 18, 14, 0.35), rgba(11, 18, 14, 0.45)),
+        url("https://images.unsplash.com/photo-1592280771190-3e2e4d571952?q=80&w=2200&auto=format&fit=crop");
+      background-position: center;
+      background-size: cover;
+    }
+
+    .shell {
+      position: relative;
+      z-index: 2;
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: 10px;
+      gap: 6px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ghost {
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      border-radius: var(--radius-md);
+      background: rgba(17, 25, 20, 0.4);
+      backdrop-filter: blur(4px);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 11px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 120ms var(--ease);
+      cursor: pointer;
+    }
+
+    .ghost:hover { background: rgba(17, 25, 20, 0.55); }
+    .ghost:focus-visible { outline: none; box-shadow: var(--ring); }
+
+    .ghost-danger {
+      border-color: rgba(220, 74, 58, 0.5);
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .ghost-danger:hover {
+      background: rgba(220, 74, 58, 0.2);
+      border-color: rgba(220, 74, 58, 0.7);
+    }
+
+    .flag-icon {
+      width: 14px;
+      height: 14px;
+    }
+
+    .hud-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      pointer-events: none;
+    }
+
+    .hud {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.95);
+      color: var(--ink);
+      box-shadow: var(--shadow-md);
+      padding: 6px 4px;
+      width: min(100%, 600px);
+      justify-content: center;
+    }
+
+    .hud-cell {
+      padding: 4px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hud-cell + .hud-cell { border-left: 1px solid var(--line); }
+
+    .hud-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .hud-value {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .hud-value.score { color: var(--gold-dark); }
+    .hud-value.timer { color: var(--danger); }
+    .hud-value.mp { color: var(--mp); }
+
+    .dock {
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      border-radius: var(--radius-lg);
+      background: rgba(255, 255, 255, 0.96);
+      color: var(--ink);
+      box-shadow: var(--shadow-md);
+      padding: 10px;
+      backdrop-filter: blur(6px);
+    }
+
+    .dock-overline {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .map {
+      margin-top: 8px;
+      height: 180px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background-color: #ece7d8;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(92, 99, 112, 0.17) 0 1px, transparent 1px 24px),
+        repeating-linear-gradient(90deg, rgba(92, 99, 112, 0.17) 0 1px, transparent 1px 24px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pin {
+      width: 18px;
+      height: 18px;
+      border-radius: 50% 50% 50% 0;
+      background: var(--brand);
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+      transform: rotate(-45deg);
+      position: absolute;
+      left: 62%;
+      top: 54%;
+    }
+
+    .pin::after {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.95);
+      position: absolute;
+      top: 4px;
+      left: 4px;
+    }
+
+    .guess-btn {
+      width: 100%;
+      margin-top: 10px;
+      border: none;
+      border-radius: var(--radius-md);
+      background: var(--brand);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 13px 14px;
+      box-shadow: 0 4px 0 var(--brand-dark);
+      cursor: pointer;
+      transition: all 120ms var(--ease);
+    }
+
+    .guess-btn:hover { background: #278234; }
+    .guess-btn:active { transform: translateY(4px); box-shadow: 0 0 0 var(--brand-dark); }
+    .guess-btn:focus-visible { outline: none; box-shadow: 0 4px 0 var(--brand-dark), var(--ring); }
+
+    .dock-note {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    /* Disconnect Toast */
+    .toast {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(26, 26, 26, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-pill);
+      padding: 8px 14px 8px 12px;
+      box-shadow: var(--shadow-md);
+      max-width: calc(100% - 32px);
+    }
+
+    .toast-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #f59e0b;
+      flex-shrink: 0;
+      animation: toastPulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes toastPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .toast-text {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.85);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+
+    .toast-text strong {
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .toast-time {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: #f59e0b;
+    }
+
+    .toast-close {
+      border: none;
+      background: none;
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+    }
+
+    .toast-close:hover { color: rgba(255, 255, 255, 0.7); }
+
+    /* Forfeit Dialog */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .overlay-bg {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .dialog {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: 6px 6px 0 0 rgba(0, 0, 0, 0.10);
+      padding: 24px;
+      color: var(--ink);
+    }
+
+    .dialog-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--danger-light);
+      display: grid;
+      place-items: center;
+      margin: 0 auto 14px;
+    }
+
+    .dialog h2 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .dialog-desc {
+      margin: 8px 0 0;
+      font-size: 14px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.45;
+    }
+
+    .dialog-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin: 18px 0;
+      background: #faf9f6;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 14px;
+    }
+
+    .dialog-stat { text-align: center; }
+
+    .dialog-stat-label {
+      margin: 0;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .dialog-stat-value {
+      margin: 4px 0 0;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .dialog-warning {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: var(--danger-light);
+      border: 1px solid rgba(220, 74, 58, 0.2);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      margin-bottom: 18px;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--danger-ink);
+    }
+
+    .dialog-warning-icon {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      margin-top: 1px;
+    }
+
+    .dialog-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn-cancel {
+      border: 2px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 700;
+      padding: 11px 14px;
+      cursor: pointer;
+      transition: all 120ms var(--ease);
+    }
+
+    .btn-cancel:hover { background: rgba(0, 0, 0, 0.04); }
+
+    .btn-forfeit {
+      border: none;
+      border-radius: var(--radius-md);
+      background: var(--danger);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 11px 14px;
+      box-shadow: 0 4px 0 var(--danger-dark);
+      cursor: pointer;
+      transition: all 120ms var(--ease);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-forfeit:hover { background: #c94031; }
+    .btn-forfeit:active { transform: translateY(4px); box-shadow: 0 0 0 var(--danger-dark); }
+
+    @media (max-width: 400px) {
+      .hud { padding: 4px 2px; }
+      .hud-cell { padding: 3px 7px; gap: 4px; }
+      .hud-label { font-size: 10px; }
+      .hud-value { font-size: 12px; }
+      .dock { padding: 8px; }
+      .guess-btn { font-size: 14px; padding: 11px 12px; }
+      .dock-note { font-size: 11px; }
+      .dialog { padding: 18px; }
+      .dialog h2 { font-size: 18px; }
+      .dialog-stats { grid-template-columns: 1fr; gap: 6px; padding: 10px; }
+      .dialog-stat-value { font-size: 15px; }
+      .dialog-actions { grid-template-columns: 1fr; }
+      .ghost { font-size: 12px; padding: 7px 9px; }
+    }
+
+    @media (min-width: 880px) {
+      .shell {
+        padding: 14px;
+        gap: 6px;
+        grid-template-rows: auto auto 1fr;
+        grid-template-columns: 1fr 360px;
+        align-items: end;
+      }
+
+      .topbar {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        align-items: start;
+      }
+
+      .hud-wrap {
+        justify-content: center;
+        align-items: start;
+        grid-column: 1 / -1;
+        grid-row: 2;
+      }
+
+      .dock {
+        grid-column: 2;
+        grid-row: 3;
+        align-self: end;
+      }
+
+      .map { height: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="scene" aria-hidden="true"></div>
+
+  <!-- Disconnection Toast -->
+  <div class="toast">
+    <div class="toast-dot"></div>
+    <span class="toast-text"><strong>Sarah W.</strong> disconnected</span>
+    <span class="toast-time">28s</span>
+    <button class="toast-close" type="button">✕</button>
+  </div>
+
+  <main class="shell">
+    <div class="topbar">
+      <button class="ghost ghost-danger" type="button" onclick="document.getElementById('forfeitDialog').style.display='flex'">
+        <svg class="flag-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+        Forfeit
+      </button>
+      <a class="ghost" href="08-lobby.html">← Lobby</a>
+    </div>
+
+    <div class="hud-wrap">
+      <section class="hud" aria-label="Gameplay status">
+        <div class="hud-cell">
+          <span class="hud-label">Round</span>
+          <span class="hud-value">3/5</span>
+        </div>
+        <div class="hud-cell">
+          <span class="hud-label">Score</span>
+          <span class="hud-value score">9,350</span>
+        </div>
+        <div class="hud-cell">
+          <span class="hud-label">Time</span>
+          <span class="hud-value timer">01:23</span>
+        </div>
+        <div class="hud-cell">
+          <span class="hud-label">Guessed</span>
+          <span class="hud-value mp">4/6</span>
+        </div>
+      </section>
+    </div>
+
+    <section class="dock" aria-label="Map assembly">
+      <p class="dock-overline">Place Your Guess</p>
+      <div class="map" role="img" aria-label="Map placeholder with marker">
+        <div class="pin"></div>
+      </div>
+      <button class="guess-btn" type="button">Lock Guess</button>
+      <p class="dock-note">Tip: Tap map to move marker. Pin position determines your distance score.</p>
+    </section>
+  </main>
+
+  <!-- Forfeit Dialog -->
+  <div class="overlay" id="forfeitDialog" style="display: none;">
+    <div class="overlay-bg" onclick="document.getElementById('forfeitDialog').style.display='none'"></div>
+    <div class="dialog">
+      <div class="dialog-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc4a3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+      </div>
+      <h2>Forfeit Game?</h2>
+      <p class="dialog-desc">Your opponents will continue without you. Remaining rounds score 0.</p>
+
+      <div class="dialog-stats">
+        <div class="dialog-stat">
+          <p class="dialog-stat-label">Rounds</p>
+          <p class="dialog-stat-value">3/5</p>
+        </div>
+        <div class="dialog-stat">
+          <p class="dialog-stat-label">Score</p>
+          <p class="dialog-stat-value" style="color: var(--brand);">9,350</p>
+        </div>
+        <div class="dialog-stat">
+          <p class="dialog-stat-label">Rank</p>
+          <p class="dialog-stat-value">2nd</p>
+        </div>
+      </div>
+
+      <div class="dialog-warning">
+        <svg class="dialog-warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span><strong style="color: var(--danger-ink);">Forfeiting is permanent.</strong> Your final score will still appear on the leaderboard.</span>
+      </div>
+
+      <div class="dialog-actions">
+        <button class="btn-cancel" type="button" onclick="document.getElementById('forfeitDialog').style.display='none'">Cancel</button>
+        <button class="btn-forfeit" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          Forfeit
+        </button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

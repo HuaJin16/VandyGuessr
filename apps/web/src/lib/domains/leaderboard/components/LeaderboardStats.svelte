@@ -7,61 +7,36 @@ export let formatScore: (value: number) => string;
 export let element: HTMLDivElement | undefined = undefined;
 </script>
 
-<div bind:this={element} class="mt-5 grid grid-cols-2 gap-3 sm:mt-6 sm:grid-cols-4 sm:gap-4">
-	<div class="stats-card">
-		<p class="stats-label">Your Rank</p>
-		<p class="stats-value">{rank ? `#${rank}` : "—"}</p>
-	</div>
-	<div class="stats-card">
-		<p class="stats-label">Avg Score</p>
-		<p class="stats-value text-jungle">{formatScore(avgScore)}</p>
-	</div>
-	<div class="stats-card">
-		<p class="stats-label">Games</p>
-		<p class="stats-value">{gamesPlayed}</p>
-	</div>
-	<div class="stats-card">
-		<p class="stats-label">Rounds</p>
-		<p class="stats-value">{roundsPlayed}</p>
-	</div>
+<div bind:this={element} class="stats-grid">
+	<article class="stat">
+		<p class="stat-label">Your Rank</p>
+		<p class="stat-value">{rank ? `#${rank}` : "\u2014"}</p>
+	</article>
+	<article class="stat">
+		<p class="stat-label">Avg Score</p>
+		<p class="stat-value" style="color: var(--brand);">{formatScore(avgScore)}</p>
+	</article>
+	<article class="stat">
+		<p class="stat-label">Games</p>
+		<p class="stat-value">{gamesPlayed}</p>
+	</article>
+	<article class="stat">
+		<p class="stat-label">Rounds</p>
+		<p class="stat-value">{roundsPlayed}</p>
+	</article>
 </div>
 
 <style>
-	.stats-card {
-		background: white;
-		border-radius: 12px;
-		padding: 12px;
-		box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.1);
-		text-align: center;
-	}
-
-	.stats-label {
-		font-size: 10px;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		color: rgba(24, 24, 27, 0.5);
-		margin-bottom: 4px;
-	}
-
-	.stats-value {
-		font-family: "Rubik", sans-serif;
-		font-weight: 700;
-		font-size: 20px;
-		color: #18181b;
+	.stats-grid {
+		margin-bottom: 0;
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 8px;
 	}
 
 	@media (min-width: 640px) {
-		.stats-card {
-			padding: 16px;
-		}
-
-		.stats-label {
-			font-size: 12px;
-		}
-
-		.stats-value {
-			font-size: 24px;
+		.stats-grid {
+			grid-template-columns: repeat(4, 1fr);
 		}
 	}
 </style>

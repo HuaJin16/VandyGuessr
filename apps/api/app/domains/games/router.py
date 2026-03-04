@@ -9,8 +9,10 @@ from app.domains.games.models import (
     GameResponse,
     GuessRequest,
     RoundResponse,
+    ScoreDistributionResponse,
     StartGameRequest,
 )
+from app.domains.games.repository import IGameRepository
 from app.domains.games.service import GameError, GameService
 
 router = APIRouter(prefix="/games", tags=["games"])
@@ -39,6 +41,9 @@ def _to_response(doc: dict) -> GameResponse:
                 else None,
                 expiresAt=rd["expires_at"].isoformat() + "Z"
                 if rd.get("expires_at")
+                else None,
+                guessedAt=rd["guessed_at"].isoformat() + "Z"
+                if rd.get("guessed_at")
                 else None,
                 skipped=rd.get("skipped", False),
                 location_name=rd.get("location_name"),
@@ -110,6 +115,20 @@ async def list_games(
         offset=offset,
     )
     return [_to_response(d) for d in docs]
+
+
+@router.get(
+    "/images/{image_id}/score-distribution",
+    response_model=ScoreDistributionResponse,
+)
+async def get_score_distribution(
+    image_id: str,
+    _current_user: CurrentUser,
+    score: int = Query(ge=0, le=5000),
+    repo: IGameRepository = deps(IGameRepository),
+) -> ScoreDistributionResponse:
+    result = await repo.compute_score_distribution(image_id, score)
+    return ScoreDistributionResponse(**result)
 
 
 @router.get("/{game_id}", response_model=GameResponse)

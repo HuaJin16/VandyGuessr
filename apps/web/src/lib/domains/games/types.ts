@@ -16,6 +16,7 @@ export interface Round {
 	score: number | null;
 	startedAt: string | null;
 	expiresAt: string | null;
+	guessedAt: string | null;
 	skipped: boolean;
 	location_name: string | null;
 }
@@ -35,4 +36,9 @@ export interface Game {
 
 export interface StartGameRequest {
 	mode: GameMode;
+}
+
+export interface ScoreDistribution {
+	percentile: number;
+	histogram: number[];
 }

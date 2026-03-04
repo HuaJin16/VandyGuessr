@@ -38,6 +38,7 @@ class RoundResponse(BaseModel):
     score: int | None = None
     startedAt: str | None = None
     expiresAt: str | None = None
+    guessedAt: str | None = None
     skipped: bool = False
     location_name: str | None = None
 
@@ -61,3 +62,10 @@ class GameResponse(BaseModel):
     totalScore: int
     createdAt: str
     lastActivityAt: str
+
+
+class ScoreDistributionResponse(BaseModel):
+    """Score distribution for a specific image location."""
+
+    percentile: int
+    histogram: list[int]

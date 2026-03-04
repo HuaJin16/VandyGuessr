@@ -177,6 +177,7 @@ class GameService:
             "guess": {"lat": lat, "lng": lng},
             "distance_meters": round(distance, 2),
             "score": score,
+            "guessed_at": now,
         }
         await self.game_repo.update_round(game_id, round_index, round_update)
 

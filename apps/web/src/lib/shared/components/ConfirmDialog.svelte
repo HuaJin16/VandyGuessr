@@ -8,16 +8,28 @@ export let cancelLabel = "Cancel";
 export let onConfirm: () => void;
 export let onCancel: () => void;
 
-const iconColors = {
-	warning: "icon-circle--warning",
-	success: "icon-circle--success",
-	info: "icon-circle--info",
+const confirmBg: Record<string, string> = {
+	warning: "var(--danger)",
+	success: "var(--brand)",
+	info: "var(--gold)",
 };
 
-const confirmStyles = {
-	warning: "btn-confirm--destructive",
-	success: "btn-confirm--success",
-	info: "btn-confirm--info",
+const confirmHover: Record<string, string> = {
+	warning: "var(--danger-dark)",
+	success: "var(--brand-dark)",
+	info: "var(--gold-dark)",
+};
+
+const confirmColor: Record<string, string> = {
+	warning: "#fff",
+	success: "#fff",
+	info: "var(--ink)",
+};
+
+const iconBg: Record<string, string> = {
+	warning: "var(--danger-light)",
+	success: "var(--brand-light)",
+	info: "var(--gold-light)",
 };
 
 function handleKeydown(e: KeyboardEvent) {
@@ -38,20 +50,20 @@ function handleKeydown(e: KeyboardEvent) {
 			aria-modal="true"
 			aria-labelledby="confirm-dialog-title"
 		>
-			<div class="icon-circle {iconColors[variant]}">
+			<div class="icon-circle" style="background: {iconBg[variant]};">
 				{#if variant === "warning"}
-					<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#D95D39" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
 						<line x1="12" y1="9" x2="12" y2="13" />
 						<line x1="12" y1="17" x2="12.01" y2="17" />
 					</svg>
 				{:else if variant === "success"}
-					<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2E933C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
 						<polyline points="22 4 12 14.01 9 11.01" />
 					</svg>
 				{:else}
-					<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F4C430" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<circle cx="12" cy="12" r="10" />
 						<line x1="12" y1="16" x2="12" y2="12" />
 						<line x1="12" y1="8" x2="12.01" y2="8" />
@@ -59,12 +71,12 @@ function handleKeydown(e: KeyboardEvent) {
 				{/if}
 			</div>
 
-			<h2 id="confirm-dialog-title" class="font-heading text-2xl font-bold text-charcoal text-center">
+			<h2 id="confirm-dialog-title" class="text-2xl font-bold text-ink text-center">
 				{title}
 			</h2>
 
 			{#if description}
-				<p class="text-charcoal/60 text-center text-sm mt-2">{description}</p>
+				<p class="text-muted text-center text-sm mt-2">{description}</p>
 			{/if}
 
 			<div class="dialog-content">
@@ -73,7 +85,13 @@ function handleKeydown(e: KeyboardEvent) {
 
 			<div class="actions">
 				<button class="btn-cancel" on:click={onCancel}>{cancelLabel}</button>
-				<button class="btn-confirm {confirmStyles[variant]}" on:click={onConfirm}>
+				<button
+					class="btn-confirm"
+					style="background: {confirmBg[variant]}; color: {confirmColor[variant]};"
+					on:click={onConfirm}
+					on:mouseenter={(e) => { e.currentTarget.style.background = confirmHover[variant]; }}
+					on:mouseleave={(e) => { e.currentTarget.style.background = confirmBg[variant]; }}
+				>
 					{confirmLabel}
 				</button>
 			</div>
@@ -98,11 +116,10 @@ function handleKeydown(e: KeyboardEvent) {
 		max-width: 28rem;
 		margin: 0 16px;
 		padding: 24px;
-		background: rgba(255, 255, 255, 0.95);
-		backdrop-filter: blur(24px);
-		border-radius: 16px;
-		border: 1px solid rgba(255, 255, 255, 0.5);
-		box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 0.15);
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-lg);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -122,18 +139,6 @@ function handleKeydown(e: KeyboardEvent) {
 		align-items: center;
 		justify-content: center;
 		margin-bottom: 16px;
-	}
-
-	.icon-circle--warning {
-		background: rgba(217, 93, 57, 0.1);
-	}
-
-	.icon-circle--success {
-		background: rgba(46, 147, 60, 0.1);
-	}
-
-	.icon-circle--info {
-		background: rgba(244, 196, 48, 0.1);
 	}
 
 	.dialog-content {
@@ -156,57 +161,33 @@ function handleKeydown(e: KeyboardEvent) {
 		padding: 12px;
 		font-size: 14px;
 		font-weight: 600;
-		color: #18181b;
-		background: rgba(255, 255, 255, 0.8);
-		border: 2px solid rgba(24, 24, 27, 0.2);
-		border-radius: 12px;
+		color: var(--ink);
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-md);
 		cursor: pointer;
-		transition: background 0.15s;
+		transition: border-color var(--duration) var(--ease),
+			background var(--duration) var(--ease);
 	}
 
 	.btn-cancel:hover {
-		background: rgba(24, 24, 27, 0.05);
+		border-color: var(--line-strong);
+		background: var(--canvas);
 	}
 
 	.btn-confirm {
 		flex: 1;
 		padding: 12px;
 		font-size: 14px;
-		font-weight: 600;
-		color: white;
+		font-weight: 700;
 		border: none;
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		gap: 8px;
-		box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.1);
-		transition: background 0.15s;
-	}
-
-	.btn-confirm--destructive {
-		background: #d95d39;
-	}
-
-	.btn-confirm--destructive:hover {
-		background: #c14e2e;
-	}
-
-	.btn-confirm--success {
-		background: #2e933c;
-	}
-
-	.btn-confirm--success:hover {
-		background: #236e2d;
-	}
-
-	.btn-confirm--info {
-		background: #f4c430;
-		color: #18181b;
-	}
-
-	.btn-confirm--info:hover {
-		background: #ddb12a;
+		box-shadow: var(--shadow-sm);
+		transition: background var(--duration-fast) var(--ease);
 	}
 </style>

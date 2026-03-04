@@ -126,7 +126,7 @@ class GameManager:
                     },
                 )
                 return
-            if not isinstance(lat, (int, float)) or not (-90 <= lat <= 90):
+            if not isinstance(lat, int | float) or not (-90 <= lat <= 90):
                 await self.cm.send_to_player(
                     game_id,
                     user_id,
@@ -137,7 +137,7 @@ class GameManager:
                     },
                 )
                 return
-            if not isinstance(lng, (int, float)) or not (-180 <= lng <= 180):
+            if not isinstance(lng, int | float) or not (-180 <= lng <= 180):
                 await self.cm.send_to_player(
                     game_id,
                     user_id,
@@ -755,12 +755,49 @@ class GameManager:
 
         winner_id = standings[0]["userId"] if standings else None
 
+        round_results = []
+        for ri, rd in enumerate(doc["rounds"]):
+            guesses = rd.get("guesses", {})
+            player_results = []
+            for p in doc["players"]:
+                g = guesses.get(p["user_id"])
+                if g:
+                    player_results.append(
+                        {
+                            "userId": p["user_id"],
+                            "name": p["name"],
+                            "score": g["score"],
+                            "distanceMeters": g["distance_meters"],
+                            "guess": {"lat": g["lat"], "lng": g["lng"]},
+                        }
+                    )
+                else:
+                    player_results.append(
+                        {
+                            "userId": p["user_id"],
+                            "name": p["name"],
+                            "score": 0,
+                            "distanceMeters": None,
+                            "guess": None,
+                        }
+                    )
+            player_results.sort(key=lambda r: r["score"], reverse=True)
+            round_results.append(
+                {
+                    "round": ri + 1,
+                    "results": player_results,
+                    "actual": {"lat": rd["actual_lat"], "lng": rd["actual_lng"]},
+                    "locationName": rd.get("location_name"),
+                }
+            )
+
         await self.cm.broadcast(
             game_id,
             {
                 "type": ServerEvent.GAME_OVER,
                 "winnerId": winner_id,
                 "standings": standings,
+                "rounds": round_results,
             },
         )
 

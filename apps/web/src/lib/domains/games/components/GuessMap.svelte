@@ -77,9 +77,12 @@ onDestroy(() => {
 	.guess-map {
 		width: 100%;
 		height: 100%;
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		overflow: hidden;
-		filter: grayscale(0.5) sepia(0.25) contrast(1.05);
+	}
+
+	.guess-map :global(.leaflet-tile-pane) {
+		filter: saturate(0.2) sepia(20%) brightness(1.06) contrast(0.95);
 	}
 
 	:global(.guess-pin) {

@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VandyGuessr Round 10 - Leaderboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --brand: #2e933c;
+      --brand-dark: #236e2d;
+      --brand-light: rgba(46, 147, 60, 0.1);
+      --gold: #e8a817;
+      --gold-dark: #c48d10;
+      --gold-light: rgba(232, 168, 23, 0.12);
+      --gold-ink: #6b4c00;
+      --ink: #1a1a1a;
+      --muted: #5c6370;
+      --line: #e5e2db;
+      --line-strong: #c4c0b8;
+      --surface: #ffffff;
+      --canvas: #f7f5f0;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-pill: 9999px;
+      --shadow-sm: 3px 3px 0 0 rgba(0, 0, 0, 0.06);
+      --ring: 0 0 0 3px rgba(46, 147, 60, 0.35);
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, sans-serif;
+      color: var(--ink);
+      background: var(--canvas);
+    }
+
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .header-inner,
+    .main {
+      width: min(640px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .header-inner {
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mark {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-md);
+      background: var(--brand);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 7px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--surface);
+      text-decoration: none;
+      transition: all 120ms var(--ease);
+    }
+
+    .action:hover {
+      border-color: var(--brand);
+      color: var(--brand);
+      background: var(--brand-light);
+    }
+
+    .action:focus-visible {
+      outline: none;
+      box-shadow: var(--ring);
+    }
+
+    .main {
+      margin: 16px auto 24px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .toggle-group {
+      display: inline-flex;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-pill);
+      background: var(--surface);
+      padding: 3px;
+      gap: 3px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .toggle {
+      border: none;
+      border-radius: var(--radius-pill);
+      background: transparent;
+      color: var(--muted);
+      padding: 7px 13px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 120ms var(--ease);
+    }
+
+    .toggle:hover { color: var(--ink); background: rgba(0, 0, 0, 0.05); }
+
+    .toggle.active {
+      background: var(--brand);
+      color: #fff;
+      box-shadow: 0 2px 0 var(--brand-dark);
+    }
+
+    .toggle:focus-visible { outline: none; box-shadow: var(--ring); }
+    .toggle.active:focus-visible { box-shadow: 0 2px 0 var(--brand-dark), var(--ring); }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .leaderboard-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .leaderboard-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      transition: background 120ms var(--ease);
+    }
+
+    .leaderboard-row:last-child { border-bottom: none; }
+
+    .leaderboard-row:hover { background: rgba(0, 0, 0, 0.02); }
+
+    .leaderboard-row.you {
+      background: var(--brand-light);
+    }
+
+    .leaderboard-row.you:hover {
+      background: rgba(46, 147, 60, 0.14);
+    }
+
+    .rank-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .rank-1 { background: var(--gold); color: #fff; }
+    .rank-2 { background: #9ca3af; color: #fff; }
+    .rank-3 { background: #b8804a; color: #fff; }
+    .rank-n { background: rgba(0, 0, 0, 0.05); color: var(--muted); }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .avatar-gold { background: var(--gold); color: var(--gold-ink); }
+    .avatar-dark { background: var(--ink); }
+
+    .player-info { flex: 1; min-width: 0; }
+
+    .player-name {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .player-detail {
+      margin: 1px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .player-score {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ink);
+      flex-shrink: 0;
+    }
+
+    .player-games {
+      font-size: 12px;
+      color: var(--muted);
+      flex-shrink: 0;
+      min-width: 50px;
+      text-align: right;
+    }
+
+    .you-badge {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--brand-dark);
+      background: rgba(46, 147, 60, 0.15);
+      border-radius: var(--radius-pill);
+      padding: 2px 7px;
+      margin-left: 6px;
+    }
+
+    .separator {
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #faf9f6;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 0 0;
+    }
+
+    .page-btn {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: all 120ms var(--ease);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .page-btn:hover {
+      border-color: var(--brand);
+      color: var(--brand);
+      background: var(--brand-light);
+    }
+
+    .page-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+
+    .page-btn[disabled] {
+      opacity: 0.4;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .page-info {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 500;
+      padding: 0 4px;
+    }
+
+    .page-info strong {
+      color: var(--ink);
+    }
+
+    @media (min-width: 700px) {
+      .header-inner { min-height: 64px; }
+      .leaderboard-row { padding: 14px 20px; }
+      .separator { padding: 8px 20px; }
+      .avatar { width: 40px; height: 40px; font-size: 13px; }
+    }
+
+    @media (max-width: 400px) {
+      .leaderboard-row { padding: 10px 10px; gap: 8px; }
+      .player-games { display: none; }
+      .player-score { font-size: 13px; }
+      .player-name { font-size: 13px; }
+      .rank-badge { width: 24px; height: 24px; font-size: 11px; }
+      .rank-badge svg { width: 13px; height: 13px; }
+      .avatar { width: 30px; height: 30px; font-size: 10px; }
+      .toggle { padding: 6px 10px; font-size: 12px; }
+      .page-btn { padding: 6px 10px; font-size: 12px; }
+      .page-info { font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="mark">VG</div>
+        <h1>Leaderboard</h1>
+      </div>
+      <div class="header-actions">
+        <a class="action" href="02-home.html">Home</a>
+        <a class="action" href="00-foundation.html">Foundation</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="filters">
+      <div class="toggle-group">
+        <button class="toggle active">Daily</button>
+        <button class="toggle">All Time</button>
+      </div>
+      <div class="toggle-group">
+        <button class="toggle active">All</button>
+        <button class="toggle">Indoor</button>
+        <button class="toggle">Outdoor</button>
+      </div>
+    </div>
+
+    <section class="card">
+      <ul class="leaderboard-list">
+        <li class="leaderboard-row">
+          <span class="rank-badge rank-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>
+          <div class="avatar avatar-gold">JD</div>
+          <div class="player-info">
+            <p class="player-name">Jane Doe</p>
+          </div>
+          <span class="player-score">24,950</span>
+          <span class="player-games">142 games</span>
+        </li>
+        <li class="leaderboard-row">
+          <span class="rank-badge rank-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>
+          <div class="avatar">AK</div>
+          <div class="player-info">
+            <p class="player-name">Alex Kim</p>
+          </div>
+          <span class="player-score">23,100</span>
+          <span class="player-games">88 games</span>
+        </li>
+        <li class="leaderboard-row">
+          <span class="rank-badge rank-3"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>
+          <div class="avatar avatar-dark">TS</div>
+          <div class="player-info">
+            <p class="player-name">Taylor Swift</p>
+          </div>
+          <span class="player-score">21,000</span>
+          <span class="player-games">65 games</span>
+        </li>
+        <li class="leaderboard-row">
+          <span class="rank-badge rank-n">4</span>
+          <div class="avatar">MJ</div>
+          <div class="player-info">
+            <p class="player-name">Marcus Johnson</p>
+          </div>
+          <span class="player-score">19,800</span>
+          <span class="player-games">54 games</span>
+        </li>
+        <li class="leaderboard-row">
+          <span class="rank-badge rank-n">5</span>
+          <div class="avatar">LP</div>
+          <div class="player-info">
+            <p class="player-name">Lisa Park</p>
+          </div>
+          <span class="player-score">18,650</span>
+          <span class="player-games">47 games</span>
+        </li>
+
+        <li class="separator">Your Ranking</li>
+
+        <li class="leaderboard-row you">
+          <span class="rank-badge rank-n">42</span>
+          <div class="avatar">RM</div>
+          <div class="player-info">
+            <p class="player-name">Ryan McCauley<span class="you-badge">You</span></p>
+          </div>
+          <span class="player-score">15,200</span>
+          <span class="player-games">28 games</span>
+        </li>
+      </ul>
+    </section>
+
+    <nav class="pagination" aria-label="Leaderboard pages">
+      <button class="page-btn" disabled>← Previous</button>
+      <span class="page-info">Page <strong>1</strong> of <strong>12</strong></span>
+      <button class="page-btn">Next →</button>
+    </nav>
+  </main>
+</body>
+</html>

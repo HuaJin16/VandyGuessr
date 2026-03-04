@@ -35,6 +35,10 @@ class IGameRepository(Protocol):
 
     async def compute_rank(self, user_oid: str, user_points: int) -> int: ...
 
+    async def compute_score_distribution(
+        self, image_id: str, score: int, bucket_count: int = 20
+    ) -> dict: ...
+
 
 class GameRepository:
     """MongoDB implementation of the game repository."""
@@ -80,8 +84,76 @@ class GameRepository:
     async def update_game(self, game_id: str, update: dict) -> None:
         await self.collection.update_one({"_id": ObjectId(game_id)}, {"$set": update})
 
+    async def compute_score_distribution(
+        self, image_id: str, score: int, bucket_count: int = 20
+    ) -> dict:
+        """Compute score distribution for a specific image.
+
+        Returns percentile for the given score and a histogram with
+        ``bucket_count`` buckets spanning 0-5000.
+        """
+        bucket_size = 5000 / bucket_count
+
+        pipeline = [
+            {"$match": {"status": "completed"}},
+            {"$unwind": "$rounds"},
+            {
+                "$match": {
+                    "rounds.image_id": image_id,
+                    "rounds.guess": {"$ne": None},
+                    "rounds.skipped": {"$ne": True},
+                }
+            },
+            {
+                "$facet": {
+                    "total": [{"$count": "n"}],
+                    "below": [
+                        {"$match": {"rounds.score": {"$lt": score}}},
+                        {"$count": "n"},
+                    ],
+                    "histogram": [
+                        {
+                            "$bucket": {
+                                "groupBy": "$rounds.score",
+                                "boundaries": [
+                                    int(i * bucket_size) for i in range(bucket_count)
+                                ]
+                                + [5001],
+                                "default": "_other",
+                                "output": {"count": {"$sum": 1}},
+                            }
+                        }
+                    ],
+                }
+            },
+        ]
+
+        results = await self.collection.aggregate(pipeline).to_list(length=1)
+        if not results:
+            return {"percentile": 0, "histogram": [0] * bucket_count}
+
+        data = results[0]
+        total = data["total"][0]["n"] if data["total"] else 0
+        below = data["below"][0]["n"] if data["below"] else 0
+
+        percentile = round((below / total) * 100) if total > 0 else 0
+
+        hist = [0] * bucket_count
+        for bucket in data.get("histogram", []):
+            bid = bucket["_id"]
+            if bid == "_other":
+                continue
+            idx = min(int(bid / bucket_size), bucket_count - 1)
+            hist[idx] = bucket["count"]
+
+        return {"percentile": percentile, "histogram": hist}
+
     async def compute_user_stats(self, user_oid: str) -> dict:
-        """Aggregate stats for a user from all completed games."""
+        """Aggregate stats for a user from all completed games.
+
+        ``avg_score`` is computed per-round (out of 5000) by unwinding rounds
+        and averaging individual round scores.
+        """
         pipeline = [
             {"$match": {"user_id": user_oid, "status": "completed"}},
             {
@@ -92,9 +164,23 @@ class GameRepository:
                                 "_id": None,
                                 "games_played": {"$sum": 1},
                                 "total_points": {"$sum": "$total_score"},
-                                "avg_score": {"$avg": "$total_score"},
                             }
                         }
+                    ],
+                    "round_stats": [
+                        {"$unwind": "$rounds"},
+                        {
+                            "$match": {
+                                "rounds.guess": {"$ne": None},
+                                "rounds.skipped": {"$ne": True},
+                            }
+                        },
+                        {
+                            "$group": {
+                                "_id": None,
+                                "avg_score": {"$avg": "$rounds.score"},
+                            }
+                        },
                     ],
                     "locations": [
                         {"$unwind": "$rounds"},
@@ -125,12 +211,13 @@ class GameRepository:
 
         result = results[0]
         game_stats = result["game_stats"][0] if result["game_stats"] else {}
+        round_stats = result["round_stats"][0] if result["round_stats"] else {}
         location_ids = result["locations"][0]["ids"] if result["locations"] else []
 
         return {
             "games_played": game_stats.get("games_played", 0),
             "total_points": game_stats.get("total_points", 0),
-            "avg_score": game_stats.get("avg_score", 0.0),
+            "avg_score": round_stats.get("avg_score", 0.0),
             "locations_discovered": len(location_ids),
         }
 

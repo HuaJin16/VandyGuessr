@@ -26,13 +26,15 @@ $: currentUserId = $user.data?.id;
 $: currentUserName = $user.data?.name ?? "";
 </script>
 
-<div class="min-h-screen bg-terrain font-body">
+<div class="min-h-screen bg-canvas font-sans text-ink">
 	<Navbar activePage="leaderboard" />
 	<LeaderboardBoard
 		leaderboard={$leaderboard}
 		{currentUserId}
 		{currentUserName}
 		onSetLimit={viewStore.setLimit}
+		offset={view.offset}
+		onSetOffset={viewStore.setOffset}
 	>
 		<div slot="filters">
 			<LeaderboardFilters

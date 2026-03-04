@@ -47,39 +47,25 @@ const dispatch = createEventDispatcher<{ cancel: undefined; confirm: undefined }
 		width: 100%;
 		margin-top: 20px;
 		padding: 16px;
-		background: rgba(245, 242, 233, 0.5);
-		border-radius: 12px;
+		background: var(--canvas);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-md);
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 16px;
-	}
-
-	.stat-label {
-		font-size: 11px;
-		font-weight: 500;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: rgba(24, 24, 27, 0.4);
-		margin-bottom: 4px;
-	}
-
-	.stat-value {
-		font-size: 20px;
-		font-weight: 700;
-		color: #18181b;
 	}
 
 	.warning-notice {
 		width: 100%;
 		margin-top: 16px;
 		padding: 12px 16px;
-		background: rgba(217, 93, 57, 0.05);
-		border: 1px solid rgba(217, 93, 57, 0.2);
-		border-radius: 10px;
+		background: var(--danger-light);
+		border: 1px solid rgba(220, 74, 58, 0.2);
+		border-radius: var(--radius-sm);
 		display: flex;
 		align-items: flex-start;
 		gap: 10px;
 		font-size: 13px;
-		color: #d95d39;
+		color: var(--danger);
 	}
 </style>

@@ -193,10 +193,18 @@ export interface RoundResultMessage {
 	standings: Standing[];
 }
 
+export interface GameOverRound {
+	round: number;
+	results: RoundPlayerResult[];
+	actual: { lat: number; lng: number };
+	locationName: string | null;
+}
+
 export interface GameOverMessage {
 	type: ServerEvent.GameOver;
 	winnerId: string;
 	standings: Standing[];
+	rounds: GameOverRound[];
 }
 
 export interface PlayerDisconnectedMessage {

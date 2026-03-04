@@ -1,5 +1,6 @@
 <script lang="ts">
 import { onDestroy } from "svelte";
+import { navigate } from "svelte-routing";
 import { currentRound, gameStore } from "../stores/game.store";
 import type { Game } from "../types";
 import EndGameDialog from "./EndGameDialog.svelte";
@@ -63,35 +64,41 @@ onDestroy(() => {
 });
 </script>
 
-<div class="gameplay-root">
+<div class="scene">
 	{#if round}
 		<PanoramaViewer imageUrl={round.imageUrl} />
 	{/if}
+</div>
 
-	<div class="overlay" />
-
-	<div class="hud-bar">
-		<HudPill
-			round={roundNumber}
-			totalRounds={game.rounds.length}
-			score={game.totalScore}
-			timer={isTimed ? formatTimer(timerSeconds) : null}
-			timerDanger={isTimed && timerSeconds < 10}
-		/>
-	</div>
-
-	{#if !isLastRound}
-		<button
-			class="end-game-btn"
-			title="End Game"
-			on:click={() => gameStore.toggleEndDialog()}
-		>
-			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-				<line x1="18" y1="6" x2="6" y2="18" />
-				<line x1="6" y1="6" x2="18" y2="18" />
+<main class="shell">
+	<div class="topbar">
+		{#if !isLastRound}
+			<button class="ghost" on:click={() => gameStore.toggleEndDialog()}>
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+					<line x1="18" y1="6" x2="6" y2="18" />
+					<line x1="6" y1="6" x2="18" y2="18" />
+				</svg>
+				End Game
+			</button>
+		{:else}
+			<div></div>
+		{/if}
+		<div class="hud-center">
+			<HudPill
+				round={roundNumber}
+				totalRounds={game.rounds.length}
+				score={game.totalScore}
+				timer={isTimed ? formatTimer(timerSeconds) : null}
+				timerDanger={isTimed && timerSeconds < 10}
+			/>
+		</div>
+		<button class="ghost" on:click={() => navigate("/", { replace: true })}>
+			<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+				<polyline points="15 18 9 12 15 6" />
 			</svg>
+			Home
 		</button>
-	{/if}
+	</div>
 
 	<MapAssembly
 		position={$gameStore.guessPosition}
@@ -99,77 +106,97 @@ onDestroy(() => {
 		onMapClick={handleMapClick}
 		{onGuess}
 	/>
+</main>
 
-	{#if $gameStore.showEndDialog}
-		<EndGameDialog
-			roundsCompleted={$gameStore.currentRoundIndex}
-			totalRounds={game.rounds.length}
-			currentScore={game.totalScore}
-			skippedRounds={game.rounds.length - $gameStore.currentRoundIndex}
-			on:cancel={() => gameStore.toggleEndDialog()}
-			on:confirm={onEndGame}
-		/>
-	{/if}
-</div>
+{#if $gameStore.showEndDialog}
+	<EndGameDialog
+		roundsCompleted={$gameStore.currentRoundIndex}
+		totalRounds={game.rounds.length}
+		currentScore={game.totalScore}
+		skippedRounds={game.rounds.length - $gameStore.currentRoundIndex}
+		on:cancel={() => gameStore.toggleEndDialog()}
+		on:confirm={onEndGame}
+	/>
+{/if}
 
 <style>
-	.gameplay-root {
+	.scene {
 		position: fixed;
 		inset: 0;
-		background: #000;
-		overflow: hidden;
+		background: #0f1712;
 	}
 
-	.overlay {
-		position: absolute;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.05);
+	.shell {
+		position: relative;
+		z-index: 2;
+		min-height: 100vh;
+		display: grid;
+		grid-template-rows: auto 1fr;
+		padding: 10px;
+		gap: 6px;
 		pointer-events: none;
-		z-index: 1;
 	}
 
-	.hud-bar {
-		position: absolute;
-		top: 20px;
-		left: 50%;
-		transform: translateX(-50%);
-		z-index: 30;
-	}
-
-	.end-game-btn {
-		position: absolute;
-		bottom: 20px;
-		left: 20px;
-		z-index: 30;
-		width: 44px;
-		height: 44px;
+	.topbar {
 		display: flex;
 		align-items: center;
+		gap: 8px;
+		pointer-events: auto;
+	}
+
+	.hud-center {
+		flex: 1;
+		display: flex;
 		justify-content: center;
-		background: rgba(255, 255, 255, 0.9);
-		backdrop-filter: blur(8px);
-		border: 1px solid rgba(255, 255, 255, 0.5);
-		border-radius: 12px;
-		color: #18181b;
+		pointer-events: none;
+	}
+
+	.ghost {
+		border: 1px solid rgba(255, 255, 255, 0.55);
+		border-radius: var(--radius-md);
+		background: rgba(17, 25, 20, 0.4);
+		backdrop-filter: blur(4px);
+		color: #fff;
+		font-family: Inter, sans-serif;
+		font-size: 13px;
+		font-weight: 600;
+		padding: 8px 11px;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
 		cursor: pointer;
-		box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.1);
-		transition: background 0.15s;
+		transition: background 120ms var(--ease);
 	}
 
-	.end-game-btn:hover {
-		background: rgba(255, 255, 255, 1);
-		color: #d95d39;
+	.ghost:hover {
+		background: rgba(17, 25, 20, 0.55);
 	}
 
-	@media (max-width: 640px) {
-		.hud-bar {
-			top: 12px;
+	.ghost:focus-visible {
+		outline: none;
+		box-shadow: var(--ring);
+	}
+
+	@media (min-width: 880px) {
+		.shell {
+			padding: 14px;
+			gap: 6px;
+			grid-template-rows: auto 1fr;
+			grid-template-columns: 1fr 360px;
+			align-items: end;
 		}
 
-		.end-game-btn {
-			bottom: auto;
-			top: 12px;
-			left: 12px;
+		.topbar {
+			grid-column: 1 / -1;
+			grid-row: 1;
+			align-items: start;
+		}
+	}
+
+	@media (max-width: 400px) {
+		.ghost {
+			font-size: 12px;
+			padding: 7px 9px;
 		}
 	}
 </style>

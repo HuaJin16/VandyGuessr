@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VandyGuessr Round 10 - End Game Dialog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --brand: #2e933c;
+      --brand-dark: #236e2d;
+      --ink: #1a1a1a;
+      --muted: #5c6370;
+      --line: #e5e2db;
+      --line-strong: #c4c0b8;
+      --surface: #ffffff;
+      --canvas: #f7f5f0;
+      --danger: #dc4a3a;
+      --danger-dark: #b33a2c;
+      --danger-light: rgba(220, 74, 58, 0.08);
+      --danger-ink: #8b2820;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-pill: 9999px;
+      --shadow-lg: 6px 6px 0 0 rgba(0, 0, 0, 0.10);
+      --ring: 0 0 0 3px rgba(46, 147, 60, 0.35);
+      --ring-danger: 0 0 0 3px rgba(220, 74, 58, 0.30);
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, sans-serif;
+      color: var(--ink);
+      background: var(--canvas);
+    }
+
+    .scrim {
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 28, 24, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .dialog {
+      width: min(460px, 100%);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: var(--shadow-lg);
+      padding: 20px;
+    }
+
+    .icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(220, 74, 58, 0.35);
+      background: var(--danger-light);
+      color: var(--danger);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    h1 {
+      margin: 12px 0 0;
+      font-size: 26px;
+      line-height: 1.15;
+    }
+
+    p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .stats {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: #faf9f6;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .stat-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      margin: 6px 0 0;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .notice {
+      margin-top: 12px;
+      border: 1px solid rgba(220, 74, 58, 0.25);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      background: var(--danger-light);
+      color: var(--danger-ink);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .buttons {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .button-ghost {
+      border: 2px solid var(--line-strong);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 700;
+      padding: 11px 14px;
+      cursor: pointer;
+      transition: all 120ms var(--ease);
+    }
+
+    .button-ghost:hover { background: rgba(0, 0, 0, 0.05); border-color: #aaa; }
+    .button-ghost:active { background: rgba(0, 0, 0, 0.08); }
+    .button-ghost:focus-visible { outline: none; box-shadow: var(--ring); }
+
+    .button-danger {
+      border: none;
+      border-radius: var(--radius-md);
+      background: var(--danger);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 11px 14px;
+      box-shadow: 0 4px 0 var(--danger-dark);
+      cursor: pointer;
+      transition: all 120ms var(--ease);
+    }
+
+    .button-danger:hover { background: #c94031; }
+    .button-danger:active { transform: translateY(4px); box-shadow: 0 0 0 var(--danger-dark); }
+    .button-danger:focus-visible { outline: none; box-shadow: 0 4px 0 var(--danger-dark), var(--ring-danger); }
+
+    .links {
+      margin-top: 12px;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .link {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 7px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--surface);
+      text-decoration: none;
+      transition: all 120ms var(--ease);
+    }
+
+    .link:hover {
+      border-color: var(--brand);
+      color: var(--brand);
+      background: rgba(46, 147, 60, 0.1);
+    }
+
+    .link:focus-visible {
+      outline: none;
+      box-shadow: var(--ring);
+    }
+
+    @media (max-width: 400px) {
+      .dialog { padding: 16px; }
+      h1 { font-size: 22px; }
+      .stats { grid-template-columns: 1fr; gap: 6px; }
+      .stat { padding: 8px; }
+      .stat-value { font-size: 14px; }
+      .buttons { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="scrim">
+    <section class="dialog">
+      <div class="icon">!</div>
+      <h1>End game early?</h1>
+      <p>Ending now marks remaining rounds as skipped. Your current score still counts toward your stats.</p>
+
+      <div class="stats">
+        <article class="stat">
+          <p class="stat-label">Progress</p>
+          <p class="stat-value">2 / 5</p>
+        </article>
+        <article class="stat">
+          <p class="stat-label">Score</p>
+          <p class="stat-value" style="color:var(--brand);">9,350</p>
+        </article>
+        <article class="stat">
+          <p class="stat-label">Remaining</p>
+          <p class="stat-value" style="color:var(--danger);">3</p>
+        </article>
+      </div>
+
+      <div class="notice">This action cannot be undone for this game session.</div>
+
+      <div class="buttons">
+        <button class="button-ghost" type="button">Cancel</button>
+        <button class="button-danger" type="button">End Session</button>
+      </div>
+
+      <div class="links">
+        <a class="link" href="03-gameplay.html">Gameplay</a>
+        <a class="link" href="00-foundation.html">Foundation</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

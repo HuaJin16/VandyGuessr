@@ -1,11 +1,8 @@
 <script lang="ts">
-import { Trophy } from "lucide-svelte";
 import type { LeaderboardEntry } from "../types";
 
 export let entry: LeaderboardEntry;
-export let showUsername = true;
 export let highlightUser = false;
-export let highlightAvatar = false;
 export let isCurrentUser = false;
 export let initialsFor: (name: string) => string;
 export let formatScore: (value: number) => string;
@@ -13,133 +10,201 @@ export let showMedal = true;
 export let isSizer = false;
 export let element: HTMLDivElement | undefined = undefined;
 
-function rankIcon(rank: number) {
-	if (rank === 1) return "gold";
-	if (rank === 2) return "silver";
-	if (rank === 3) return "bronze";
-	return null;
+function rankBgClass(rank: number): string {
+	if (!showMedal) return "rank-n";
+	if (rank === 1) return "rank-1";
+	if (rank === 2) return "rank-2";
+	if (rank === 3) return "rank-3";
+	return "rank-n";
 }
 </script>
 
 <div
 	bind:this={element}
 	aria-hidden={isSizer}
-	class={`leaderboard-row px-4 py-3 sm:px-6 sm:py-4 ${
-		highlightUser ? "user-row" : ""
-	} ${isSizer ? "row-sizer" : ""}`}
+	class="lb-row {highlightUser ? 'you' : ''} {isSizer ? 'row-sizer' : ''}"
 >
-	<div class="grid grid-cols-12 items-center gap-2 sm:gap-4">
-		<div class="col-span-1 rank-cell">
-			{#if showMedal && rankIcon(entry.rank)}
-				<Trophy size={22} class={`trophy-${rankIcon(entry.rank)}`} />
-			{:else}
-				<span class={`rank-number ${highlightUser ? "rank-user" : ""}`}>
-					{entry.rank}
-				</span>
-			{/if}
-		</div>
-		<div class="col-span-4 flex items-center gap-2 sm:col-span-4 sm:gap-3">
-			<div
-				class={`avatar-initials flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-					highlightAvatar ? "avatar-highlight text-charcoal" : "text-white"
-				} sm:h-10 sm:w-10 sm:text-sm`}
-			>
-				{initialsFor(entry.name)}
-			</div>
-			<div class="min-w-0">
-				<p class="truncate text-sm font-semibold text-charcoal sm:text-base">
-					{entry.name}
-				</p>
-				{#if showUsername}
-					<p class="hidden text-[10px] text-charcoal/50 sm:block sm:text-xs">
-						@{entry.username}
-					</p>
-				{/if}
-			</div>
-			{#if isCurrentUser}
-				<span class="ml-1 rounded-full bg-gold/20 px-2 py-0.5 text-[8px] font-semibold text-gold sm:text-xs">
-					YOU
-				</span>
-			{/if}
-		</div>
-		<div class="col-span-3 text-right sm:col-span-3">
-			<span class="font-mono text-sm font-bold text-charcoal sm:text-lg">
-				{formatScore(entry.avgScore)}
-			</span>
-		</div>
-		<div class="col-span-2 text-right">
-			<span class="font-mono text-xs text-charcoal/70 sm:text-base">
-				{entry.gamesPlayed}
-			</span>
-		</div>
-		<div class="col-span-2 text-right">
-			<span class="font-mono text-xs text-charcoal/70 sm:text-base">
-				{entry.roundsPlayed}
-			</span>
-		</div>
+	<span class="rank-badge {rankBgClass(entry.rank)}">
+		{entry.rank}
+	</span>
+
+	<div class="avatar" style:background={isCurrentUser ? 'var(--brand)' : undefined}>
+		{initialsFor(entry.name)}
 	</div>
+
+	<div class="player-info">
+		<p class="player-name">
+			{entry.name}
+			{#if isCurrentUser}
+				<span class="you-badge">You</span>
+			{/if}
+		</p>
+	</div>
+
+	<span class="player-score">{formatScore(entry.avgScore)}</span>
+	<span class="player-games">{entry.gamesPlayed} games</span>
 </div>
 
 <style>
-	.leaderboard-row:hover {
-		background: rgba(245, 242, 233, 0.5);
-	}
-
-	.user-row {
-		background: rgba(244, 196, 48, 0.12);
-		box-shadow: inset 4px 0 0 #f4c430;
-	}
-
-	.avatar-initials {
-		background: linear-gradient(135deg, #2e933c 0%, #236e2d 100%);
-	}
-
-	.avatar-highlight {
-		background: linear-gradient(135deg, #f4c430 0%, #f59e0b 100%);
-	}
-
-	:global(.trophy-gold) {
-		fill: #f4c430;
-	}
-
-	:global(.trophy-silver) {
-		fill: #c0c0c0;
-	}
-
-	:global(.trophy-bronze) {
-		fill: #cd7f32;
-	}
-
-	.rank-number {
-		font-family: "JetBrains Mono", monospace;
-		font-size: 14px;
-		font-weight: 700;
-		color: rgba(24, 24, 27, 0.7);
-	}
-
-	.rank-user {
-		color: #f4c430;
-	}
-
-	.rank-cell {
+	.lb-row {
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		min-height: 24px;
+		gap: 12px;
+		padding: 12px 16px;
+		border-bottom: 1px solid var(--line);
+		transition: background 120ms var(--ease);
+	}
+
+	.lb-row:last-child {
+		border-bottom: none;
+	}
+
+	.lb-row:hover {
+		background: rgba(0, 0, 0, 0.02);
+	}
+
+	.lb-row.you {
+		background: var(--brand-light);
+	}
+
+	.lb-row.you:hover {
+		background: rgba(46, 147, 60, 0.14);
+	}
+
+	.rank-badge {
+		width: 28px;
+		height: 28px;
+		border-radius: var(--radius-sm);
+		display: grid;
+		place-items: center;
+		font-size: 13px;
+		font-weight: 800;
+		flex-shrink: 0;
+	}
+
+	.rank-1 {
+		background: var(--gold);
+		color: #fff;
+	}
+
+	.rank-2 {
+		background: #9ca3af;
+		color: #fff;
+	}
+
+	.rank-3 {
+		background: #b8804a;
+		color: #fff;
+	}
+
+	.rank-n {
+		background: rgba(0, 0, 0, 0.05);
+		color: var(--muted);
+	}
+
+	.avatar {
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
+		background: var(--brand);
+		color: #fff;
+		font-weight: 700;
+		display: grid;
+		place-items: center;
+		font-size: 12px;
+		flex-shrink: 0;
+	}
+
+	.player-info {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.player-name {
+		margin: 0;
+		font-size: 15px;
+		font-weight: 600;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.you-badge {
+		font-size: 10px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--brand-dark);
+		background: rgba(46, 147, 60, 0.15);
+		border-radius: var(--radius-pill);
+		padding: 2px 7px;
+		margin-left: 6px;
+	}
+
+	.player-score {
+		font-family: "IBM Plex Mono", monospace;
+		font-size: 15px;
+		font-weight: 600;
+		color: var(--ink);
+		flex-shrink: 0;
+	}
+
+	.player-games {
+		font-size: 12px;
+		color: var(--muted);
+		flex-shrink: 0;
+		min-width: 50px;
+		text-align: right;
 	}
 
 	.row-sizer {
 		position: absolute;
 		top: -9999px;
 		left: -9999px;
-		padding: 12px 16px;
 		visibility: hidden;
 		pointer-events: none;
 	}
 
-	@media (min-width: 640px) {
-		.row-sizer {
-			padding: 16px 24px;
+	@media (min-width: 700px) {
+		.lb-row {
+			padding: 14px 20px;
+		}
+
+		.avatar {
+			width: 40px;
+			height: 40px;
+			font-size: 13px;
+		}
+	}
+
+	@media (max-width: 400px) {
+		.lb-row {
+			padding: 10px 10px;
+			gap: 8px;
+		}
+
+		.player-games {
+			display: none;
+		}
+
+		.player-score {
+			font-size: 13px;
+		}
+
+		.player-name {
+			font-size: 13px;
+		}
+
+		.rank-badge {
+			width: 24px;
+			height: 24px;
+			font-size: 11px;
+		}
+
+		.avatar {
+			width: 30px;
+			height: 30px;
+			font-size: 10px;
 		}
 	}
 </style>

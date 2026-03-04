@@ -1,5 +1,5 @@
 import { apiClient } from "$lib/shared/api/client";
-import type { Game, StartGameRequest } from "../types";
+import type { Game, ScoreDistribution, StartGameRequest } from "../types";
 
 export const gamesService = {
 	start: (data: StartGameRequest) =>
@@ -18,4 +18,11 @@ export const gamesService = {
 			.then((r) => r.data),
 
 	end: (gameId: string) => apiClient.post<Game>(`/v1/games/${gameId}/end`).then((r) => r.data),
+
+	getScoreDistribution: (imageId: string, score: number) =>
+		apiClient
+			.get<ScoreDistribution>(`/v1/games/images/${imageId}/score-distribution`, {
+				params: { score },
+			})
+			.then((r) => r.data),
 };
