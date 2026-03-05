@@ -99,32 +99,25 @@ $: if (rowSizerEl) {
 	setRowSizer(rowSizerEl);
 }
 
-$: if (maxRows > 0 && limit !== maxRows) {
-	limit = maxRows;
-	onSetLimit(limit);
-}
-
 $: if (leaderboard.data) {
 	tick().then(updateMaxRows);
 }
 
 $: showUserFooter = !!userEntry;
 
-$: if (showUserFooter) {
-	const available = maxRows - 2;
-	topCount = Math.max(0, Math.min(entries.length, available));
-	showEllipsis = false;
-} else {
-	const maxTop = Math.min(entries.length, maxRows);
-	const hasMore = totalCount > maxTop;
-	if (hasMore && maxRows > 1) {
-		showEllipsis = true;
-		topCount = Math.min(entries.length, maxRows - 1);
-	} else {
-		showEllipsis = false;
-		topCount = maxTop;
-	}
+$: displayLimit = showUserFooter
+	? Math.max(1, maxRows - 2)
+	: totalCount > maxRows && maxRows > 1
+		? maxRows - 1
+		: maxRows;
+
+$: if (maxRows > 0 && limit !== displayLimit) {
+	limit = displayLimit;
+	onSetLimit(limit);
 }
+
+$: topCount = Math.min(entries.length, limit);
+$: showEllipsis = !showUserFooter && totalCount > maxRows && maxRows > 1;
 
 $: visibleTopEntries = entries.slice(0, topCount);
 </script>
