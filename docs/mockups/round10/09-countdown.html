@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VandyGuessr Round 10 - Countdown</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --brand: #2e933c;
+      --ink: #1a1a1a;
+      --muted: #5c6370;
+      --line: #e5e2db;
+      --surface: #ffffff;
+      --canvas: #f7f5f0;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-pill: 9999px;
+      --shadow-sm: 3px 3px 0 0 rgba(0, 0, 0, 0.06);
+      --shadow-md: 4px 4px 0 0 rgba(0, 0, 0, 0.08);
+      --shadow-lg: 6px 6px 0 0 rgba(0, 0, 0, 0.10);
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+      --p-you: #2e933c;
+      --p-blue: #3b82f6;
+      --p-purple: #8b5cf6;
+      --p-orange: #f97316;
+      --p-cyan: #06b6d4;
+      --p-pink: #ec4899;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      font-family: Inter, sans-serif;
+      overflow: hidden;
+      background: var(--canvas);
+    }
+
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(26, 26, 26, 0.65);
+      z-index: 1;
+    }
+
+    .center {
+      position: relative;
+      z-index: 2;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+
+    .count-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ring {
+      position: absolute;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 3px solid rgba(59, 130, 246, 0.25);
+      animation: ringExpand 1.2s ease-out infinite;
+    }
+
+    @keyframes ringExpand {
+      0% { transform: scale(0.6); opacity: 0.6; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+
+    .count-circle {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: var(--brand);
+      box-shadow: var(--shadow-lg);
+      display: grid;
+      place-items: center;
+      animation: countPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes countPop {
+      0% { transform: scale(0.3); opacity: 0; }
+      60% { transform: scale(1.12); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+
+    .count-num {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 72px;
+      font-weight: 600;
+      color: #fff;
+      line-height: 1;
+    }
+
+    .text {
+      text-align: center;
+      animation: fadeUp 0.4s ease-out 0.2s both;
+    }
+
+    @keyframes fadeUp {
+      0% { transform: translateY(10px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+
+    .text h2 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .text p {
+      margin: 6px 0 0;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .player-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(255, 255, 255, 0.93);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-pill);
+      padding: 8px 16px 8px 8px;
+      box-shadow: var(--shadow-md);
+      animation: fadeUp 0.4s ease-out 0.35s both;
+    }
+
+    .avatar-stack {
+      display: flex;
+    }
+
+    .avatar-stack .av {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      border: 2px solid #fff;
+      margin-left: -8px;
+    }
+
+    .avatar-stack .av:first-child { margin-left: 0; }
+
+    .player-count {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+  </style>
+</head>
+<body>
+  <div class="backdrop"></div>
+
+  <div class="center">
+    <div class="count-wrap">
+      <div class="ring"></div>
+      <div class="count-circle">
+        <span class="count-num">3</span>
+      </div>
+    </div>
+
+    <div class="text">
+      <h2>Game Starting</h2>
+      <p>Get ready to guess!</p>
+    </div>
+
+    <div class="player-bar">
+      <div class="avatar-stack">
+        <div class="av" style="background: var(--p-you);">RM</div>
+        <div class="av" style="background: var(--p-blue);">SW</div>
+        <div class="av" style="background: var(--p-purple);">AC</div>
+        <div class="av" style="background: var(--p-orange);">JT</div>
+      </div>
+      <span class="player-count">4 players</span>
+    </div>
+  </div>
+</body>
+</html>

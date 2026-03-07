@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>VandyGuessr - Start Game</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rubik:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "jungle": "#2E933C",
+                        "jungle-dark": "#236E2D",
+                        "gold": "#F4C430",
+                        "gold-pale": "rgba(244, 196, 48, 0.15)",
+                        "terrain": "#F5F2E9",
+                        "charcoal": "#18181B",
+                        "clay": "#D95D39",
+                    },
+                    fontFamily: {
+                        "heading": ["Rubik", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                    },
+                    boxShadow: {
+                        "hard": "4px 4px 0px 0px rgba(0,0,0,0.1)",
+                        "hard-lg": "6px 6px 0px 0px rgba(0,0,0,0.12)",
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .mode-row {
+            transition: all 0.15s;
+        }
+        .mode-row:hover {
+            transform: translateX(4px);
+        }
+        /* Initials Avatar */
+        .avatar-initials {
+            background: linear-gradient(135deg, #2E933C 0%, #236E2D 100%);
+        }
+    </style>
+</head>
+<body class="font-body antialiased min-h-screen relative overflow-hidden">
+    <!-- Background: Blurred Campus -->
+    <div class="absolute inset-0 z-0">
+        <div
+            class="absolute inset-0 bg-cover bg-center blur-[24px] scale-110"
+            style="background-image: url('https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=2986&auto=format&fit=crop');"
+        ></div>
+        <div class="absolute inset-0 bg-terrain/80"></div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="relative z-10 min-h-screen flex flex-col">
+
+        <!-- White Navbar (Unified with Leaderboard) -->
+        <header class="sticky top-0 z-50 bg-white border-b border-gray-100">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+                <!-- Logo + App Name -->
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 bg-jungle rounded-xl flex items-center justify-center shadow-hard">
+                        <span class="material-symbols-outlined text-white text-xl sm:text-2xl" style="font-variation-settings: 'FILL' 1;">location_on</span>
+                    </div>
+                    <span class="font-heading font-bold text-lg sm:text-xl text-charcoal hidden sm:block">VandyGuessr</span>
+                </div>
+
+                <!-- Nav Links + Logout -->
+                <div class="flex items-center gap-4 sm:gap-6">
+                    <a href="05-leaderboard.html" class="flex items-center gap-1.5 text-charcoal/60 font-medium hover:text-jungle transition-colors text-sm">
+                        <span class="material-symbols-outlined text-lg">leaderboard</span>
+                        <span class="hidden sm:inline">Leaderboard</span>
+                    </a>
+                    <button class="flex items-center gap-1.5 text-charcoal/50 font-medium hover:text-clay transition-colors text-sm">
+                        <span class="material-symbols-outlined text-lg">logout</span>
+                        <span class="hidden sm:inline">Logout</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Centered Card -->
+        <main class="flex-1 flex items-center justify-center px-4 py-6 sm:py-8">
+            <div class="glass-card rounded-[24px] shadow-hard-lg w-full max-w-2xl border border-white/50 overflow-hidden">
+
+                <!-- User Header (Simple) -->
+                <div class="relative overflow-hidden">
+                    <div class="px-6 sm:px-8 py-5 sm:py-6">
+                        <div class="flex items-center gap-4">
+                            <!-- Initials Avatar -->
+                            <div class="w-14 h-14 sm:w-16 sm:h-16 avatar-initials rounded-full flex items-center justify-center text-white font-heading font-bold text-lg sm:text-xl shadow-hard flex-shrink-0">
+                                JD
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h2 class="font-heading font-bold text-xl sm:text-2xl text-charcoal truncate">John Doe</h2>
+                                <p class="text-charcoal/50 text-sm truncate">Class of 2026</p>
+                            </div>
+                        </div>
+
+                        <!-- Stats Row -->
+                        <div class="flex items-center justify-around mt-5 pt-5 border-t border-gray-100">
+                            <div class="text-center px-3">
+                                <div class="flex items-center justify-center gap-1 mb-1">
+                                    <span class="material-symbols-outlined text-charcoal/40 text-lg" style="font-variation-settings: 'FILL' 1;">trophy</span>
+                                    <span class="font-mono font-bold text-xl text-charcoal">#42</span>
+                                </div>
+                                <div class="text-xs text-charcoal/50 font-medium uppercase tracking-wider">Rank</div>
+                            </div>
+                            <div class="w-px h-10 bg-gray-100"></div>
+                            <div class="text-center px-3">
+                                <div class="flex items-center justify-center gap-1 mb-1">
+                                    <span class="material-symbols-outlined text-charcoal/40 text-lg" style="font-variation-settings: 'FILL' 1;">stars</span>
+                                    <span class="font-mono font-bold text-xl text-charcoal">15.2k</span>
+                                </div>
+                                <div class="text-xs text-charcoal/50 font-medium uppercase tracking-wider">Points</div>
+                            </div>
+                            <div class="w-px h-10 bg-gray-100"></div>
+                            <div class="text-center px-3">
+                                <div class="flex items-center justify-center gap-1 mb-1">
+                                    <span class="material-symbols-outlined text-charcoal/40 text-lg" style="font-variation-settings: 'FILL' 1;">sports_esports</span>
+                                    <span class="font-mono font-bold text-xl text-charcoal">28</span>
+                                </div>
+                                <div class="text-xs text-charcoal/50 font-medium uppercase tracking-wider">Games</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Game Modes -->
+                <div class="p-5 sm:p-6 bg-terrain/30">
+                    <h3 class="font-heading font-bold text-lg text-charcoal mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-jungle">play_circle</span>
+                        Choose a Mode
+                    </h3>
+
+                    <div class="space-y-3">
+                        <!-- Daily Challenge (Hero) -->
+                        <div class="mode-row bg-white rounded-2xl border-2 border-gold p-4 sm:p-5 flex items-center gap-4 cursor-pointer relative overflow-hidden shadow-hard hover:shadow-hard-lg hover:border-gold/80">
+                            <div class="absolute inset-0 bg-gradient-to-r from-gold-pale via-gold-pale/50 to-transparent pointer-events-none"></div>
+                            <div class="relative z-10 flex items-center gap-4 flex-1">
+                                <div class="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-gold to-yellow-500 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-hard">
+                                    <span class="material-symbols-outlined text-white text-2xl sm:text-3xl" style="font-variation-settings: 'FILL' 1;">calendar_today</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 mb-0.5">
+                                        <h4 class="font-heading font-bold text-lg text-charcoal">Daily Challenge</h4>
+                                        <span class="bg-gold text-charcoal text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shadow-sm">2X Points</span>
+                                    </div>
+                                    <p class="text-charcoal/50 text-sm truncate">Today's curated locations - compete with everyone!</p>
+                                </div>
+                                <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gold/20">
+                                    <span class="material-symbols-outlined text-gold text-2xl">arrow_forward</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Random Drop -->
+                        <div class="mode-row bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 flex items-center gap-4 cursor-pointer shadow-hard hover:shadow-hard-lg hover:bg-jungle/5 hover:border-jungle/20">
+                            <div class="w-12 h-12 sm:w-14 sm:h-14 bg-jungle/10 rounded-2xl flex items-center justify-center flex-shrink-0">
+                                <span class="material-symbols-outlined text-jungle text-2xl sm:text-3xl" style="font-variation-settings: 'FILL' 1;">casino</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-heading font-bold text-charcoal">Random Drop</h4>
+                                <p class="text-charcoal/50 text-sm truncate">Get dropped anywhere on campus</p>
+                            </div>
+                            <span class="material-symbols-outlined text-jungle/50 text-2xl flex-shrink-0">arrow_forward</span>
+                        </div>
+
+                        <!-- Divider -->
+                        <div class="flex items-center gap-3 py-1">
+                            <div class="flex-1 h-px bg-gray-200"></div>
+                            <span class="text-xs text-charcoal/40 font-medium uppercase tracking-wider">Filters</span>
+                            <div class="flex-1 h-px bg-gray-200"></div>
+                        </div>
+
+                        <!-- Indoor -->
+                        <div class="mode-row bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 flex items-center gap-4 cursor-pointer shadow-hard hover:shadow-hard-lg hover:bg-purple-50 hover:border-purple-200">
+                            <div class="w-12 h-12 sm:w-14 sm:h-14 bg-purple-500/10 rounded-2xl flex items-center justify-center flex-shrink-0">
+                                <span class="material-symbols-outlined text-purple-500 text-2xl sm:text-3xl" style="font-variation-settings: 'FILL' 1;">meeting_room</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-heading font-bold text-charcoal">Indoor Mode</h4>
+                                <p class="text-charcoal/50 text-sm truncate">Libraries, classrooms, hallways</p>
+                            </div>
+                            <span class="material-symbols-outlined text-purple-300 text-2xl flex-shrink-0">arrow_forward</span>
+                        </div>
+
+                        <!-- Outdoor -->
+                        <div class="mode-row bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 flex items-center gap-4 cursor-pointer shadow-hard hover:shadow-hard-lg hover:bg-teal-50 hover:border-teal-200">
+                            <div class="w-12 h-12 sm:w-14 sm:h-14 bg-teal-500/10 rounded-2xl flex items-center justify-center flex-shrink-0">
+                                <span class="material-symbols-outlined text-teal-500 text-2xl sm:text-3xl" style="font-variation-settings: 'FILL' 1;">park</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-heading font-bold text-charcoal">Outdoor Mode</h4>
+                                <p class="text-charcoal/50 text-sm truncate">Lawns, paths, and plazas</p>
+                            </div>
+                            <span class="material-symbols-outlined text-teal-300 text-2xl flex-shrink-0">arrow_forward</span>
+                        </div>
+
+                        <!-- Timed -->
+                        <div class="mode-row bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 flex items-center gap-4 cursor-pointer shadow-hard hover:shadow-hard-lg hover:bg-clay/5 hover:border-clay/20">
+                            <div class="w-12 h-12 sm:w-14 sm:h-14 bg-clay/10 rounded-2xl flex items-center justify-center flex-shrink-0">
+                                <span class="material-symbols-outlined text-clay text-2xl sm:text-3xl" style="font-variation-settings: 'FILL' 1;">timer</span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-heading font-bold text-charcoal">Timed Mode</h4>
+                                <p class="text-charcoal/50 text-sm truncate">120 seconds per round - race the clock!</p>
+                            </div>
+                            <span class="material-symbols-outlined text-clay/40 text-2xl flex-shrink-0">arrow_forward</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

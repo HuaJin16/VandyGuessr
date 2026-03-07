@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>VandyGuessr - Login</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rubik:wght@500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "jungle": "#2E933C",
+                        "jungle-dark": "#236E2D",
+                        "gold": "#F4C430",
+                        "terrain": "#F5F2E9",
+                        "charcoal": "#18181B",
+                        "clay": "#D95D39",
+                    },
+                    fontFamily: {
+                        "heading": ["Rubik", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                    },
+                    boxShadow: {
+                        "hard": "4px 4px 0px 0px rgba(0,0,0,0.1)",
+                        "hard-lg": "6px 6px 0px 0px rgba(0,0,0,0.15)",
+                        "3d": "0 4px 0 #236E2D",
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .btn-3d {
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 0px 0 #236E2D;
+        }
+    </style>
+</head>
+<body class="font-body antialiased min-h-screen relative overflow-hidden">
+    <!-- Background: Blurred Peabody Lawn -->
+    <div class="absolute inset-0 z-0">
+        <div
+            class="absolute inset-0 bg-cover bg-center blur-[24px] scale-110"
+            style="background-image: url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2940&auto=format&fit=crop');"
+        ></div>
+        <div class="absolute inset-0 bg-terrain/80"></div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="relative z-10 min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="flex items-center justify-between px-8 py-6">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-jungle rounded-xl flex items-center justify-center shadow-hard">
+                    <span class="material-symbols-outlined text-white text-2xl" style="font-variation-settings: 'FILL' 1;">location_on</span>
+                </div>
+                <span class="font-heading font-bold text-2xl text-charcoal">VandyGuessr</span>
+            </div>
+        </header>
+
+        <!-- Centered Card -->
+        <main class="flex-1 flex items-center justify-center px-4 pb-16">
+            <div class="glass-card rounded-[24px] shadow-hard-lg p-10 w-full max-w-md flex flex-col items-center gap-8 border border-white/50">
+                <!-- Icon -->
+                <div class="w-20 h-20 bg-jungle/10 rounded-full flex items-center justify-center">
+                    <span class="material-symbols-outlined text-jungle text-4xl" style="font-variation-settings: 'FILL' 1;">explore</span>
+                </div>
+
+                <!-- Text -->
+                <div class="text-center">
+                    <h1 class="font-heading font-bold text-4xl text-charcoal mb-2">Welcome Back!</h1>
+                    <p class="text-charcoal/60 text-lg">Ready to explore campus?</p>
+                </div>
+
+                <!-- Login Button -->
+                <button class="btn-3d w-full bg-jungle hover:bg-jungle-dark text-white font-heading font-bold text-lg py-4 px-6 rounded-full shadow-3d flex items-center justify-center gap-3 transition-colors">
+                    <svg class="w-6 h-6" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="0" y="0" width="10" height="10" fill="white"/>
+                        <rect x="11" y="0" width="10" height="10" fill="white"/>
+                        <rect x="0" y="11" width="10" height="10" fill="white"/>
+                        <rect x="11" y="11" width="10" height="10" fill="white"/>
+                    </svg>
+                    <span>Log in with Vanderbilt</span>
+                </button>
+
+                <!-- Footer Text -->
+                <p class="text-charcoal/40 text-sm text-center">
+                    By logging in, you agree to the Terms of Service.
+                </p>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="text-center pb-6 text-charcoal/40 text-sm">
+            Made with Anchor Down.
+        </footer>
+    </div>
+</body>
+</html>

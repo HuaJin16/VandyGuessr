@@ -1,0 +1,42 @@
+{
+	"name": "vandyguessr-frontend",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
+		"check": "svelte-check --tsconfig ./tsconfig.json",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write ."
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.8.0",
+		"@sveltejs/vite-plugin-svelte": "^3.1.0",
+		"@tsconfig/svelte": "^5.0.4",
+		"@types/leaflet": "^1.9.21",
+		"autoprefixer": "^10.4.19",
+		"postcss": "^8.4.38",
+		"svelte": "^4.2.17",
+		"svelte-check": "^3.7.1",
+		"tailwindcss": "^3.4.3",
+		"typescript": "^5.4.5",
+		"vite": "^5.2.11"
+	},
+	"dependencies": {
+		"@azure/msal-browser": "^3.10.0",
+		"@photo-sphere-viewer/core": "^5.14.1",
+		"@tanstack/svelte-query": "^5.90.2",
+		"axios": "^1.13.4",
+		"bits-ui": "0.21",
+		"clsx": "^2.1.1",
+		"leaflet": "^1.9.4",
+		"lucide-svelte": "^0.563.0",
+		"svelte-routing": "^2.13.0",
+		"svelte-sonner": "0.3.28",
+		"tailwind-merge": "^3.4.0",
+		"tailwind-variants": "^3.2.2"
+	}
+}

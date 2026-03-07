@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VandyGuessr Round 10 - Gameplay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --brand: #2e933c;
+      --brand-dark: #236e2d;
+      --brand-light: rgba(46, 147, 60, 0.1);
+      --gold-dark: #c48d10;
+      --ink: #1a1a1a;
+      --muted: #5c6370;
+      --line: #e5e2db;
+      --surface: #ffffff;
+      --danger: #dc4a3a;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-pill: 9999px;
+      --shadow-sm: 3px 3px 0 0 rgba(0, 0, 0, 0.15);
+      --shadow-md: 4px 4px 0 0 rgba(0, 0, 0, 0.2);
+      --ring: 0 0 0 3px rgba(46, 147, 60, 0.35);
+      --ring-danger: 0 0 0 3px rgba(220, 74, 58, 0.35);
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, sans-serif;
+      color: #fff;
+      background: #0f1712;
+      overflow: hidden;
+    }
+
+    .scene {
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(rgba(11, 18, 14, 0.35), rgba(11, 18, 14, 0.45)),
+        url("https://images.unsplash.com/photo-1592280771190-3e2e4d571952?q=80&w=2200&auto=format&fit=crop");
+      background-position: center;
+      background-size: cover;
+    }
+
+    .shell {
+      position: relative;
+      z-index: 2;
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: 10px;
+      gap: 6px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ghost {
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      border-radius: var(--radius-md);
+      background: rgba(17, 25, 20, 0.4);
+      backdrop-filter: blur(4px);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 11px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 120ms var(--ease);
+    }
+
+    .ghost:hover { background: rgba(17, 25, 20, 0.55); }
+    .ghost:focus-visible { outline: none; box-shadow: var(--ring); }
+
+    .hud-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      pointer-events: none;
+    }
+
+    .hud {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.95);
+      color: var(--ink);
+      box-shadow: var(--shadow-md);
+      padding: 6px 4px;
+      width: min(100%, 540px);
+      justify-content: center;
+    }
+
+    .hud-cell {
+      padding: 4px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hud-cell + .hud-cell { border-left: 1px solid var(--line); }
+
+    .hud-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .hud-value {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .hud-value.score { color: var(--gold-dark); }
+    .hud-value.timer { color: var(--danger); }
+
+    .dock {
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      border-radius: var(--radius-lg);
+      background: rgba(255, 255, 255, 0.96);
+      color: var(--ink);
+      box-shadow: var(--shadow-md);
+      padding: 10px;
+      backdrop-filter: blur(6px);
+    }
+
+    .dock-overline {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .map {
+      margin-top: 8px;
+      height: 180px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background-color: #ece7d8;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(92, 99, 112, 0.17) 0 1px, transparent 1px 24px),
+        repeating-linear-gradient(90deg, rgba(92, 99, 112, 0.17) 0 1px, transparent 1px 24px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pin {
+      width: 18px;
+      height: 18px;
+      border-radius: 50% 50% 50% 0;
+      background: var(--brand);
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+      transform: rotate(-45deg);
+      position: absolute;
+      left: 62%;
+      top: 54%;
+    }
+
+    .pin::after {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.95);
+      position: absolute;
+      top: 4px;
+      left: 4px;
+    }
+
+    .guess-btn {
+      width: 100%;
+      margin-top: 10px;
+      border: none;
+      border-radius: var(--radius-md);
+      background: var(--brand);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 13px 14px;
+      box-shadow: 0 4px 0 var(--brand-dark);
+      cursor: pointer;
+      transition: all 120ms var(--ease);
+    }
+
+    .guess-btn:hover { background: #278234; }
+    .guess-btn:active { transform: translateY(4px); box-shadow: 0 0 0 var(--brand-dark); }
+    .guess-btn:focus-visible { outline: none; box-shadow: 0 4px 0 var(--brand-dark), var(--ring); }
+
+    .dock-note {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    @media (max-width: 400px) {
+      .hud { padding: 4px 2px; }
+      .hud-cell { padding: 3px 8px; gap: 4px; }
+      .hud-label { font-size: 10px; }
+      .hud-value { font-size: 12px; }
+      .dock { padding: 8px; }
+      .guess-btn { font-size: 14px; padding: 11px 12px; }
+      .dock-note { font-size: 11px; }
+    }
+
+    @media (min-width: 880px) {
+      .shell {
+        padding: 14px;
+        gap: 6px;
+        grid-template-rows: auto auto 1fr;
+        grid-template-columns: 1fr 360px;
+        align-items: end;
+      }
+
+      .topbar {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        align-items: start;
+      }
+
+      .hud-wrap {
+        justify-content: center;
+        align-items: start;
+        grid-column: 1 / -1;
+        grid-row: 2;
+      }
+
+      .dock {
+        grid-column: 2;
+        grid-row: 3;
+        align-self: end;
+      }
+
+      .map { height: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="scene" aria-hidden="true"></div>
+
+  <main class="shell">
+    <div class="topbar">
+      <a class="ghost" href="07-end-game-dialog.html">✕ End Game</a>
+      <a class="ghost" href="02-home.html">← Home</a>
+    </div>
+
+    <div class="hud-wrap">
+      <section class="hud" aria-label="Gameplay status">
+        <div class="hud-cell">
+          <span class="hud-label">Round</span>
+          <span class="hud-value">3/5</span>
+        </div>
+        <div class="hud-cell">
+          <span class="hud-label">Score</span>
+          <span class="hud-value score">9,350</span>
+        </div>
+        <div class="hud-cell">
+          <span class="hud-label">Time</span>
+          <span class="hud-value timer">01:23</span>
+        </div>
+      </section>
+    </div>
+
+    <section class="dock" aria-label="Map assembly">
+      <p class="dock-overline">Place Your Guess</p>
+      <div class="map" role="img" aria-label="Map placeholder with marker">
+        <div class="pin"></div>
+      </div>
+      <button class="guess-btn" type="button">Lock Guess</button>
+      <p class="dock-note">Tip: Tap map to move marker. Pin position determines your distance score.</p>
+    </section>
+  </main>
+</body>
+</html>

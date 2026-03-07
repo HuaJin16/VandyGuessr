@@ -1,0 +1,37 @@
+<script lang="ts">
+import { auth } from "$lib/shared/auth/auth.store";
+import { LogOut, Trophy as TrophyIcon } from "lucide-svelte";
+import logo from "../../../assets/logo.webp";
+
+export let activePage: "home" | "leaderboard" | undefined = undefined;
+</script>
+
+<header class="sticky top-0 z-50 border-b border-line bg-surface">
+	<div class="mx-auto flex min-h-[48px] items-center justify-between gap-3 px-2 sm:min-h-[52px] sm:px-3" style="width: min(700px, calc(100% - 24px));">
+		<a href="/" class="flex items-center gap-2.5">
+			<img src={logo} alt="VandyGuessr" class="h-[34px] w-[34px] rounded-md" />
+			<span class="hidden text-lg font-extrabold text-ink sm:block">VandyGuessr</span>
+		</a>
+
+		<div class="flex items-center gap-2">
+			<a
+				href="/leaderboard"
+				class="flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-[7px] text-[13px] font-semibold transition-all {activePage === 'leaderboard'
+					? 'border-brand bg-brand-light text-brand'
+					: 'bg-surface text-ink hover:border-brand hover:bg-brand-light hover:text-brand'}"
+				style="transition-duration: var(--duration-fast); transition-timing-function: var(--ease);"
+			>
+				<TrophyIcon size={15} />
+				<span class="hidden sm:inline">Leaderboard</span>
+			</a>
+			<button
+				class="flex items-center gap-1.5 rounded-sm border border-line bg-surface px-2.5 py-[7px] text-[13px] font-semibold text-ink transition-all hover:border-danger hover:bg-danger-light hover:text-danger"
+				style="transition-duration: var(--duration-fast); transition-timing-function: var(--ease);"
+				on:click={() => auth.logout()}
+			>
+				<LogOut size={15} />
+				<span class="hidden sm:inline">Logout</span>
+			</button>
+		</div>
+	</div>
+</header>

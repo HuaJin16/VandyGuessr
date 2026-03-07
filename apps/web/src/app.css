@@ -1,0 +1,233 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+	/* Brand palette */
+	--brand: #2e933c;
+	--brand-dark: #236e2d;
+	--brand-light: rgba(46, 147, 60, 0.1);
+
+	/* Gold */
+	--gold: #e8a817;
+	--gold-dark: #c48d10;
+	--gold-light: rgba(232, 168, 23, 0.12);
+	--gold-ink: #6b4c00;
+
+	/* Neutrals */
+	--ink: #1a1a1a;
+	--muted: #5c6370;
+	--line: #e5e2db;
+	--line-strong: #c4c0b8;
+	--surface: #ffffff;
+	--canvas: #f7f5f0;
+
+	/* Danger / Error */
+	--danger: #dc4a3a;
+	--danger-dark: #b33a2c;
+	--danger-light: rgba(220, 74, 58, 0.08);
+	--danger-ink: #8b2820;
+
+	/* Semantic tints */
+	--success-light: rgba(46, 147, 60, 0.08);
+	--success-ink: #1a5c24;
+	--warning-light: rgba(232, 168, 23, 0.12);
+	--warning-ink: #6b4c00;
+
+	/* Multiplayer accent (blue — used sparingly) */
+	--mp: #3b82f6;
+
+	/* Player color palette */
+	--p-you: #2e933c;
+	--p-blue: #3b82f6;
+	--p-purple: #8b5cf6;
+	--p-orange: #f97316;
+	--p-cyan: #06b6d4;
+	--p-pink: #ec4899;
+
+	/* Radius scale */
+	--radius-sm: 8px;
+	--radius-md: 12px;
+	--radius-lg: 16px;
+	--radius-pill: 9999px;
+
+	/* Shadows (hard, no blur) */
+	--shadow-sm: 3px 3px 0 0 rgba(0, 0, 0, 0.06);
+	--shadow-md: 4px 4px 0 0 rgba(0, 0, 0, 0.08);
+	--shadow-lg: 6px 6px 0 0 rgba(0, 0, 0, 0.1);
+	--ring: 0 0 0 3px rgba(46, 147, 60, 0.35);
+
+	/* Motion */
+	--ease: cubic-bezier(0.4, 0, 0.2, 1);
+	--duration-fast: 120ms;
+	--duration: 180ms;
+
+	/* Base typography */
+	font-family: "Inter", system-ui, Avenir, Helvetica, Arial, sans-serif;
+	line-height: 1.5;
+	font-weight: 400;
+
+	color: var(--ink);
+	background-color: var(--canvas);
+
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+body {
+	margin: 0;
+	min-height: 100vh;
+}
+
+#app {
+	min-height: 100vh;
+}
+
+@layer components {
+	/* Card — white surface, 1px border, hard shadow */
+	.card {
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-sm);
+		padding: 16px;
+	}
+
+	@media (min-width: 640px) {
+		.card {
+			padding: 18px;
+		}
+	}
+
+	/* 3D press button — green by default */
+	.btn-3d {
+		background: var(--brand);
+		color: white;
+		font-family: "Inter", sans-serif;
+		font-weight: 700;
+		padding: 14px 24px;
+		border-radius: var(--radius-md);
+		border: none;
+		cursor: pointer;
+		box-shadow: 0 4px 0 var(--brand-dark);
+		transition: transform var(--duration-fast) var(--ease), box-shadow var(--duration-fast)
+			var(--ease);
+	}
+
+	.btn-3d:hover {
+		background: var(--brand-dark);
+	}
+
+	.btn-3d:active {
+		transform: translateY(4px);
+		box-shadow: 0 0 0 var(--brand-dark);
+	}
+
+	.btn-3d:focus-visible {
+		outline: none;
+		box-shadow: 0 4px 0 var(--brand-dark), var(--ring);
+	}
+
+	/* Danger variant */
+	.btn-3d--danger {
+		background: var(--danger);
+		box-shadow: 0 4px 0 var(--danger-dark);
+	}
+
+	.btn-3d--danger:hover {
+		background: var(--danger-dark);
+	}
+
+	.btn-3d--danger:active {
+		box-shadow: 0 0 0 var(--danger-dark);
+	}
+
+	/* Ghost/outline button */
+	.btn-ghost {
+		background: transparent;
+		color: var(--ink);
+		font-weight: 600;
+		padding: 10px 18px;
+		border-radius: var(--radius-md);
+		border: 1px solid var(--line);
+		cursor: pointer;
+		transition: border-color var(--duration) var(--ease), background var(--duration) var(--ease);
+	}
+
+	.btn-ghost:hover {
+		border-color: var(--brand);
+		background: var(--brand-light);
+	}
+
+	/* HUD pill — gameplay overlay */
+	.hud-pill {
+		background: rgba(255, 255, 255, 0.95);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+		border-radius: var(--radius-pill);
+		padding: 6px;
+		border: 1px solid rgba(255, 255, 255, 0.5);
+		box-shadow: var(--shadow-md);
+	}
+
+	/* Stat box — for numerical stats */
+	.stat {
+		border: 1px solid var(--line);
+		border-radius: var(--radius-md);
+		background: var(--surface);
+		text-align: center;
+		padding: 12px 8px;
+	}
+
+	.stat-label {
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--muted);
+	}
+
+	.stat-value {
+		font-family: "IBM Plex Mono", monospace;
+		font-weight: 600;
+		font-size: 20px;
+		color: var(--ink);
+	}
+
+	/* Sonner toast overrides */
+	.sonner-toast {
+		font-family: "Inter", sans-serif;
+		padding: 14px 18px;
+		border-radius: var(--radius-md);
+		width: 100%;
+		max-width: 420px;
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		box-shadow: var(--shadow-md);
+	}
+
+	.sonner-toast--error {
+		background: var(--danger-dark);
+		color: white;
+	}
+
+	.sonner-toast--success {
+		background: var(--brand-dark);
+		color: white;
+	}
+
+	.sonner-title {
+		font-size: 14px;
+		font-weight: 600;
+		line-height: 1.4;
+	}
+
+	.sonner-description {
+		font-size: 13px;
+		opacity: 0.85;
+		line-height: 1.4;
+	}
+}

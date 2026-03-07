@@ -1,0 +1,1 @@
+"""VandyGuessr Backend Application."""

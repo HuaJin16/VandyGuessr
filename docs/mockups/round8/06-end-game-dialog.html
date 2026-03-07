@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>VandyGuessr - End Game Dialog</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Rubik:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "jungle": "#2E933C",
+                        "jungle-dark": "#236E2D",
+                        "gold": "#F4C430",
+                        "terrain": "#F5F2E9",
+                        "charcoal": "#18181B",
+                        "clay": "#D95D39",
+                    },
+                    fontFamily: {
+                        "heading": ["Rubik", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                    },
+                    boxShadow: {
+                        "hard": "4px 4px 0px 0px rgba(0,0,0,0.1)",
+                        "hard-lg": "6px 6px 0px 0px rgba(0,0,0,0.15)",
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="font-body antialiased min-h-screen flex items-center justify-center p-4 relative">
+    <!-- Simulated Background (blurred gameplay) -->
+    <div class="absolute inset-0 z-0">
+        <div
+            class="absolute inset-0 bg-cover bg-center"
+            style="background-image: url('https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=2986&auto=format&fit=crop');"
+        ></div>
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+    </div>
+
+    <!-- Dialog Card -->
+    <div class="relative z-10 w-full max-w-md bg-white/95 backdrop-blur-xl rounded-2xl shadow-hard-lg border border-white/50 p-6 sm:p-8">
+        <!-- Warning Icon -->
+        <div class="flex justify-center mb-4">
+            <div class="w-14 h-14 rounded-full bg-clay/10 flex items-center justify-center">
+                <span class="material-symbols-outlined text-3xl text-clay">warning</span>
+            </div>
+        </div>
+
+        <!-- Title -->
+        <h2 class="font-heading font-bold text-2xl text-charcoal text-center mb-2">
+            End Game Early?
+        </h2>
+
+        <!-- Description -->
+        <p class="text-charcoal/60 text-center mb-6">
+            Are you sure you want to end this game? This action cannot be undone.
+        </p>
+
+        <!-- Stats Summary -->
+        <div class="bg-terrain rounded-xl p-4 mb-6">
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Rounds Completed -->
+                <div class="text-center">
+                    <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-charcoal/50 mb-1">Rounds Completed</p>
+                    <p class="font-mono font-bold text-2xl text-charcoal">2<span class="text-charcoal/40">/5</span></p>
+                </div>
+                <!-- Current Score -->
+                <div class="text-center">
+                    <p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-charcoal/50 mb-1">Current Score</p>
+                    <p class="font-mono font-bold text-2xl text-jungle">4,500</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Warning Notice -->
+        <div class="flex items-start gap-3 bg-clay/5 border border-clay/20 rounded-xl p-4 mb-6">
+            <span class="material-symbols-outlined text-clay text-lg flex-shrink-0 mt-0.5">info</span>
+            <p class="text-sm text-charcoal/70">
+                <strong class="text-charcoal">3 remaining rounds</strong> will be marked as skipped with a score of 0. Your final score will count toward stats and leaderboards.
+            </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3">
+            <!-- Cancel (Ghost) -->
+            <button class="flex-1 px-6 py-3 rounded-xl border-2 border-charcoal/20 text-charcoal font-semibold hover:bg-charcoal/5 transition-colors">
+                Cancel
+            </button>
+            <!-- End Game (Destructive) -->
+            <button class="flex-1 px-6 py-3 rounded-xl bg-clay hover:bg-clay/90 text-white font-semibold shadow-hard transition-colors flex items-center justify-center gap-2">
+                <span>End Game</span>
+                <span class="material-symbols-outlined text-lg">logout</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Component Specs Reference (for developers) -->
+    <!--
+    CONFIRMATION DIALOG COMPONENT SPECS
+    ===================================
+
+    END GAME TRIGGER BUTTON (on gameplay screen):
+    - Location: Bottom-left corner (desktop), next to map (mobile)
+    - Style: Icon button matching zoom controls
+    - Desktop: w-11 h-11 bg-white/90 backdrop-blur-sm rounded-xl shadow-hard
+    - Icon: text-clay text-xl (close icon)
+    - Hover: bg-clay/10 hover:text-clay
+    - Tooltip: "End Game" (desktop only, appears to the right)
+    - Mobile: Same icon style, positioned left of map assembly
+
+    TOOLTIP CSS (.icon-btn-tooltip):
+    - Uses ::after pseudo-element with data-tooltip attribute
+    - Position: left: calc(100% + 8px), centered vertically
+    - Style: bg-charcoal/90, text-white, rounded-lg, text-xs
+    - Animation: opacity transition on hover
+
+    Structure:
+    - Backdrop: bg-black/50 backdrop-blur-sm (click to dismiss)
+    - Card: max-w-md, bg-white/95 backdrop-blur-xl, rounded-2xl, shadow-hard-lg
+    - Padding: p-6 (mobile), p-8 (desktop)
+
+    Icon (Optional):
+    - Container: w-14 h-14 rounded-full bg-{color}/10
+    - Icon: text-3xl text-{color}
+    - Colors: clay (warning/destructive), jungle (success), gold (info)
+
+    Typography:
+    - Title: font-heading font-bold text-2xl text-charcoal text-center
+    - Description: text-charcoal/60 text-center
+
+    Stats Block (Optional):
+    - Container: bg-terrain rounded-xl p-4
+    - Layout: grid grid-cols-2 gap-4
+    - Label: text-[10px] uppercase tracking-wider text-charcoal/50
+    - Value: font-mono font-bold text-2xl
+
+    Notice Block (Optional):
+    - Container: bg-{color}/5 border border-{color}/20 rounded-xl p-4
+    - Icon: text-{color} text-lg
+    - Text: text-sm text-charcoal/70
+
+    Buttons:
+    - Container: flex gap-3
+    - Cancel (Ghost): border-2 border-charcoal/20 text-charcoal hover:bg-charcoal/5
+    - Confirm (Primary): bg-jungle text-white shadow-hard
+    - Destructive: bg-clay text-white shadow-hard
+    - Both: flex-1 px-6 py-3 rounded-xl font-semibold
+    -->
+</body>
+</html>
