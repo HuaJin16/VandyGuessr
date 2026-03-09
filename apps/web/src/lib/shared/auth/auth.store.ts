@@ -7,6 +7,18 @@ import { derived, writable } from "svelte/store";
 import { loginRequest } from "./msalConfig";
 import { initializeMsal, msalInstance } from "./msalInstance";
 
+const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
+const DEMO_STORAGE_KEY = "vandyguessr-demo-auth";
+
+const DEMO_ACCOUNT: AccountInfo = {
+	homeAccountId: "demo-user",
+	localAccountId: "demo-user",
+	environment: "demo",
+	tenantId: "demo",
+	username: "demo@vandyguessr.com",
+	name: "Demo User",
+};
+
 interface AuthState {
 	isInitialized: boolean;
 	isLoading: boolean;
@@ -29,6 +41,17 @@ function createAuthStore() {
 
 		/** Initialize MSAL and restore session if available */
 		async initialize() {
+			if (demoMode) {
+				const persisted = localStorage.getItem(DEMO_STORAGE_KEY);
+				update((state) => ({
+					...state,
+					account: persisted === "true" ? DEMO_ACCOUNT : null,
+					isInitialized: true,
+					isLoading: false,
+				}));
+				return;
+			}
+
 			try {
 				await initializeMsal();
 				const account = msalInstance.getActiveAccount();
@@ -49,8 +72,18 @@ function createAuthStore() {
 			}
 		},
 
-		/** Start the login redirect flow */
+		/** Start the login redirect flow (or set demo account) */
 		async login() {
+			if (demoMode) {
+				localStorage.setItem(DEMO_STORAGE_KEY, "true");
+				update((state) => ({
+					...state,
+					account: DEMO_ACCOUNT,
+					isLoading: false,
+				}));
+				return;
+			}
+
 			update((state) => ({ ...state, isLoading: true, error: null }));
 
 			try {
@@ -66,6 +99,12 @@ function createAuthStore() {
 
 		/** Clear local auth state (logout from app only) */
 		logout() {
+			if (demoMode) {
+				localStorage.removeItem(DEMO_STORAGE_KEY);
+				set({ ...initialState, isInitialized: true, isLoading: false });
+				return;
+			}
+
 			const accounts = msalInstance.getAllAccounts();
 			for (const account of accounts) {
 				msalInstance.clearCache({

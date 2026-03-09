@@ -13,9 +13,17 @@ from app.config import Settings, get_settings
 logger = structlog.get_logger()
 
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 # Cache for JWKS
 _jwks_cache: dict | None = None
+
+DEMO_USER_PAYLOAD = {
+    "sub": "demo-user",
+    "oid": "demo-user",
+    "email": "demo@vandyguessr.com",
+    "name": "Demo User",
+}
 
 
 def _is_vanderbilt_email(email: str | None) -> bool:
@@ -51,14 +59,26 @@ def get_signing_key(jwks: dict, token: str) -> str:
 
 
 async def verify_token(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     settings: Annotated[Settings, Depends(get_settings)],
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None, Depends(optional_security)
+    ] = None,
 ) -> dict:
     """Verify JWT token from Microsoft OAuth.
 
+    In demo mode, returns a mock payload when no credentials are provided.
     Returns the decoded token payload if valid.
     Raises HTTPException if invalid.
     """
+    if settings.demo_mode and not credentials:
+        return DEMO_USER_PAYLOAD
+
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
     token = credentials.credentials
 
     if not settings.microsoft_client_id:
@@ -135,13 +155,16 @@ def _build_display_name(token_payload: dict) -> str | None:
 
 async def get_current_user(
     token_payload: Annotated[dict, Depends(verify_token)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> dict:
     """Get the current user from the verified token.
 
+    In demo mode, skips the Vanderbilt email domain check.
     Returns user information extracted from token.
     """
     email = token_payload.get("email") or token_payload.get("preferred_username")
-    if not _is_vanderbilt_email(email):
+
+    if not settings.demo_mode and not _is_vanderbilt_email(email):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized email domain",
@@ -151,7 +174,7 @@ async def get_current_user(
         "sub": token_payload.get("sub"),
         "oid": token_payload.get("oid"),
         "email": email,
-        "name": _build_display_name(token_payload),
+        "name": _build_display_name(token_payload) or token_payload.get("name"),
     }
 
 

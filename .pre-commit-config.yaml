@@ -8,6 +8,7 @@ repos:
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
+        exclude: ^apps/api/data/demo/images/
       - id: check-merge-conflict
 
   # Ruff - Python linting and formatting

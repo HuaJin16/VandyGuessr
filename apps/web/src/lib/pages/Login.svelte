@@ -1,6 +1,8 @@
 <script lang="ts">
 import { auth, authError, isLoading } from "$lib/shared/auth/auth.store";
 import logo from "../../assets/logo.webp";
+
+const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
 </script>
 
 <div class="flex min-h-screen items-center justify-center bg-canvas px-4 py-12">
@@ -16,7 +18,11 @@ import logo from "../../assets/logo.webp";
 			</h1>
 
 			<p class="mt-2 text-[15px] leading-relaxed text-muted">
-				Explore real Vanderbilt locations, drop your pin, and see where you rank among classmates.
+				{#if demoMode}
+					Try the demo — explore Vanderbilt locations and see where you rank.
+				{:else}
+					Explore real Vanderbilt locations, drop your pin, and see where you rank among classmates.
+				{/if}
 			</p>
 
 			{#if $authError}
@@ -31,23 +37,37 @@ import logo from "../../assets/logo.webp";
 				</div>
 			{/if}
 
-			<p class="mt-6 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted/60">
-				Made exclusively for Vanderbilt students
-			</p>
+			{#if demoMode}
+				<p class="mt-6 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted/60">
+					Demo mode
+				</p>
 
-			<button
-				class="btn-3d mt-3 flex w-full items-center justify-center gap-3 text-[15px]"
-				disabled={$isLoading}
-				on:click={() => auth.login()}
-			>
-				<svg width="20" height="20" viewBox="0 0 21 21" fill="none" aria-hidden="true">
-					<rect x="1" y="1" width="9" height="9" fill="#F25022" />
-					<rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
-					<rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
-					<rect x="11" y="11" width="9" height="9" fill="#FFB900" />
-				</svg>
-				{$isLoading ? "Loading..." : "Continue with Vanderbilt"}
-			</button>
+				<button
+					class="btn-3d mt-3 flex w-full items-center justify-center gap-3 text-[15px]"
+					disabled={$isLoading}
+					on:click={() => auth.login()}
+				>
+					{$isLoading ? "Loading..." : "Continue as Demo User"}
+				</button>
+			{:else}
+				<p class="mt-6 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted/60">
+					Made exclusively for Vanderbilt students
+				</p>
+
+				<button
+					class="btn-3d mt-3 flex w-full items-center justify-center gap-3 text-[15px]"
+					disabled={$isLoading}
+					on:click={() => auth.login()}
+				>
+					<svg width="20" height="20" viewBox="0 0 21 21" fill="none" aria-hidden="true">
+						<rect x="1" y="1" width="9" height="9" fill="#F25022" />
+						<rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+						<rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+						<rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+					</svg>
+					{$isLoading ? "Loading..." : "Continue with Vanderbilt"}
+				</button>
+			{/if}
 		</main>
 
 		<div class="card mt-4">

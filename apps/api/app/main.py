@@ -2,11 +2,13 @@
 
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import get_settings
@@ -86,6 +88,18 @@ def create_app() -> FastAPI:
     app.include_router(images_router, prefix="/v1")
     app.include_router(leaderboard_router, prefix="/v1")
     app.include_router(users_router, prefix="/v1")
+
+    # Serve demo images as static files
+    if settings.demo_mode:
+        demo_images_dir = (
+            Path(__file__).resolve().parent.parent / "data" / "demo" / "images"
+        )
+        if demo_images_dir.is_dir():
+            app.mount(
+                "/demo/images",
+                StaticFiles(directory=str(demo_images_dir)),
+                name="demo-images",
+            )
 
     # Conditionally register multiplayer router
     if settings.feature_multiplayer:
