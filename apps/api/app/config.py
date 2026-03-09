@@ -44,6 +44,7 @@ class Settings(BaseSettings):
 
     # Feature flags
     feature_multiplayer: bool = False
+    demo_mode: bool = False
 
     # DigitalOcean Spaces (S3-compatible)
     spaces_region: str = ""

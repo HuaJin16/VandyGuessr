@@ -19,6 +19,7 @@ let maxRows = 8;
 let rowHeight = 64;
 let topCount = 0;
 let showEllipsis = false;
+let pageStep = 0;
 
 let mainEl: HTMLElement | undefined;
 let tableContainerEl: HTMLElement | undefined;
@@ -31,10 +32,10 @@ const fallbackRowHeight = 64;
 $: entries = leaderboard.data?.entries ?? [];
 $: userEntry = leaderboard.data?.userEntry ?? null;
 $: totalCount = leaderboard.data?.totalCount ?? entries.length;
-$: currentPage = limit > 0 ? Math.floor(offset / limit) + 1 : 1;
-$: totalPages = limit > 0 ? Math.max(1, Math.ceil(totalCount / limit)) : 1;
+$: currentPage = pageStep > 0 ? Math.floor(offset / pageStep) + 1 : 1;
+$: totalPages = pageStep > 0 ? Math.max(1, Math.ceil(totalCount / pageStep)) : 1;
 $: hasPrev = offset > 0;
-$: hasNext = limit > 0 && offset + limit < totalCount;
+$: hasNext = pageStep > 0 && offset + pageStep < totalCount;
 
 function isCurrentUser(entry: LeaderboardEntry) {
 	return entry.userId === currentUserId;
@@ -105,19 +106,27 @@ $: if (leaderboard.data) {
 
 $: showUserFooter = !!userEntry;
 
-$: displayLimit = showUserFooter
-	? Math.max(1, maxRows - 2)
-	: totalCount > maxRows && maxRows > 1
-		? maxRows - 1
-		: maxRows;
-
-$: if (maxRows > 0 && limit !== displayLimit) {
-	limit = displayLimit;
+$: if (maxRows > 0 && limit !== maxRows) {
+	limit = maxRows;
 	onSetLimit(limit);
 }
 
-$: topCount = Math.min(entries.length, limit);
-$: showEllipsis = !showUserFooter && totalCount > maxRows && maxRows > 1;
+$: if (showUserFooter) {
+	topCount = Math.max(0, Math.min(entries.length, maxRows - 2));
+	showEllipsis = false;
+} else {
+	const maxTop = Math.min(entries.length, maxRows);
+	const hasMore = offset + maxTop < totalCount;
+	if (hasMore && maxRows > 1) {
+		showEllipsis = true;
+		topCount = Math.min(entries.length, maxRows - 1);
+	} else {
+		showEllipsis = false;
+		topCount = maxTop;
+	}
+}
+
+$: pageStep = showUserFooter ? Math.max(1, maxRows - 2) : showEllipsis ? maxRows - 1 : maxRows;
 
 $: visibleTopEntries = entries.slice(0, topCount);
 </script>
@@ -215,7 +224,7 @@ $: visibleTopEntries = entries.slice(0, topCount);
 			<button
 				class="page-btn"
 				disabled={!hasPrev}
-				on:click={() => onSetOffset(Math.max(0, offset - limit))}
+				on:click={() => onSetOffset(Math.max(0, offset - pageStep))}
 			>
 				&larr; Previous
 			</button>
@@ -223,7 +232,7 @@ $: visibleTopEntries = entries.slice(0, topCount);
 			<button
 				class="page-btn"
 				disabled={!hasNext}
-				on:click={() => onSetOffset(offset + limit)}
+				on:click={() => onSetOffset(offset + pageStep)}
 			>
 				Next &rarr;
 			</button>

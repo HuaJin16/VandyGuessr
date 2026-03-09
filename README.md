@@ -27,7 +27,7 @@ cd VandyGuessr
 # Copy environment files
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
-# Edit .env files with your Microsoft OAuth credentials
+# Edit .env files based on your mode (standard or demo)
 ```
 
 ### 2. Install Dependencies
@@ -47,7 +47,36 @@ cd ..
 pre-commit install
 ```
 
-### 3. Start Development Services
+### 3. Demo Mode (Reviewer-Friendly)
+
+Demo mode exists so reviewers can run and evaluate the app without Vanderbilt-specific infrastructure.
+
+#### Why we included demo mode
+
+- Microsoft OAuth in normal mode requires a real Azure app registration and a valid `@vanderbilt.edu` account.
+- Game images in normal mode are stored in DigitalOcean Spaces (S3-compatible), which reviewers typically do not have access to.
+- Demo mode removes both blockers by using a mock authenticated user and serving images from local disk.
+
+#### Demo setup steps
+
+1. Enable demo flags in env files:
+
+```bash
+# apps/api/.env
+DEMO_MODE=true
+
+# apps/web/.env
+VITE_DEMO_MODE=true
+```
+
+2. Seed required data (from `apps/api/`):
+
+```bash
+uv run python -m scripts.seed_locations
+uv run python -m scripts.seed_demo
+```
+
+### 4. Start Development Services
 
 ```bash
 # Terminal 1: Start MongoDB and Redis via Docker
@@ -62,7 +91,7 @@ cd apps/web
 pnpm dev
 ```
 
-### 4. Access the Application
+### 5. Access the Application
 
 - **Frontend**: http://localhost:5173
 - **Backend API**: http://localhost:8000
@@ -122,6 +151,7 @@ pnpm format
 ### Pre-commit Hooks
 
 Pre-commit hooks automatically run on `git commit`:
+
 - Trailing whitespace removal
 - End of file fixes
 - YAML/JSON validation

@@ -6,6 +6,7 @@ interface ImportMetaEnv {
 	readonly VITE_MICROSOFT_CLIENT_ID: string;
 	readonly VITE_MICROSOFT_REDIRECT_URI: string;
 	readonly VITE_FEATURE_MULTIPLAYER: string;
+	readonly VITE_DEMO_MODE: string;
 }
 
 interface ImportMeta {
