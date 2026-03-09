@@ -116,7 +116,7 @@ $: if (showUserFooter) {
 	showEllipsis = false;
 } else {
 	const maxTop = Math.min(entries.length, maxRows);
-	const hasMore = totalCount > maxTop;
+	const hasMore = offset + maxTop < totalCount;
 	if (hasMore && maxRows > 1) {
 		showEllipsis = true;
 		topCount = Math.min(entries.length, maxRows - 1);
