@@ -48,6 +48,7 @@ function createAuthStore() {
 					account: persisted === "true" ? DEMO_ACCOUNT : null,
 					isInitialized: true,
 					isLoading: false,
+					error: null,
 				}));
 				return;
 			}
@@ -75,11 +76,13 @@ function createAuthStore() {
 		/** Start the login redirect flow (or set demo account) */
 		async login() {
 			if (demoMode) {
+				update((state) => ({ ...state, isLoading: true, error: null }));
 				localStorage.setItem(DEMO_STORAGE_KEY, "true");
 				update((state) => ({
 					...state,
 					account: DEMO_ACCOUNT,
 					isLoading: false,
+					error: null,
 				}));
 				return;
 			}
