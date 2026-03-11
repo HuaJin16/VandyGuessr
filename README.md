@@ -1,10 +1,12 @@
 # VandyGuessr
 
-VandyGuessr is built for Vanderbilt students who want a fast, competitive way to explore campus. Each game runs through a handful of rounds using 3D images captured around campus (indoors or outdoors), and players drop a pin on a map to guess the location. Scores roll up into a round recap, and player accounts track campus rank, games played, points, and locations discovered over time.
+VandyGuessr is a GeoGuessr-style game scoped to Vanderbilt University’s campus. It gives Vanderbilt students a fast, competitive way to explore campus while creating a shared experience within the community. Each game runs through several rounds using 240-degree images captured around campus, both indoors and outdoors. Players drop a pin on the map to guess the location, and their scores roll up into a round recap and persistent player profile that tracks campus rank, games played, points, and locations discovered over time.
 
 ## Architecture
 
-See the tech stack and storage decisions in `docs/ARCHITECTURE.md`.
+VandyGuessr is a monorepo with a FastAPI backend (`apps/api`) and a Svelte 4 SPA frontend (`apps/web`), backed by MongoDB and Redis.
+
+For the full tech stack, architecture decisions, and storage decisions, see `docs/ARCHITECTURE.md`.
 
 ## Prerequisites
 
@@ -36,7 +38,7 @@ cp apps/web/.env.example apps/web/.env
 # Backend
 cd apps/api
 uv sync
-cd ..
+cd ../..
 
 # Frontend
 cd apps/web
@@ -102,33 +104,26 @@ pnpm dev
 ```
 VandyGuessr/
 ├── apps/
-│   ├── api/
+│   ├── api/                      # FastAPI backend
 │   │   ├── app/
-│   │   │   ├── api/v1/          # Controllers (HTTP layer)
-│   │   │   ├── core/            # Auth, database, redis
-│   │   │   ├── entities/        # MongoDB document schemas
-│   │   │   ├── models/          # API request/response schemas
-│   │   │   ├── repositories/    # Database access layer
-│   │   │   ├── services/        # Business logic
-│   │   │   ├── config.py        # Settings
-│   │   │   └── main.py          # FastAPI app
-│   │   ├── pyproject.toml
-│   │   └── Dockerfile
-│   └── web/
-│       ├── src/
-│       │   ├── lib/
-│       │   │   ├── auth/        # MSAL configuration
-│       │   │   ├── components/  # Svelte components
-│       │   │   └── stores/      # Svelte stores
-│       │   ├── App.svelte
-│       │   └── main.ts
-│       ├── package.json
-│       └── Dockerfile
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── AZURE_AUTH_SETUP.md
-│   └── PRD.md
-├── docker-compose.yml
+│   │   │   ├── core/            # Auth, DB, Redis, HTTP utilities
+│   │   │   ├── domains/         # Feature modules
+│   │   │   ├── shared/          # Cross-cutting helpers
+│   │   │   ├── config.py
+│   │   │   ├── container.py
+│   │   │   └── main.py
+│   │   ├── data/                # Demo assets and seed data
+│   │   └── scripts/             # Seed and utility scripts
+│   └── web/                     # Svelte SPA frontend
+│       └── src/
+│           ├── lib/
+│           │   ├── domains/     # Feature modules
+│           │   ├── pages/       # Top-level pages
+│           │   └── shared/      # Shared API/auth/UI utilities
+│           ├── App.svelte
+│           └── main.ts
+├── docs/                        # Architecture and product docs
+├── docker-compose.yml           # Local MongoDB + Redis
 └── README.md
 ```
 
