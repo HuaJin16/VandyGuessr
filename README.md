@@ -61,7 +61,7 @@ Demo mode exists so reviewers can run and evaluate the app without Vanderbilt-sp
 
 #### Demo setup steps
 
-1. Enable demo flags in env files:
+Enable demo flags in env files:
 
 ```bash
 # apps/api/.env
@@ -71,21 +71,18 @@ DEMO_MODE=true
 VITE_DEMO_MODE=true
 ```
 
-2. Seed required data (from `apps/api/`):
-
-```bash
-uv run python -m scripts.seed_locations
-uv run python -m scripts.seed_demo
-```
-
 ### 4. Start Development Services
 
 ```bash
 # Terminal 1: Start MongoDB and Redis via Docker
 docker-compose up
 
-# Terminal 2: Start backend
+# Terminal 2: Run scripts (one-time setup after cloning)
 cd apps/api
+uv run python -m scripts.seed_locations
+uv run python -m scripts.seed_demo
+
+# Start the backend in the same terminal
 uv run uvicorn app.main:app --reload --port 8000
 
 # Terminal 3: Start frontend
