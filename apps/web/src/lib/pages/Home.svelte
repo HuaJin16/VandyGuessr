@@ -2,6 +2,7 @@
 import { gamesService } from "$lib/domains/games/api/games.service";
 import { gameQueries } from "$lib/domains/games/queries/games.queries";
 import type { Environment, GameMode } from "$lib/domains/games/types";
+import { leaderboardQueries } from "$lib/domains/leaderboard/queries/leaderboard.queries";
 import { multiplayerService } from "$lib/domains/multiplayer/api/multiplayer.service";
 import type { Environment as MpEnvironment } from "$lib/domains/multiplayer/types";
 import { userQueries } from "$lib/domains/users/queries/users.queries";
@@ -19,8 +20,11 @@ const multiplayerEnabled = import.meta.env.VITE_FEATURE_MULTIPLAYER === "true";
 
 $: user = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
 $: activeGame = createQuery({ ...gameQueries.active(), enabled: $auth.isInitialized });
-
-$: stats = $user.data?.stats;
+$: lbQuery = createQuery({
+	...leaderboardQueries.leaderboard({ timeframe: "alltime", mode: "all", limit: 1, offset: 0 }),
+	enabled: $auth.isInitialized,
+});
+$: lbEntry = $lbQuery.data?.userEntry ?? null;
 
 $: activeRoundNumber = $activeGame.data
 	? $activeGame.data.rounds.filter((r) => r.guess || r.skipped).length + 1
@@ -107,18 +111,23 @@ async function startGame(daily: boolean) {
 					<p class="mt-0.5 text-[13px] text-muted">{$user.data?.email?.toLowerCase() ?? ""}</p>
 				</div>
 			</div>
-			<div class="mt-3 grid grid-cols-3 gap-2">
+			<p class="stats-scope">All-Time Stats</p>
+			<div class="stats-grid">
 				<article class="stat">
 					<p class="stat-label">Rank</p>
-					<p class="stat-value">{stats?.rank ? `#${stats.rank}` : "\u2014"}</p>
+					<p class="stat-value">{lbEntry?.rank ? `#${lbEntry.rank}` : "\u2014"}</p>
 				</article>
 				<article class="stat">
-					<p class="stat-label">Avg score</p>
-					<p class="stat-value">{stats?.avgScore ? Math.round(stats.avgScore).toLocaleString() : "\u2014"}</p>
+					<p class="stat-label">Avg Score</p>
+					<p class="stat-value">{lbEntry ? Math.round(lbEntry.avgScore).toLocaleString() : "\u2014"}</p>
 				</article>
 				<article class="stat">
 					<p class="stat-label">Games</p>
-					<p class="stat-value">{stats?.gamesPlayed ?? 0}</p>
+					<p class="stat-value">{lbEntry?.gamesPlayed ?? 0}</p>
+				</article>
+				<article class="stat">
+					<p class="stat-label">Rounds</p>
+					<p class="stat-value">{lbEntry?.roundsPlayed ?? 0}</p>
 				</article>
 			</div>
 		</section>
@@ -270,6 +279,28 @@ async function startGame(daily: boolean) {
 		font-weight: 600;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
+	}
+
+	.stats-scope {
+		margin: 12px 0 0;
+		color: var(--muted);
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	.stats-grid {
+		margin-top: 6px;
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 8px;
+	}
+
+	@media (min-width: 640px) {
+		.stats-grid {
+			grid-template-columns: repeat(4, 1fr);
+		}
 	}
 
 	h2 {
