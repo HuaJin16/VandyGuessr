@@ -182,6 +182,7 @@ $: yourBucket = distribution ? getYourBucket(round.score, distribution.histogram
 		border-radius: var(--radius-md);
 		overflow: hidden;
 		position: relative;
+		isolation: isolate;
 	}
 
 	.legend {

@@ -390,6 +390,7 @@ function initMiniMaps() {
 		overflow: hidden;
 		background: #ece7d8;
 		flex-shrink: 0;
+		isolation: isolate;
 	}
 
 	.mini-map :global(.leaflet-tile-pane) {

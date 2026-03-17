@@ -163,6 +163,7 @@ onDestroy(() => {
 		border: 1px solid var(--line);
 		border-radius: var(--radius-md);
 		overflow: hidden;
+		isolation: isolate;
 	}
 
 	.mp-results-map {
