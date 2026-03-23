@@ -33,17 +33,7 @@ async def lifespan(_app: FastAPI):
 
     settings = get_settings()
     if settings.feature_multiplayer:
-        from app.container import container
-        from app.domains.multiplayer.connection_manager import ConnectionManager
-        from app.domains.multiplayer.repository import IMultiplayerGameRepository
-
-        cm = container.resolve(ConnectionManager)
-        await cm.start()
-
-        repo = container.resolve(IMultiplayerGameRepository)
-        await repo.ensure_indexes()
-
-        logger.info("multiplayer_enabled")
+        logger.info("multiplayer_runtime_lazy_init")
 
     yield
 
@@ -92,6 +82,7 @@ def create_app() -> FastAPI:
         from app.domains.multiplayer.router import router as multiplayer_router
 
         app.include_router(multiplayer_router, prefix="/v1")
+        logger.info("multiplayer_router_registered")
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(

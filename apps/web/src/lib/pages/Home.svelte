@@ -4,7 +4,8 @@ import { gameQueries } from "$lib/domains/games/queries/games.queries";
 import type { Environment, GameMode } from "$lib/domains/games/types";
 import { leaderboardQueries } from "$lib/domains/leaderboard/queries/leaderboard.queries";
 import { multiplayerService } from "$lib/domains/multiplayer/api/multiplayer.service";
-import type { Environment as MpEnvironment } from "$lib/domains/multiplayer/types";
+import { multiplayerQueries } from "$lib/domains/multiplayer/queries/multiplayer.queries";
+import type { Environment as MpEnvironment, MultiplayerGame } from "$lib/domains/multiplayer/types";
 import { userQueries } from "$lib/domains/users/queries/users.queries";
 import { auth } from "$lib/shared/auth/auth.store";
 import Avatar from "$lib/shared/components/Avatar.svelte";
@@ -20,6 +21,11 @@ const multiplayerEnabled = import.meta.env.VITE_FEATURE_MULTIPLAYER === "true";
 
 $: user = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
 $: activeGame = createQuery({ ...gameQueries.active(), enabled: $auth.isInitialized });
+$: activeMultiplayerGame = createQuery({
+	...multiplayerQueries.active(),
+	enabled: $auth.isInitialized && multiplayerEnabled,
+});
+
 $: leaderboard = createQuery({
 	...leaderboardQueries.leaderboard({ timeframe: "alltime", mode: "all", limit: 1, offset: 0 }),
 	enabled: $auth.isInitialized,
@@ -29,6 +35,10 @@ $: leaderboardStats = $leaderboard.data?.userEntry;
 
 $: activeRoundNumber = $activeGame.data
 	? $activeGame.data.rounds.filter((r) => r.guess || r.skipped).length + 1
+	: 0;
+
+$: activeMultiplayerRoundNumber = $activeMultiplayerGame.data
+	? Math.max($activeMultiplayerGame.data.currentRound, 1)
 	: 0;
 
 const timingOptions = [
@@ -52,6 +62,31 @@ let creatingGame = false;
 let joinCode = "";
 let joiningGame = false;
 
+function getSoloModeLabel(daily: boolean, timedMode: boolean) {
+	if (daily) return "Daily Challenge";
+	return timedMode ? "Timed Random Drop" : "Random Drop";
+}
+
+function getEnvironmentLabel(value: "any" | "indoor" | "outdoor") {
+	if (value === "indoor") return "Indoor";
+	if (value === "outdoor") return "Outdoor";
+	return "All campus";
+}
+
+function getMultiplayerCta(game: MultiplayerGame) {
+	if (game.status === "waiting") {
+		return {
+			label: "Open Lobby",
+			path: `/multiplayer/${game.id}/lobby`,
+		};
+	}
+
+	return {
+		label: "Resume Match",
+		path: `/multiplayer/${game.id}`,
+	};
+}
+
 async function createMultiplayerGame() {
 	creatingGame = true;
 	try {
@@ -59,7 +94,26 @@ async function createMultiplayerGame() {
 		navigate(`/multiplayer/${game.id}/lobby`);
 	} catch (err: unknown) {
 		const e = err as { response?: { data?: { detail?: string } }; message?: string };
-		toast.error(e?.response?.data?.detail || e?.message || "Failed to create game");
+		const detail = e?.response?.data?.detail || e?.message || "Failed to create game";
+
+		if (detail === "You already have an active multiplayer game.") {
+			try {
+				const active = await multiplayerService.getActive();
+				if (active) {
+					const path =
+						active.status === "waiting"
+							? `/multiplayer/${active.id}/lobby`
+							: `/multiplayer/${active.id}`;
+					toast.message("Redirecting to your active multiplayer game");
+					navigate(path);
+					return;
+				}
+			} catch {
+				// Fall through to the original error toast.
+			}
+		}
+
+		toast.error(detail);
 	} finally {
 		creatingGame = false;
 	}
@@ -103,164 +157,221 @@ async function startGame(daily: boolean) {
 	<Navbar activePage="home" />
 
 	<main class="main">
-		<!-- Profile Card -->
-		<section class="card">
-			<div class="flex items-center gap-3">
-				<Avatar name={$user.data?.name ?? ""} size="md" />
-				<div class="min-w-0">
-					<p class="text-[17px] font-bold leading-tight">{$user.data?.name ?? "Loading..."}</p>
-					<p class="mt-0.5 text-[13px] text-muted">{$user.data?.email?.toLowerCase() ?? ""}</p>
-				</div>
-			</div>
-			<div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-				<article class="stat">
-					<p class="stat-label">Rank</p>
-					<p class="stat-value">{leaderboardStats?.rank ? `#${leaderboardStats.rank}` : "\u2014"}</p>
-				</article>
-				<article class="stat">
-					<p class="stat-label">Avg Score</p>
-					<p class="stat-value" style="color: var(--brand);">
-						{leaderboardStats ? Math.round(leaderboardStats.avgScore).toLocaleString() : "\u2014"}
-					</p>
-				</article>
-				<article class="stat">
-					<p class="stat-label">Games</p>
-					<p class="stat-value">{leaderboardStats?.gamesPlayed ?? 0}</p>
-				</article>
-				<article class="stat">
-					<p class="stat-label">Rounds</p>
-					<p class="stat-value">{leaderboardStats?.roundsPlayed ?? 0}</p>
-				</article>
-			</div>
-		</section>
-
-		<!-- Resume Card -->
-		{#if $activeGame.data}
-			<section class="card resume-card">
+		<section class="left-column">
+			<section class="card active-games-card">
 				<p class="section-label">Continue</p>
-				<h2>Current Session</h2>
-				<p class="desc">
-					Round {activeRoundNumber} of {$activeGame.data.rounds.length}. Current total is
-					<span class="font-mono font-semibold text-ink">{$activeGame.data.totalScore.toLocaleString()}</span> points.
-				</p>
-				<button
-					class="btn-3d mt-3 w-full"
-					type="button"
-					on:click={() => navigate(`/game/${$activeGame.data?.id}`)}
-				>
-					Resume Game
-				</button>
+				<h2>Active Games</h2>
+				<p class="desc">Jump back into any game you still have in progress.</p>
+
+				<div class="active-games-list">
+					{#if $activeGame.data}
+						<article class="active-game-item">
+							<div class="active-game-copy">
+								<div class="active-game-header">
+									<p class="active-game-title">{getSoloModeLabel($activeGame.data.mode.daily, $activeGame.data.mode.timed)}</p>
+									<span class="active-game-badge">Solo</span>
+								</div>
+								<p class="active-game-meta">
+									Round {activeRoundNumber} of {$activeGame.data.rounds.length} - {$activeGame.data.totalScore.toLocaleString()} pts
+								</p>
+								<p class="active-game-subtle">
+									{getEnvironmentLabel($activeGame.data.mode.environment)} - {$activeGame.data.mode.timed ? "Timer on" : "No timer"}
+								</p>
+							</div>
+							<button
+								class="btn-3d active-game-btn"
+								type="button"
+								on:click={() => navigate(`/game/${$activeGame.data?.id}`)}
+							>
+								Resume
+							</button>
+						</article>
+					{/if}
+
+					{#if multiplayerEnabled && $activeMultiplayerGame.data}
+						{@const multiplayerCta = getMultiplayerCta($activeMultiplayerGame.data)}
+						<article class="active-game-item multiplayer-item">
+							<div class="active-game-copy">
+								<div class="active-game-header">
+									<p class="active-game-title">{$activeMultiplayerGame.data.status === "waiting" ? "Multiplayer Lobby" : "Multiplayer Match"}</p>
+									<span class="active-game-badge active-game-badge--multiplayer">Multiplayer</span>
+								</div>
+								<p class="active-game-meta">
+									{$activeMultiplayerGame.data.players.length} players - {$activeMultiplayerGame.data.status === "waiting" ? "Waiting to start" : `Round ${activeMultiplayerRoundNumber} of ${$activeMultiplayerGame.data.rounds.length}`}
+								</p>
+								<p class="active-game-subtle">
+									{getEnvironmentLabel($activeMultiplayerGame.data.mode.environment)}
+									{#if $activeMultiplayerGame.data.status === "waiting"}
+										- Code {$activeMultiplayerGame.data.inviteCode}
+									{/if}
+								</p>
+							</div>
+							<button
+								class="btn-3d active-game-btn"
+								type="button"
+								on:click={() => navigate(multiplayerCta.path)}
+							>
+								{multiplayerCta.label}
+							</button>
+						</article>
+					{/if}
+
+					{#if !$activeGame.data && (!multiplayerEnabled || !$activeMultiplayerGame.data)}
+						<div class="active-games-empty">
+							<p class="empty-title">No games in progress</p>
+							<p class="empty-copy">Start a solo round in the center column or spin up a multiplayer match on the right.</p>
+						</div>
+					{/if}
+				</div>
 			</section>
-		{/if}
-
-		<!-- Game Modes Card -->
-		<section class="card">
-			<p class="section-label">Play</p>
-			<h2>Choose your mode</h2>
-			<p class="desc">Pick your pace and environment, then jump in.</p>
-
-			<div class="toggle-bar">
-				<TogglePills
-					ariaLabel="Game timing"
-					selected={timed ? "timed" : "untimed"}
-					options={timingOptions}
-					on:change={(event) => {
-						timed = event.detail === "timed";
-					}}
-				/>
-				<TogglePills
-					ariaLabel="Game location"
-					selected={environment}
-					options={locationOptions}
-					on:change={(event) => {
-						if (
-							event.detail === "any" ||
-							event.detail === "indoor" ||
-							event.detail === "outdoor"
-						) {
-							environment = event.detail;
-						}
-					}}
-				/>
-			</div>
-
-			<div class="mode-list">
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<div
-					class="mode-row hero"
-					tabindex="0"
-					role="button"
-					on:click={() => startGame(true)}
-				>
-					<div class="mode-icon hero-icon">🏆</div>
-					<div class="min-w-0 flex-1">
-						<p class="text-[15px] font-bold">Daily Challenge</p>
-						<p class="mt-0.5 text-[13px] text-muted">Shared 5-drop route.</p>
-					</div>
-					<span class="mode-arrow"><ChevronRight size={18} /></span>
-				</div>
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<div
-					class="mode-row"
-					tabindex="0"
-					role="button"
-					on:click={() => startGame(false)}
-				>
-					<div class="mode-icon">🌍</div>
-					<div class="min-w-0 flex-1">
-						<p class="text-[15px] font-bold">Random Drop</p>
-						<p class="mt-0.5 text-[13px] text-muted">Five random campus locations.</p>
-					</div>
-					<span class="mode-arrow"><ChevronRight size={18} /></span>
-				</div>
-			</div>
-
-			<button
-				class="btn-3d mt-3 w-full"
-				disabled={starting}
-				type="button"
-				on:click={() => startGame(false)}
-			>
-				{starting ? "Starting..." : "Start New Round"}
-			</button>
 		</section>
 
-		<!-- Multiplayer Card -->
-		{#if multiplayerEnabled}
+		<section class="center-column">
 			<section class="card">
-				<p class="section-label">Multiplayer</p>
+				<div class="flex items-center gap-3">
+					<Avatar name={$user.data?.name ?? ""} size="md" />
+					<div class="min-w-0">
+						<p class="text-[17px] font-bold leading-tight">{$user.data?.name ?? "Loading..."}</p>
+						<p class="mt-0.5 text-[13px] text-muted">{$user.data?.email?.toLowerCase() ?? ""}</p>
+					</div>
+				</div>
+				<div class="mt-3 grid grid-cols-3 gap-2">
+					<article class="stat">
+						<p class="stat-label">Rank</p>
+						<p class="stat-value">{leaderboardStats?.rank ? `#${leaderboardStats.rank}` : "-"}</p>
+					</article>
+					<article class="stat">
+						<p class="stat-label">Avg score</p>
+						<p class="stat-value">{leaderboardStats?.avgScore ? Math.round(leaderboardStats.avgScore).toLocaleString() : "-"}</p>
+					</article>
+					<article class="stat">
+						<p class="stat-label">Games</p>
+						<p class="stat-value">{leaderboardStats?.gamesPlayed ?? 0}</p>
+					</article>
+				</div>
+			</section>
 
-				<button
-					class="btn-3d mt-3 w-full"
-					disabled={creatingGame}
-					type="button"
-					on:click={createMultiplayerGame}
-				>
-					{creatingGame ? "Creating..." : "Create Game"}
-				</button>
+			<section class="card">
+				<p class="section-label">Play</p>
+				<h2>Choose your mode</h2>
+				<p class="desc">Pick your pace and environment, then jump in.</p>
 
-				<div class="mp-divider"><span>or</span></div>
-
-				<div class="join-row">
-					<input
-						type="text"
-						class="code-input"
-						placeholder="Invite code"
-						maxlength={6}
-						bind:value={joinCode}
-						on:keydown={(e) => {
-							if (e.key === "Enter") joinMultiplayerGame();
+				<div class="toggle-bar">
+					<TogglePills
+						ariaLabel="Game timing"
+						selected={timed ? "timed" : "untimed"}
+						options={timingOptions}
+						on:change={(event) => {
+							timed = event.detail === "timed";
 						}}
 					/>
-					<button
-						class="join-btn"
-						disabled={joiningGame || !joinCode.trim()}
-						type="button"
-						on:click={joinMultiplayerGame}
-					>
-						{joiningGame ? "..." : "Join"}
-					</button>
+					<TogglePills
+						ariaLabel="Game location"
+						selected={environment}
+						options={locationOptions}
+						on:change={(event) => {
+							if (
+								event.detail === "any" ||
+								event.detail === "indoor" ||
+								event.detail === "outdoor"
+							) {
+								environment = event.detail;
+							}
+						}}
+					/>
 				</div>
+
+				<div class="mode-list">
+					<div
+						class="mode-row hero"
+						tabindex="0"
+						role="button"
+						on:click={() => startGame(true)}
+						on:keydown={(event) => {
+							if (event.key === "Enter" || event.key === " ") startGame(true);
+						}}
+					>
+						<div class="mode-icon hero-icon">🏆</div>
+						<div class="min-w-0 flex-1">
+							<p class="text-[15px] font-bold">Daily Challenge</p>
+							<p class="mt-0.5 text-[13px] text-muted">Shared 5-drop route.</p>
+						</div>
+						<span class="mode-arrow"><ChevronRight size={18} /></span>
+					</div>
+					<div
+						class="mode-row"
+						tabindex="0"
+						role="button"
+						on:click={() => startGame(false)}
+						on:keydown={(event) => {
+							if (event.key === "Enter" || event.key === " ") startGame(false);
+						}}
+					>
+						<div class="mode-icon">🌍</div>
+						<div class="min-w-0 flex-1">
+							<p class="text-[15px] font-bold">Random Drop</p>
+							<p class="mt-0.5 text-[13px] text-muted">Five random campus locations.</p>
+						</div>
+						<span class="mode-arrow"><ChevronRight size={18} /></span>
+					</div>
+				</div>
+
+				<button class="btn-3d mt-3 w-full" disabled={starting} type="button" on:click={() => startGame(false)}>
+					{starting ? "Starting..." : "Start New Round"}
+				</button>
+			</section>
+		</section>
+
+		{#if multiplayerEnabled}
+			<section class="right-column">
+				<section class="card">
+					<p class="section-label">Multiplayer</p>
+
+					<div class="toggle-bar single-toggle">
+						<TogglePills
+							ariaLabel="Multiplayer location"
+							selected={mpEnvironment}
+							options={locationOptions}
+							on:change={(event) => {
+								if (
+									event.detail === "any" ||
+									event.detail === "indoor" ||
+									event.detail === "outdoor"
+								) {
+									mpEnvironment = event.detail;
+								}
+							}}
+						/>
+					</div>
+
+					<button class="btn-3d mt-3 w-full" disabled={creatingGame} type="button" on:click={createMultiplayerGame}>
+						{creatingGame ? "Creating..." : "Create Game"}
+					</button>
+
+					<div class="mp-divider"><span>or</span></div>
+
+					<div class="join-row">
+						<input
+							type="text"
+							class="code-input"
+							placeholder="Invite code"
+							maxlength={6}
+							bind:value={joinCode}
+							on:keydown={(e) => {
+								if (e.key === "Enter") joinMultiplayerGame();
+							}}
+						/>
+						<button class="join-btn" disabled={joiningGame || !joinCode.trim()} type="button" on:click={joinMultiplayerGame}>
+							{joiningGame ? "..." : "Join"}
+						</button>
+					</div>
+
+					{#if $activeMultiplayerGame.data}
+						<p class="multiplayer-note">
+							You already have {$activeMultiplayerGame.data.status === "waiting" ? "a live lobby" : "a live match"} in progress. Use the Active Games panel to return to it.
+						</p>
+					{/if}
+				</section>
 			</section>
 		{/if}
 	</main>
@@ -268,10 +379,18 @@ async function startGame(daily: boolean) {
 
 <style>
 	.main {
-		width: min(600px, calc(100% - 32px));
+		width: min(1180px, calc(100% - 32px));
 		margin: 16px auto 24px;
 		display: grid;
 		gap: 14px;
+	}
+
+	.left-column,
+	.center-column,
+	.right-column {
+		display: grid;
+		gap: 14px;
+		align-content: start;
 	}
 
 	.section-label {
@@ -297,25 +416,110 @@ async function startGame(daily: boolean) {
 		line-height: 1.45;
 	}
 
-	.resume-card {
-		border-color: var(--brand);
-		border-width: 2px;
+	.active-games-card {
+		border-color: color-mix(in srgb, var(--brand) 36%, var(--line));
 	}
 
-	/* Toggle bar */
+	.active-games-list {
+		display: grid;
+		gap: 10px;
+		margin-top: 14px;
+	}
+
+	.active-game-item {
+		display: grid;
+		gap: 12px;
+		padding: 14px;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-lg);
+		background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 88%, white), var(--surface));
+	}
+
+	.multiplayer-item {
+		border-color: color-mix(in srgb, var(--brand) 28%, var(--line));
+	}
+
+	.active-game-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+	}
+
+	.active-game-title {
+		margin: 0;
+		font-size: 15px;
+		font-weight: 800;
+		line-height: 1.2;
+	}
+
+	.active-game-badge {
+		padding: 4px 8px;
+		border-radius: 999px;
+		background: var(--gold-light);
+		color: var(--gold-dark);
+		font-size: 11px;
+		font-weight: 800;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		flex-shrink: 0;
+	}
+
+	.active-game-badge--multiplayer {
+		background: var(--brand-light);
+		color: var(--brand-dark);
+	}
+
+	.active-game-meta,
+	.active-game-subtle {
+		margin: 6px 0 0;
+		font-size: 13px;
+		line-height: 1.45;
+	}
+
+	.active-game-meta {
+		color: var(--ink);
+		font-weight: 600;
+	}
+
+	.active-game-subtle {
+		color: var(--muted);
+	}
+
+	.active-game-btn {
+		width: 100%;
+	}
+
+	.active-games-empty {
+		padding: 16px 14px;
+		border: 1px dashed var(--line);
+		border-radius: var(--radius-lg);
+		background: color-mix(in srgb, var(--brand-light) 40%, var(--surface));
+	}
+
+	.empty-title {
+		margin: 0;
+		font-size: 14px;
+		font-weight: 700;
+	}
+
+	.empty-copy {
+		margin: 6px 0 0;
+		font-size: 13px;
+		line-height: 1.45;
+		color: var(--muted);
+	}
+
 	.toggle-bar {
 		display: flex;
 		gap: 10px;
 		margin-top: 14px;
 	}
 
-	@media (max-width: 400px) {
-		.toggle-bar {
-			flex-wrap: wrap;
-		}
+	.single-toggle {
+		flex-wrap: wrap;
 	}
 
-	/* Mode rows */
 	.mode-list {
 		display: grid;
 		gap: 10px;
@@ -386,7 +590,6 @@ async function startGame(daily: boolean) {
 		color: var(--gold-dark);
 	}
 
-	/* Multiplayer divider */
 	.mp-divider {
 		display: flex;
 		align-items: center;
@@ -410,7 +613,6 @@ async function startGame(daily: boolean) {
 		letter-spacing: 0.06em;
 	}
 
-	/* Join row */
 	.join-row {
 		display: flex;
 		gap: 8px;
@@ -483,7 +685,30 @@ async function startGame(daily: boolean) {
 		box-shadow: 0 3px 0 var(--brand-dark);
 	}
 
-	/* Responsive */
+	.multiplayer-note {
+		margin: 12px 0 0;
+		font-size: 13px;
+		line-height: 1.45;
+		color: var(--muted);
+	}
+
+	@media (min-width: 980px) {
+		.main {
+			grid-template-columns: minmax(260px, 0.9fr) minmax(360px, 1.2fr) minmax(260px, 0.9fr);
+			align-items: start;
+		}
+	}
+
+	@media (min-width: 700px) and (max-width: 979px) {
+		.main {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.center-column {
+			grid-column: 1 / -1;
+		}
+	}
+
 	@media (min-width: 700px) {
 		:global(.card) {
 			padding: 18px;
@@ -491,6 +716,11 @@ async function startGame(daily: boolean) {
 	}
 
 	@media (max-width: 400px) {
+		.toggle-bar,
+		.join-row {
+			flex-wrap: wrap;
+		}
+
 		h2 {
 			font-size: 20px;
 		}
@@ -499,6 +729,12 @@ async function startGame(daily: boolean) {
 			width: 32px;
 			height: 32px;
 			font-size: 15px;
+		}
+
+		.code-input,
+		.join-btn,
+		.active-game-btn {
+			width: 100%;
 		}
 
 		.code-input {

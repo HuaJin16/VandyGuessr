@@ -36,7 +36,7 @@ When `False`:
 
 When `True`:
 - The multiplayer router is registered under `/v1/multiplayer`
-- Redis pub/sub channels are initialized at startup
+- Redis pub/sub listener state is initialized lazily when the first multiplayer WebSocket connects
 
 ### Frontend (`apps/web/`)
 
@@ -937,7 +937,7 @@ Short-lived data that does not need MongoDB persistence:
 
 If Redis becomes unavailable:
 
-- **At startup:** The application fails to start (existing behavior from the lifespan handler).
+- **At startup:** The application fails to start if the base Redis connection cannot be established.
 - **During operation:** Cross-worker message routing fails. Players on the same worker are unaffected. The `ConnectionManager` falls back to local-only routing and logs a critical error. Reconnect and abandon timers stop working; the server should apply conservative defaults (e.g., immediately forfeit disconnected players rather than waiting).
 
 ### Registration in DI Container
@@ -949,6 +949,14 @@ Redis must be registered in the lagom container for the multiplayer service to a
 from app.core.db.redis import get_redis
 
 container[redis.Redis] = lambda: get_redis()
+```
+
+### MongoDB Index Bootstrap
+
+Required multiplayer indexes are provisioned explicitly rather than during API startup:
+
+```bash
+python -m scripts.bootstrap_multiplayer
 ```
 
 ---

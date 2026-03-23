@@ -7,6 +7,7 @@ import uuid
 
 import redis.asyncio as redis
 import structlog
+from redis.asyncio.client import PubSub
 from starlette.websockets import WebSocket, WebSocketState
 
 logger = structlog.get_logger()
@@ -17,22 +18,62 @@ class ConnectionManager:
         self.redis = redis_client
         self._worker_id = str(uuid.uuid4())
         self._local: dict[str, dict[str, WebSocket]] = {}
-        self._pubsub: redis.client.PubSub | None = None
+        self._pubsub: PubSub | None = None
         self._subscribed_channels: set[str] = set()
         self._listener_task: asyncio.Task | None = None
         self._heartbeat_tasks: dict[str, asyncio.Task] = {}
+        self._subscription_lock = asyncio.Lock()
 
     async def start(self) -> None:
-        self._pubsub = self.redis.pubsub()
-        self._listener_task = asyncio.create_task(self._listen())
+        if self._pubsub is None:
+            self._pubsub = self.redis.pubsub()
+
+    async def _ensure_listener_started(self) -> None:
+        await self.start()
+        if self._listener_task is None or self._listener_task.done():
+            self._listener_task = asyncio.create_task(self._listen())
 
     async def stop(self) -> None:
-        if self._listener_task:
-            self._listener_task.cancel()
+        listener_task = self._listener_task
+        self._listener_task = None
+        if listener_task:
+            listener_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await listener_task
+
         for task in self._heartbeat_tasks.values():
             task.cancel()
+        for task in self._heartbeat_tasks.values():
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+        self._heartbeat_tasks.clear()
+
         if self._pubsub:
+            if self._subscribed_channels:
+                await self._pubsub.unsubscribe(*self._subscribed_channels)
             await self._pubsub.close()
+            self._pubsub = None
+        self._subscribed_channels.clear()
+
+    async def _subscribe(self, channel: str) -> None:
+        async with self._subscription_lock:
+            if channel in self._subscribed_channels:
+                return
+
+            await self._ensure_listener_started()
+            if self._pubsub is None:
+                return
+
+            await self._pubsub.subscribe(channel)
+            self._subscribed_channels.add(channel)
+
+    async def _unsubscribe(self, channel: str) -> None:
+        async with self._subscription_lock:
+            if channel not in self._subscribed_channels or self._pubsub is None:
+                return
+
+            await self._pubsub.unsubscribe(channel)
+            self._subscribed_channels.discard(channel)
 
     async def connect(self, game_id: str, user_id: str, ws: WebSocket) -> None:
         if game_id not in self._local:
@@ -46,9 +87,7 @@ class ConnectionManager:
         self._local[game_id][user_id] = ws
 
         channel = f"multiplayer:{game_id}"
-        if channel not in self._subscribed_channels and self._pubsub:
-            await self._pubsub.subscribe(channel)
-            self._subscribed_channels.add(channel)
+        await self._subscribe(channel)
 
         hb_key = f"{game_id}:{user_id}"
         if hb_key in self._heartbeat_tasks:
@@ -67,16 +106,16 @@ class ConnectionManager:
 
         hb_key = f"{game_id}:{user_id}"
         if hb_key in self._heartbeat_tasks:
-            self._heartbeat_tasks[hb_key].cancel()
-            del self._heartbeat_tasks[hb_key]
+            task = self._heartbeat_tasks.pop(hb_key)
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
         del self._local[game_id][user_id]
         if not self._local[game_id]:
             del self._local[game_id]
             channel = f"multiplayer:{game_id}"
-            if channel in self._subscribed_channels and self._pubsub:
-                await self._pubsub.unsubscribe(channel)
-                self._subscribed_channels.discard(channel)
+            await self._unsubscribe(channel)
 
         return True
 
@@ -130,40 +169,49 @@ class ConnectionManager:
             pass
 
     async def _listen(self) -> None:
-        if not self._pubsub:
-            return
         while True:
             try:
-                async for raw_message in self._pubsub.listen():
-                    if raw_message["type"] != "message":
-                        continue
-                    try:
-                        data = json.loads(raw_message["data"])
-                    except (json.JSONDecodeError, TypeError):
-                        continue
+                if self._pubsub is None:
+                    return
 
-                    if data.pop("_origin", None) == self._worker_id:
-                        continue
+                if not self._subscribed_channels:
+                    await asyncio.sleep(0.1)
+                    continue
 
-                    channel = raw_message["channel"]
-                    if isinstance(channel, bytes):
-                        channel = channel.decode()
-                    game_id = channel.replace("multiplayer:", "")
+                raw_message = await self._pubsub.get_message(
+                    ignore_subscribe_messages=True,
+                    timeout=1.0,
+                )
+                if raw_message is None or raw_message["type"] != "message":
+                    continue
 
-                    target = data.pop("_target", None)
-                    exclude = data.pop("_exclude", None)
+                try:
+                    data = json.loads(raw_message["data"])
+                except (json.JSONDecodeError, TypeError):
+                    continue
 
-                    if target:
-                        if game_id in self._local and target in self._local[game_id]:
-                            await self._safe_send(
-                                self._local[game_id][target], json.dumps(data)
-                            )
-                    elif game_id in self._local:
-                        payload = json.dumps(data)
-                        for uid, ws in list(self._local[game_id].items()):
-                            if uid == exclude:
-                                continue
-                            await self._safe_send(ws, payload)
+                if data.pop("_origin", None) == self._worker_id:
+                    continue
+
+                channel = raw_message["channel"]
+                if isinstance(channel, bytes):
+                    channel = channel.decode()
+                game_id = channel.replace("multiplayer:", "")
+
+                target = data.pop("_target", None)
+                exclude = data.pop("_exclude", None)
+
+                if target:
+                    if game_id in self._local and target in self._local[game_id]:
+                        await self._safe_send(
+                            self._local[game_id][target], json.dumps(data)
+                        )
+                elif game_id in self._local:
+                    payload = json.dumps(data)
+                    for uid, ws in list(self._local[game_id].items()):
+                        if uid == exclude:
+                            continue
+                        await self._safe_send(ws, payload)
             except asyncio.CancelledError:
                 return
             except Exception:
