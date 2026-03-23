@@ -161,6 +161,43 @@ body {
 		background: var(--brand-light);
 	}
 
+	.btn-ghost:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+		pointer-events: none;
+	}
+
+	/* Ghost on dark backgrounds (game HUD, panorama preview modal) */
+	.btn-ghost-dark {
+		border: 1px solid rgba(255, 255, 255, 0.55);
+		border-radius: var(--radius-md);
+		background: rgba(17, 25, 20, 0.45);
+		backdrop-filter: blur(4px);
+		-webkit-backdrop-filter: blur(4px);
+		color: rgba(255, 255, 255, 0.95);
+		font-family: "Inter", sans-serif;
+		font-size: 13px;
+		font-weight: 600;
+		padding: 8px 14px;
+		cursor: pointer;
+		transition: background var(--duration-fast) var(--ease);
+	}
+
+	.btn-ghost-dark:hover {
+		background: rgba(17, 25, 20, 0.62);
+	}
+
+	.btn-ghost-dark:focus-visible {
+		outline: none;
+		box-shadow: var(--ring);
+	}
+
+	.btn-ghost-dark:disabled {
+		opacity: 0.45;
+		cursor: not-allowed;
+		pointer-events: none;
+	}
+
 	/* HUD pill — gameplay overlay */
 	.hud-pill {
 		background: rgba(255, 255, 255, 0.95);
@@ -207,6 +244,17 @@ body {
 		align-items: center;
 		gap: 10px;
 		box-shadow: var(--shadow-md);
+	}
+
+	.sonner-toast--default {
+		background: var(--surface);
+		color: var(--ink);
+		border: 1px solid var(--line);
+	}
+
+	.sonner-toast--warning {
+		background: var(--gold-dark);
+		color: #0f1712;
 	}
 
 	.sonner-toast--error {

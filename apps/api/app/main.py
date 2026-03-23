@@ -17,6 +17,7 @@ from app.core.db import (
     connect_to_redis,
 )
 from app.domains.games.router import router as games_router
+from app.domains.images.json_router import router as images_json_router
 from app.domains.images.router import router as images_router
 from app.domains.leaderboard.router import router as leaderboard_router
 from app.domains.users.router import router as users_router
@@ -29,6 +30,10 @@ async def lifespan(_app: FastAPI):
     """Manage application lifespan events."""
     # Startup
     await connect_to_mongo()
+    from app.container import container
+    from app.domains.images.repository import ImageRepository
+
+    await container.resolve(ImageRepository).ensure_indexes()
     await connect_to_redis()
 
     settings = get_settings()
@@ -74,6 +79,7 @@ def create_app() -> FastAPI:
     # Include domain routers under /v1 prefix
     app.include_router(games_router, prefix="/v1")
     app.include_router(images_router, prefix="/v1")
+    app.include_router(images_json_router, prefix="/v1")
     app.include_router(leaderboard_router, prefix="/v1")
     app.include_router(users_router, prefix="/v1")
 

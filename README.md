@@ -130,11 +130,15 @@ Pre-commit hooks automatically run on `git commit`:
 
 ## Image Upload
 
-VandyGuessr requires 360-degree campus photos with GPS EXIF data. Contributors can upload images via a mobile-friendly HTML form.
+VandyGuessr requires 360-degree campus photos with GPS EXIF data.
 
-### Upload URLs
+### Logged-in contributors (reviewed)
 
-Share these links with photo contributors (replace `YOUR_SECRET_CODE` with the configured `UPLOAD_SECRET_CODE`):
+Students signed in through the web app can upload from **Upload** in the nav or the home page card. Submissions are stored as **pending** until someone on the `REVIEWER_EMAIL_ALLOWLIST` approves them in the **Review** UI. Set that env var to a comma-separated list of `@vanderbilt.edu` addresses (see `apps/api/.env.example`). The API also exposes `can_review_submissions` on `GET /v1/users/me` for the frontend.
+
+### Operator upload URLs (secret code)
+
+Share these links with trusted bulk contributors (replace `YOUR_SECRET_CODE` with the configured `UPLOAD_SECRET_CODE`). These uploads are stored as **approved** immediately.
 
 - **Outdoor photos**: `https://your-api-domain/v1/images/upload?code=YOUR_SECRET_CODE&environment=outdoor`
 - **Indoor photos**: `https://your-api-domain/v1/images/upload?code=YOUR_SECRET_CODE&environment=indoor`

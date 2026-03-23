@@ -1,5 +1,6 @@
 """Image API models for request/response schemas."""
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
@@ -34,3 +35,28 @@ class ImageResponse(BaseModel):
     latitude: float
     longitude: float
     environment: Literal["indoor", "outdoor"]
+
+
+class CrowdSubmissionResponse(BaseModel):
+    id: str
+    url: str
+    latitude: float
+    longitude: float
+    environment: Literal["indoor", "outdoor"]
+
+
+class PendingSubmissionItem(BaseModel):
+    id: str
+    url: str
+    latitude: float
+    longitude: float
+    environment: Literal["indoor", "outdoor"]
+    location_name: str | None = None
+    original_filename: str | None = None
+    created_at: datetime
+    submitter_name: str | None = None
+    submitter_email: str | None = None
+
+
+class PendingSubmissionsResponse(BaseModel):
+    items: list[PendingSubmissionItem]

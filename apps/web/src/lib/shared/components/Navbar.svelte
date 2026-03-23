@@ -1,9 +1,13 @@
 <script lang="ts">
+import { userQueries } from "$lib/domains/users/queries/users.queries";
 import { auth } from "$lib/shared/auth/auth.store";
-import { History, LogOut, Trophy as TrophyIcon } from "lucide-svelte";
+import { createQuery } from "@tanstack/svelte-query";
+import { History, LogOut, ShieldCheck, Trophy as TrophyIcon } from "lucide-svelte";
 import logo from "../../../assets/logo.webp";
 
-export let activePage: "home" | "leaderboard" | "history" | undefined = undefined;
+export let activePage: "home" | "leaderboard" | "history" | "review" | undefined = undefined;
+
+$: me = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
 </script>
 
 <header class="sticky top-0 z-50 border-b border-line bg-surface">
@@ -14,6 +18,18 @@ export let activePage: "home" | "leaderboard" | "history" | undefined = undefine
 		</a>
 
 		<div class="flex items-center gap-2">
+			{#if $me.data?.can_review_submissions}
+				<a
+					href="/review/submissions"
+					class="flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-[7px] text-[13px] font-semibold transition-all {activePage === 'review'
+						? 'border-brand bg-brand-light text-brand'
+						: 'bg-surface text-ink hover:border-brand hover:bg-brand-light hover:text-brand'}"
+					style="transition-duration: var(--duration-fast); transition-timing-function: var(--ease);"
+				>
+					<ShieldCheck size={15} />
+					<span class="hidden sm:inline">Review</span>
+				</a>
+			{/if}
 			<a
 				href="/history"
 				class="flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-[7px] text-[13px] font-semibold transition-all {activePage === 'history'

@@ -7,6 +7,8 @@ import Leaderboard from "$lib/pages/Leaderboard.svelte";
 import Login from "$lib/pages/Login.svelte";
 import MultiplayerGame from "$lib/pages/MultiplayerGame.svelte";
 import MultiplayerLobby from "$lib/pages/MultiplayerLobby.svelte";
+import ReviewSubmissions from "$lib/pages/ReviewSubmissions.svelte";
+import Upload from "$lib/pages/Upload.svelte";
 import { queryClient } from "$lib/shared/api/queryClient";
 import { auth, isAuthenticated, isLoading } from "$lib/shared/auth/auth.store";
 import { QueryClientProvider } from "@tanstack/svelte-query";
@@ -38,6 +40,8 @@ $: if (!$isLoading) {
     unstyled: true,
     classes: {
       toast: "sonner-toast",
+      default: "sonner-toast--default",
+      warning: "sonner-toast--warning",
       error: "sonner-toast--error",
       success: "sonner-toast--success",
       title: "sonner-title",
@@ -53,6 +57,8 @@ $: if (!$isLoading) {
     <Route path="/game/:id/summary" component={GameSummary} />
     <Route path="/game/:id" component={Game} />
     <Route path="/leaderboard" component={Leaderboard} />
+    <Route path="/upload" component={Upload} />
+    <Route path="/review/submissions" component={ReviewSubmissions} />
     <Route path="/login" component={Login} />
     {#if multiplayerEnabled}
       <Route path="/multiplayer/:id/lobby" component={MultiplayerLobby} />

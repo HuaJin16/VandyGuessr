@@ -224,6 +224,17 @@ async function startGame(daily: boolean) {
 					{/if}
 				</div>
 			</section>
+
+			<section class="card contribute-card">
+				<p class="section-label">Community</p>
+				<h2>Share a campus photo</h2>
+				<p class="desc">
+					Upload a panorama with GPS embedded. Submissions are reviewed before they appear in games.
+				</p>
+				<button class="btn-3d contribute-btn" type="button" on:click={() => navigate("/upload")}>
+					Upload a photo
+				</button>
+			</section>
 		</section>
 
 		<section class="center-column">
@@ -418,6 +429,15 @@ async function startGame(daily: boolean) {
 
 	.active-games-card {
 		border-color: color-mix(in srgb, var(--brand) 36%, var(--line));
+	}
+
+	.contribute-card {
+		border-color: color-mix(in srgb, var(--gold) 32%, var(--line));
+	}
+
+	.contribute-btn {
+		margin-top: 14px;
+		width: 100%;
 	}
 
 	.active-games-list {

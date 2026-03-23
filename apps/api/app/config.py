@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     upload_secret_code: str = ""
     upload_max_bytes: int = 50 * 1024 * 1024
 
+    # Comma-separated @vanderbilt.edu emails allowed to approve/reject crowd submissions
+    reviewer_email_allowlist: str = ""
+
     # Feature flags
     feature_multiplayer: bool = False
 
@@ -61,6 +64,13 @@ class Settings(BaseSettings):
     def microsoft_issuer(self) -> str:
         """Get the issuer URL for Microsoft OAuth."""
         return f"https://login.microsoftonline.com/{self.microsoft_tenant_id}/v2.0"
+
+    @property
+    def reviewer_emails(self) -> list[str]:
+        raw = self.reviewer_email_allowlist.strip()
+        if not raw:
+            return []
+        return [p.strip() for p in raw.split(",") if p.strip()]
 
 
 @lru_cache

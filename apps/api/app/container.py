@@ -10,6 +10,7 @@ from app.core.db.redis import get_redis
 from app.domains.games.daily import DailyChallengeRepository, IDailyChallengeRepository
 from app.domains.games.repository import GameRepository, IGameRepository
 from app.domains.games.service import GameService
+from app.domains.images.moderation_service import ImageModerationService
 from app.domains.images.repository import IImageRepository, ImageRepository
 from app.domains.images.service import ImageService
 from app.domains.leaderboard.repository import (
@@ -51,6 +52,7 @@ container[IMultiplayerGameRepository] = MultiplayerGameRepository
 container[UserService] = UserService
 container[LocationService] = LocationService
 container[ImageService] = ImageService
+container[ImageModerationService] = ImageModerationService
 container[GameService] = GameService
 container[LeaderboardService] = LeaderboardService
 

@@ -71,6 +71,9 @@ class ImageService:
         filename: str | None,
         content_type: str | None,
         environment: Literal["indoor", "outdoor"],
+        *,
+        moderation_status: Literal["approved", "pending"] = "approved",
+        submitted_by_user_id: str | None = None,
     ) -> ImageUploadResult:
         """Upload a single image to S3 and persist metadata to MongoDB.
 
@@ -117,7 +120,7 @@ class ImageService:
                 latitude, longitude
             )
 
-            # Create entity
+            now = datetime.now(UTC)
             image = ImageEntity(
                 url=url,
                 latitude=latitude,
@@ -131,22 +134,33 @@ class ImageService:
                 original_filename=filename,
                 file_size=len(file_bytes),
                 location_name=location_name,
-                created_at=datetime.now(UTC),
+                created_at=now,
+                moderation_status=moderation_status,
+                submitted_by_user_id=submitted_by_user_id,
+                submitted_at=now if moderation_status == "pending" else None,
             )
 
             # Persist to MongoDB
             image_id = await self.image_repository.create(image)
 
-            logger.info(
-                "image_uploaded",
-                image_id=image_id,
-                key=key,
-                latitude=latitude,
-                longitude=longitude,
-                environment=environment,
-                location_name=location_name,
-                file_size=len(file_bytes),
-            )
+            if moderation_status == "pending":
+                logger.info(
+                    "submission_created",
+                    image_id=image_id,
+                    submitted_by=submitted_by_user_id,
+                    environment=environment,
+                )
+            else:
+                logger.info(
+                    "image_uploaded",
+                    image_id=image_id,
+                    key=key,
+                    latitude=latitude,
+                    longitude=longitude,
+                    environment=environment,
+                    location_name=location_name,
+                    file_size=len(file_bytes),
+                )
 
             return ImageUploadResult(
                 success=True,

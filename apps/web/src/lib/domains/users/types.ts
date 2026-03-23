@@ -8,6 +8,7 @@ export interface User {
 	username: string;
 	name: string;
 	avatar_url: string | null;
+	can_review_submissions: boolean;
 }
 
 export interface UpdateProfileDto {

@@ -624,7 +624,7 @@ export function cn(...inputs: ClassValue[]) {
 
 ### Upload Pipeline and Metadata
 
-- **Upload endpoint**: The API includes a secret-code-protected upload endpoint with a mobile-friendly HTML form.
+- **Upload endpoints**: Secret-code-protected HTML multi-upload for trusted operators; logged-in students use `POST /v1/images/submissions` (Bearer token, multipart) which stores images as **pending** until a reviewer approves them. Reviewers are configured via `REVIEWER_EMAIL_ALLOWLIST`.
 - **EXIF extraction**: GPS metadata is extracted from EXIF and used to seed location data into MongoDB.
 - **S3 object keys**: Images are stored under an `images/` prefix with unique UUIDs (e.g., `images/{uuid}.jpg`).
 - **MongoDB persistence**: Image metadata (URL, coordinates, environment, timestamps) is stored in the `images` collection.
@@ -634,11 +634,13 @@ export function cn(...inputs: ClassValue[]) {
 ```
 apps/api/app/domains/images/
 ├── __init__.py
-├── router.py       # GET (HTML form) + POST (multi-file upload) endpoints
-├── service.py      # Upload orchestration, validation, S3 + MongoDB persistence
-├── repository.py   # MongoDB CRUD operations
-├── entities.py     # ImageEntity document schema
-└── models.py       # API response schemas
+├── router.py            # GET (HTML form) + POST (multi-file upload) — operator / secret code
+├── json_router.py       # POST /submissions (crowd) + GET/POST moderation (reviewers)
+├── moderation_service.py
+├── service.py           # Upload orchestration, validation, S3 + MongoDB persistence
+├── repository.py        # MongoDB CRUD; gameplay pool excludes pending/rejected
+├── entities.py          # ImageEntity document schema
+└── models.py            # API response schemas
 ```
 
 ### Image Entity Schema
@@ -658,9 +660,16 @@ apps/api/app/domains/images/
     "original_filename": str | None,
     "file_size": int,
     "location_name": str | None,   # Auto-tagged building/landmark name
-    "created_at": datetime
+    "created_at": datetime,
+    "moderation_status": "pending" | "approved" | "rejected",  # default approved; omitted on legacy = playable
+    "submitted_by_user_id": str | None,  # Microsoft OID for crowd submissions
+    "submitted_at": datetime | None,
+    "reviewed_by_user_id": str | None,
+    "reviewed_at": datetime | None,
 }
 ```
+
+Random games, daily challenge ID pools, and multiplayer sampling only include documents where `moderation_status` is not `pending` or `rejected` (including documents with no `moderation_status` field).
 
 ### Locations Domain & Data Seeding
 

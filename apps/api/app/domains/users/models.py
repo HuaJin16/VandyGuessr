@@ -11,3 +11,4 @@ class UserResponse(BaseModel):
     username: str
     name: str
     avatar_url: str | None
+    can_review_submissions: bool = False
