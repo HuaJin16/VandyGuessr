@@ -5,9 +5,7 @@ from datetime import UTC, datetime
 
 import structlog
 
-from app.domains.games.repository import IGameRepository
 from app.domains.users.entities import UserEntity
-from app.domains.users.models import UserStatsResponse
 from app.domains.users.repository import IUserRepository
 
 logger = structlog.get_logger()
@@ -19,10 +17,8 @@ class UserService:
     def __init__(
         self,
         user_repository: IUserRepository,
-        game_repository: IGameRepository,
     ) -> None:
         self.user_repository = user_repository
-        self.game_repository = game_repository
 
     @staticmethod
     def generate_username(email: str) -> str:
@@ -81,17 +77,3 @@ class UserService:
         user_doc["_id"] = user_id
 
         return user_doc, True
-
-    async def get_stats_response(self, user_doc: dict) -> UserStatsResponse:
-        """Build the stats response by aggregating from completed games."""
-        user_oid = user_doc["microsoft_oid"]
-        stats = await self.game_repository.compute_user_stats(user_oid)
-        rank = await self.game_repository.compute_rank(user_oid, stats["total_points"])
-
-        return UserStatsResponse(
-            gamesPlayed=stats["games_played"],
-            totalPoints=stats["total_points"],
-            avgScore=stats["avg_score"],
-            locationsDiscovered=stats["locations_discovered"],
-            rank=rank,
-        )
