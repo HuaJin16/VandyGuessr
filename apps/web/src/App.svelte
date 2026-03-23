@@ -1,5 +1,6 @@
 <script lang="ts">
 import Game from "$lib/pages/Game.svelte";
+import GameHistory from "$lib/pages/GameHistory.svelte";
 import GameSummary from "$lib/pages/GameSummary.svelte";
 import Home from "$lib/pages/Home.svelte";
 import Leaderboard from "$lib/pages/Leaderboard.svelte";
@@ -48,6 +49,7 @@ $: if (!$isLoading) {
 <QueryClientProvider client={queryClient}>
   <Router>
     <Route path="/" component={Home} />
+    <Route path="/history" component={GameHistory} />
     <Route path="/game/:id/summary" component={GameSummary} />
     <Route path="/game/:id" component={Game} />
     <Route path="/leaderboard" component={Leaderboard} />
