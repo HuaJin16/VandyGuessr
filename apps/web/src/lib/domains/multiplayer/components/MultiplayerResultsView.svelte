@@ -1,10 +1,14 @@
 <script lang="ts">
 import Navbar from "$lib/shared/components/Navbar.svelte";
+import { createEventDispatcher } from "svelte";
 import type { RoundResult } from "../types";
 import MultiplayerResultsMap from "./MultiplayerResultsMap.svelte";
 
 export let result: RoundResult;
 export let currentUserId: string;
+export let readySent = false;
+
+const dispatch = createEventDispatcher<{ readyNext: undefined }>();
 
 const playerColors = [
 	"var(--p-you)",
@@ -188,9 +192,13 @@ $: roundDots = Array.from({ length: 5 }, (_, i) => {
 				{/each}
 			</div>
 
-			<button class="btn-3d mt-3.5 w-full text-[15px]">
-				Next Round
-			</button>
+		<button
+			class="btn-3d mt-3.5 w-full text-[15px]"
+			disabled={readySent}
+			on:click={() => dispatch("readyNext")}
+		>
+			{readySent ? "Waiting for others…" : "Next Round"}
+		</button>
 		</section>
 	</main>
 </div>

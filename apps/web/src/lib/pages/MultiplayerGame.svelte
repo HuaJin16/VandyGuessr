@@ -1,5 +1,6 @@
 <script lang="ts">
 import MapAssembly from "$lib/domains/games/components/MapAssembly.svelte";
+import PanoramaViewer from "$lib/domains/games/components/PanoramaViewer.svelte";
 import MultiplayerHud from "$lib/domains/multiplayer/components/MultiplayerHud.svelte";
 import MultiplayerResultsView from "$lib/domains/multiplayer/components/MultiplayerResultsView.svelte";
 import MultiplayerSummary from "$lib/domains/multiplayer/components/MultiplayerSummary.svelte";
@@ -49,6 +50,7 @@ let finalRounds: GameOverRound[] = [];
 let timerInterval: ReturnType<typeof setInterval> | null = null;
 let displayTime: number | null = null;
 let showForfeitDialog = false;
+let readySent = false;
 let disconnectedPlayers: Array<{ userId: string; name: string; timer: number }> = [];
 
 function startTimerTick() {
@@ -81,6 +83,7 @@ function handleMessage(msg: ServerMessage) {
 				imageUrl: string;
 				expiresAt: string;
 			};
+			readySent = false;
 			multiplayerStore.startRound(data.round, data.imageUrl, data.expiresAt);
 			startTimerTick();
 			break;
@@ -277,6 +280,12 @@ function handleTimerExpiry() {
 	}
 }
 
+function sendReadyNext() {
+	if (readySent) return;
+	ws?.send({ type: ClientEvent.ReadyNext });
+	readySent = true;
+}
+
 function forfeit() {
 	ws?.send({ type: ClientEvent.Forfeit });
 	ws?.close();
@@ -285,10 +294,6 @@ function forfeit() {
 
 function goHome() {
 	navigate("/", { replace: true });
-}
-
-function goLobby() {
-	navigate(`/multiplayer/${id}/lobby`, { replace: true });
 }
 
 $: currentUserId = $auth.account?.localAccountId ?? "";
@@ -343,14 +348,13 @@ onDestroy(() => {
 		rounds={finalRounds}
 		{winnerId}
 		{currentUserId}
-		gameId={id}
 		on:home={goHome}
 	/>
 {:else if phase === "results" && roundResult}
-	<MultiplayerResultsView result={roundResult} {currentUserId} />
+	<MultiplayerResultsView result={roundResult} {currentUserId} {readySent} on:readyNext={sendReadyNext} />
 {:else if phase === "playing" && imageUrl}
 	<div class="scene">
-		<img src={imageUrl} alt="Round {currentRound}" class="h-full w-full object-cover" />
+		<PanoramaViewer imageUrl={imageUrl} />
 	</div>
 
 	<!-- Disconnect toasts -->
@@ -383,7 +387,6 @@ onDestroy(() => {
 					{totalPlayers}
 				/>
 			</div>
-			<button class="ghost" on:click={goLobby}>← Lobby</button>
 		</div>
 
 		{#if !hasGuessed}

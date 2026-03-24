@@ -1,6 +1,7 @@
 """Multiplayer game manager handling real-time gameplay orchestration."""
 
 import asyncio
+import contextlib
 import json
 import time
 from datetime import UTC, datetime, timedelta
@@ -23,6 +24,7 @@ RECONNECT_TIMEOUT_SECONDS = 30
 ABANDON_TIMEOUT_SECONDS = 60
 COUNTDOWN_SECONDS = 3
 LOBBY_EXPIRY_WARNING_SECONDS = 300
+RESULTS_DISPLAY_SECONDS = 10
 RATE_LIMIT_MAX = 10
 RATE_LIMIT_WINDOW = 1.0
 
@@ -50,6 +52,8 @@ class GameManager:
         self._abandon_tasks: dict[str, asyncio.Task] = {}
         self._lobby_tasks: dict[str, asyncio.Task] = {}
         self._rate_limits: dict[str, list[float]] = {}
+        self._ready_events: dict[str, asyncio.Event] = {}
+        self._ready_players: dict[str, set[str]] = {}
 
     def _get_lock(self, game_id: str) -> asyncio.Lock:
         if game_id not in self._round_locks:
@@ -155,6 +159,8 @@ class GameManager:
             await self._handle_extend_lobby(game_id, user_id)
         elif event == ClientEvent.LEAVE_LOBBY:
             await self._handle_leave_lobby(game_id, user_id)
+        elif event == ClientEvent.READY_NEXT:
+            await self._handle_ready_next(game_id, user_id)
         elif event == ClientEvent.REFRESH_TOKEN:
             pass  # Token refresh handled at WS layer
 
@@ -276,6 +282,8 @@ class GameManager:
         if game_id in self._lobby_tasks:
             self._lobby_tasks[game_id].cancel()
             del self._lobby_tasks[game_id]
+        self._ready_events.pop(game_id, None)
+        self._ready_players.pop(game_id, None)
 
     # ------------------------------------------------------------------
     # Event handlers
@@ -555,6 +563,23 @@ class GameManager:
             },
         )
 
+    async def _handle_ready_next(self, game_id: str, user_id: str) -> None:
+        if game_id not in self._ready_events:
+            return
+
+        ready = self._ready_players.setdefault(game_id, set())
+        ready.add(user_id)
+
+        doc = await self._load(game_id)
+        if not doc or doc["status"] != "active":
+            return
+
+        active_players = {
+            p["user_id"] for p in doc["players"] if p["status"] != "forfeited"
+        }
+        if active_players and ready >= active_players:
+            self._ready_events[game_id].set()
+
     # ------------------------------------------------------------------
     # Round lifecycle
     # ------------------------------------------------------------------
@@ -701,8 +726,15 @@ class GameManager:
             if next_index >= len(doc["rounds"]):
                 await self._complete_game(game_id)
             else:
-                # Brief pause before next round
-                await asyncio.sleep(1)
+                skip_event = asyncio.Event()
+                self._ready_events[game_id] = skip_event
+                self._ready_players[game_id] = set()
+                with contextlib.suppress(TimeoutError):
+                    await asyncio.wait_for(
+                        skip_event.wait(), timeout=RESULTS_DISPLAY_SECONDS
+                    )
+                self._ready_events.pop(game_id, None)
+                self._ready_players.pop(game_id, None)
                 await self._start_round(game_id, next_index)
 
     async def _complete_game(self, game_id: str) -> None:

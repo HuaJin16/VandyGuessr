@@ -56,13 +56,16 @@ class ImageRepository:
     async def sample_random(
         self, count: int, environment: str | None = None
     ) -> list[dict]:
-        """Return `count` random image documents using $sample."""
+        """Return `count` distinct random image documents using $sample."""
         pipeline: list[dict] = []
         match_query: dict = dict(PLAYABLE_MATCH)
         if environment and environment != "any":
             match_query["environment"] = environment
         pipeline.append({"$match": match_query})
-        pipeline.append({"$sample": {"size": count}})
+        pipeline.append({"$sample": {"size": count * 3}})
+        pipeline.append({"$group": {"_id": "$_id", "doc": {"$first": "$$ROOT"}}})
+        pipeline.append({"$replaceRoot": {"newRoot": "$doc"}})
+        pipeline.append({"$limit": count})
         return await self.collection.aggregate(pipeline).to_list(length=count)
 
     async def find_all_ids(self, environment: str | None = None) -> list[str]:

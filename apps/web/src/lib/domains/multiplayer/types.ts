@@ -118,6 +118,7 @@ export enum ClientEvent {
 	RefreshToken = "refresh_token",
 	ExtendLobby = "extend_lobby",
 	LeaveLobby = "leave_lobby",
+	ReadyNext = "ready_next",
 }
 
 export enum ServerEvent {

@@ -324,6 +324,27 @@ onDestroy(() => {
 		>
 			<InviteCodeCard code={game.inviteCode} />
 
+			{#if isHost}
+				<div class="host-banner">
+					<svg class="host-crown" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z" />
+						<path d="M3 20h18" />
+					</svg>
+					<span>You are the host</span>
+				</div>
+			{:else}
+				{@const hostPlayer = players.find(p => p.userId === game.hostId)}
+				{#if hostPlayer}
+					<div class="host-banner guest">
+						<svg class="host-crown" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z" />
+							<path d="M3 20h18" />
+						</svg>
+						<span>Hosted by <strong>{hostPlayer.name}</strong></span>
+					</div>
+				{/if}
+			{/if}
+
 			<LobbyPlayerList {players} hostId={game.hostId} {currentUserId} />
 
 			<!-- Settings -->
@@ -397,6 +418,32 @@ onDestroy(() => {
 
 	.status-dot.disconnected {
 		background: var(--danger);
+	}
+
+	.host-banner {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		padding: 10px 16px;
+		border-radius: var(--radius-md);
+		background: var(--gold-light);
+		border: 1px solid var(--gold);
+		color: var(--gold-ink);
+		font-size: 13px;
+		font-weight: 600;
+	}
+
+	.host-banner.guest {
+		background: var(--surface);
+		border-color: var(--line);
+		color: var(--muted);
+	}
+
+	.host-crown {
+		width: 16px;
+		height: 16px;
+		flex-shrink: 0;
 	}
 
 	.settings-pill {

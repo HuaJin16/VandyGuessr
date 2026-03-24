@@ -7,8 +7,6 @@ export let standings: Standing[];
 export let rounds: GameOverRound[] = [];
 export let winnerId: string;
 export let currentUserId: string;
-export let gameId: string;
-
 const dispatch = createEventDispatcher<{ home: undefined }>();
 
 const playerColors = [
@@ -192,8 +190,8 @@ $: roundBreakdown = rounds.map((round) => {
 
 		<!-- Actions -->
 		<div class="grid gap-1.5">
-			<a href="/multiplayer/{gameId}/lobby" class="btn-3d block w-full text-center text-[15px] no-underline">
-				Rematch
+			<a href="/" class="btn-3d block w-full text-center text-[15px] no-underline">
+				New Game
 			</a>
 			<button
 				class="w-full rounded-md border-2 border-line-strong bg-surface py-[11px] px-3.5 text-[15px] font-bold text-ink transition-all hover:border-muted hover:bg-canvas"

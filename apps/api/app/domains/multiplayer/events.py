@@ -10,6 +10,7 @@ class ClientEvent(StrEnum):
     REFRESH_TOKEN = "refresh_token"
     EXTEND_LOBBY = "extend_lobby"
     LEAVE_LOBBY = "leave_lobby"
+    READY_NEXT = "ready_next"
 
 
 class ServerEvent(StrEnum):
