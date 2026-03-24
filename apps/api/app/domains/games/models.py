@@ -26,12 +26,41 @@ class GuessRequest(BaseModel):
     lng: float
 
 
+class RoundTileLevelResponse(BaseModel):
+    level: int
+    width: int
+    height: int
+    cols: int
+    rows: int
+
+
+class RoundPanoDataResponse(BaseModel):
+    fullWidth: int
+    fullHeight: int
+    croppedWidth: int
+    croppedHeight: int
+    croppedX: int
+    croppedY: int
+
+
+class RoundTilesResponse(BaseModel):
+    version: int
+    baseUrl: str
+    tileUrlTemplate: str
+    originalWidth: int
+    originalHeight: int
+    aspectRatio: float
+    basePanoData: RoundPanoDataResponse
+    levels: list[RoundTileLevelResponse]
+
+
 class RoundResponse(BaseModel):
     """Round data in the game response."""
 
     roundId: int
     imageId: str
     imageUrl: str
+    imageTiles: RoundTilesResponse | None = None
     actual: dict | None = None  # {"lat": float, "lng": float} - only after guess
     guess: dict | None = None
     distanceMeters: float | None = None

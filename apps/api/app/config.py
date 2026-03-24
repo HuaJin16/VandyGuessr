@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -41,6 +42,13 @@ class Settings(BaseSettings):
     # Upload
     upload_secret_code: str = ""
     upload_max_bytes: int = 50 * 1024 * 1024
+
+    # Image processing
+    panorama_base_max_width: int = Field(default=2048, ge=512, le=8192)
+    panorama_base_quality: int = Field(default=60, ge=1, le=95)
+    panorama_tile_quality: int = Field(default=80, ge=1, le=95)
+    image_original_jpeg_quality: int = Field(default=84, ge=1, le=95)
+    image_original_min_savings_ratio: float = Field(default=0.08, ge=0.0, le=1.0)
 
     # Comma-separated @vanderbilt.edu emails allowed to approve/reject crowd submissions
     reviewer_email_allowlist: str = ""

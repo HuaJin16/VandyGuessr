@@ -6,10 +6,39 @@ export interface GameMode {
 	daily: boolean;
 }
 
+export interface RoundTileLevel {
+	level: number;
+	width: number;
+	height: number;
+	cols: number;
+	rows: number;
+}
+
+export interface RoundPanoData {
+	fullWidth: number;
+	fullHeight: number;
+	croppedWidth: number;
+	croppedHeight: number;
+	croppedX: number;
+	croppedY: number;
+}
+
+export interface RoundTiles {
+	version: number;
+	baseUrl: string;
+	tileUrlTemplate: string;
+	originalWidth: number;
+	originalHeight: number;
+	aspectRatio: number;
+	basePanoData: RoundPanoData;
+	levels: RoundTileLevel[];
+}
+
 export interface Round {
 	roundId: number;
 	imageId: string;
 	imageUrl: string;
+	imageTiles: RoundTiles | null;
 	actual: { lat: number; lng: number } | null;
 	guess: { lat: number; lng: number } | null;
 	distanceMeters: number | null;

@@ -158,6 +158,20 @@ Share these links with trusted bulk contributors (replace `YOUR_SECRET_CODE` wit
 
 Images are stored in DigitalOcean Spaces (S3-compatible) and metadata is persisted to MongoDB for use in games.
 
+Each upload also generates a tiled panorama pyramid (base image + progressive tiles) so gameplay can load quickly and stream detail as players pan/zoom. Tiling preserves source panorama geometry (including wide iPhone panoramas) using stored pano crop/full metadata. Existing images can be backfilled with:
+
+```bash
+cd apps/api
+python -m scripts.backfill_image_tiles --dry-run
+```
+
+Stored fallback originals are also compressed server-side (with EXIF GPS preserved) to reduce storage and egress costs. Existing images can be backfilled with:
+
+```bash
+cd apps/api
+python -m scripts.backfill_image_compression --dry-run
+```
+
 ## Microsoft OAuth Setup
 
 See `docs/AZURE_AUTH_SETUP.md` for the full Azure app registration flow.

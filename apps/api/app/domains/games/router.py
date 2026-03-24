@@ -1,14 +1,19 @@
 """Game HTTP endpoints."""
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import ValidationError
 
 from app.container import deps
 from app.core.auth import CurrentUser
+from app.domains.games.entities import RoundTilesEntity
 from app.domains.games.models import (
     GameModeResponse,
     GameResponse,
     GuessRequest,
+    RoundPanoDataResponse,
     RoundResponse,
+    RoundTileLevelResponse,
+    RoundTilesResponse,
     ScoreDistributionResponse,
     StartGameRequest,
 )
@@ -16,6 +21,42 @@ from app.domains.games.repository import IGameRepository
 from app.domains.games.service import GameError, GameService
 
 router = APIRouter(prefix="/games", tags=["games"])
+
+
+def _round_tiles_response(payload: object) -> RoundTilesResponse | None:
+    if not isinstance(payload, dict):
+        return None
+    try:
+        entity = RoundTilesEntity.model_validate(payload)
+    except (ValidationError, KeyError, TypeError, ValueError):
+        return None
+    pano = entity.base_pano_data
+    return RoundTilesResponse(
+        version=entity.version,
+        baseUrl=entity.base_url,
+        tileUrlTemplate=entity.tile_url_template,
+        originalWidth=entity.original_width,
+        originalHeight=entity.original_height,
+        aspectRatio=entity.aspect_ratio,
+        basePanoData=RoundPanoDataResponse(
+            fullWidth=pano.full_width,
+            fullHeight=pano.full_height,
+            croppedWidth=pano.cropped_width,
+            croppedHeight=pano.cropped_height,
+            croppedX=pano.cropped_x,
+            croppedY=pano.cropped_y,
+        ),
+        levels=[
+            RoundTileLevelResponse(
+                level=lvl.level,
+                width=lvl.width,
+                height=lvl.height,
+                cols=lvl.cols,
+                rows=lvl.rows,
+            )
+            for lvl in entity.levels
+        ],
+    )
 
 
 def _to_response(doc: dict) -> GameResponse:
@@ -28,6 +69,7 @@ def _to_response(doc: dict) -> GameResponse:
                 roundId=rd["round_id"],
                 imageId=rd["image_id"],
                 imageUrl=rd["image_url"],
+                imageTiles=_round_tiles_response(rd.get("image_tiles")),
                 actual=(
                     {"lat": rd["actual_lat"], "lng": rd["actual_lng"]}
                     if has_guess or rd.get("skipped")

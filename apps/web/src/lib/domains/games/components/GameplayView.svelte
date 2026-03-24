@@ -66,7 +66,7 @@ onDestroy(() => {
 
 <div class="scene">
 	{#if round}
-		<PanoramaViewer imageUrl={round.imageUrl} />
+		<PanoramaViewer imageUrl={round.imageUrl} imageTiles={round.imageTiles} />
 	{/if}
 </div>
 

@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 import structlog
+from pydantic import ValidationError
 
 from app.domains.games.daily import (
     ROUNDS_PER_GAME,
@@ -11,7 +12,7 @@ from app.domains.games.daily import (
     pick_daily_images,
     today_cst,
 )
-from app.domains.games.entities import GameEntity, RoundEntity
+from app.domains.games.entities import GameEntity, RoundEntity, RoundTilesEntity
 from app.domains.games.repository import IGameRepository
 from app.domains.images.repository import IImageRepository
 from app.domains.locations.service import LocationService
@@ -52,6 +53,16 @@ class GameService:
         self.daily_repo = daily_challenge_repository
         self.location_service = location_service
 
+    @staticmethod
+    def _round_tiles(image_doc: dict) -> RoundTilesEntity | None:
+        tiles = image_doc.get("tiles")
+        if not isinstance(tiles, dict):
+            return None
+        try:
+            return RoundTilesEntity.model_validate(tiles)
+        except (ValidationError, KeyError, TypeError, ValueError):
+            return None
+
     async def start_game(
         self,
         user_id: str,
@@ -78,6 +89,7 @@ class GameService:
                 round_id=i + 1,
                 image_id=str(img["_id"]),
                 image_url=img["url"],
+                image_tiles=self._round_tiles(img),
                 actual_lat=img["latitude"],
                 actual_lng=img["longitude"],
                 location_name=img.get("location_name"),

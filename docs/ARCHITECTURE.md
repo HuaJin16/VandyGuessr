@@ -11,15 +11,15 @@
 
 ### Additional Libraries
 
-| Layer | Library | Purpose |
-|-------|---------|---------|
-| Backend | `lagom` | Dependency injection container |
-| Backend | `structlog` | Structured JSON logging |
-| Frontend | `axios` | HTTP client |
+| Layer    | Library                  | Purpose                           |
+| -------- | ------------------------ | --------------------------------- |
+| Backend  | `lagom`                  | Dependency injection container    |
+| Backend  | `structlog`              | Structured JSON logging           |
+| Frontend | `axios`                  | HTTP client                       |
 | Frontend | `@tanstack/svelte-query` | Server state management & caching |
-| Frontend | `svelte-routing` | History-mode client-side routing |
-| Frontend | `bits-ui` | Headless component primitives |
-| Frontend | `tailwind-variants` | Variant-based component styling |
+| Frontend | `svelte-routing`         | History-mode client-side routing  |
+| Frontend | `bits-ui`                | Headless component primitives     |
+| Frontend | `tailwind-variants`      | Variant-based component styling   |
 
 ---
 
@@ -76,13 +76,13 @@ Request → Router → Service → Repository → MongoDB
 
 ### Layer Responsibilities
 
-| Layer | Location | Responsibility |
-|-------|----------|----------------|
-| **Routers** | `domains/*/router.py` | HTTP request/response handling, routing, input validation |
-| **Models** | `domains/*/models.py` | Pydantic schemas for API request/response contracts |
-| **Services** | `domains/*/service.py` | Business logic and orchestration |
-| **Repositories** | `domains/*/repository.py` | Database CRUD operations |
-| **Entities** | `domains/*/entities.py` | MongoDB document schemas |
+| Layer            | Location                  | Responsibility                                            |
+| ---------------- | ------------------------- | --------------------------------------------------------- |
+| **Routers**      | `domains/*/router.py`     | HTTP request/response handling, routing, input validation |
+| **Models**       | `domains/*/models.py`     | Pydantic schemas for API request/response contracts       |
+| **Services**     | `domains/*/service.py`    | Business logic and orchestration                          |
+| **Repositories** | `domains/*/repository.py` | Database CRUD operations                                  |
+| **Entities**     | `domains/*/entities.py`   | MongoDB document schemas                                  |
 
 ### Dependency Injection with Lagom
 
@@ -172,8 +172,14 @@ logger.error("payment_failed", user_id=user_id, error=str(e))
 ```
 
 **Output format (JSON):**
+
 ```json
-{"event": "user_created", "user_id": "123", "email": "user@vanderbilt.edu", "timestamp": "2024-01-15T10:30:00Z"}
+{
+  "event": "user_created",
+  "user_id": "123",
+  "email": "user@vanderbilt.edu",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
 ```
 
 ### Health Check Endpoint
@@ -284,13 +290,13 @@ apps/web/src/
 **Shared Axios Client (`shared/api/client.ts`):**
 
 ```typescript
-import axios from 'axios';
-import { authInterceptor } from './interceptors/auth.interceptor';
-import { errorInterceptor } from './interceptors/error.interceptor';
+import axios from "axios";
+import { authInterceptor } from "./interceptors/auth.interceptor";
+import { errorInterceptor } from "./interceptors/error.interceptor";
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { "Content-Type": "application/json" },
 });
 
 // Attach auth token to all requests
@@ -303,11 +309,11 @@ apiClient.interceptors.response.use((response) => response, errorInterceptor);
 **Auth Interceptor (`shared/api/interceptors/auth.interceptor.ts`):**
 
 ```typescript
-import type { InternalAxiosRequestConfig } from 'axios';
-import { getAccessToken } from '$lib/shared/auth/msalInstance';
+import type { InternalAxiosRequestConfig } from "axios";
+import { getAccessToken } from "$lib/shared/auth/msalInstance";
 
 export async function authInterceptor(
-  config: InternalAxiosRequestConfig
+  config: InternalAxiosRequestConfig,
 ): Promise<InternalAxiosRequestConfig> {
   const token = await getAccessToken();
   if (token) {
@@ -320,15 +326,14 @@ export async function authInterceptor(
 **Domain HTTP Service (`domains/users/api/users.service.ts`):**
 
 ```typescript
-import { apiClient } from '$lib/shared/api/client';
-import type { User, UpdateProfileDto } from '../types';
+import { apiClient } from "$lib/shared/api/client";
+import type { User, UpdateProfileDto } from "../types";
 
 export const usersService = {
-  getMe: () =>
-    apiClient.get<User>('/v1/users/me').then((r) => r.data),
+  getMe: () => apiClient.get<User>("/v1/users/me").then((r) => r.data),
 
   updateProfile: (data: UpdateProfileDto) =>
-    apiClient.patch<User>('/v1/users/me', data).then((r) => r.data),
+    apiClient.patch<User>("/v1/users/me", data).then((r) => r.data),
 
   getById: (id: string) =>
     apiClient.get<User>(`/v1/users/${id}`).then((r) => r.data),
@@ -340,17 +345,17 @@ export const usersService = {
 **Query Definitions (`domains/users/queries/users.queries.ts`):**
 
 ```typescript
-import { usersService } from '../api/users.service';
+import { usersService } from "../api/users.service";
 
 export const userQueries = {
   me: () => ({
-    queryKey: ['users', 'me'],
+    queryKey: ["users", "me"],
     queryFn: () => usersService.getMe(),
     staleTime: 5 * 60 * 1000, // 5 minutes
   }),
 
   byId: (id: string) => ({
-    queryKey: ['users', id],
+    queryKey: ["users", id],
     queryFn: () => usersService.getById(id),
   }),
 };
@@ -383,9 +388,9 @@ For mutations that benefit from instant UI feedback:
 
 ```typescript
 // domains/users/queries/useUpdateProfile.ts
-import { createMutation, useQueryClient } from '@tanstack/svelte-query';
-import { usersService } from '../api/users.service';
-import type { UpdateProfileDto, User } from '../types';
+import { createMutation, useQueryClient } from "@tanstack/svelte-query";
+import { usersService } from "../api/users.service";
+import type { UpdateProfileDto, User } from "../types";
 
 export function createUpdateProfileMutation() {
   const queryClient = useQueryClient();
@@ -396,13 +401,13 @@ export function createUpdateProfileMutation() {
     // Optimistic update - instant UI feedback
     onMutate: async (newData) => {
       // Cancel outgoing refetches to avoid overwriting optimistic update
-      await queryClient.cancelQueries({ queryKey: ['users', 'me'] });
+      await queryClient.cancelQueries({ queryKey: ["users", "me"] });
 
       // Snapshot previous value for rollback
-      const previousUser = queryClient.getQueryData<User>(['users', 'me']);
+      const previousUser = queryClient.getQueryData<User>(["users", "me"]);
 
       // Optimistically update cache
-      queryClient.setQueryData<User>(['users', 'me'], (old) => ({
+      queryClient.setQueryData<User>(["users", "me"], (old) => ({
         ...old!,
         ...newData,
       }));
@@ -413,13 +418,13 @@ export function createUpdateProfileMutation() {
     // Rollback on error
     onError: (err, newData, context) => {
       if (context?.previousUser) {
-        queryClient.setQueryData(['users', 'me'], context.previousUser);
+        queryClient.setQueryData(["users", "me"], context.previousUser);
       }
     },
 
     // Refetch to ensure consistency
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['users', 'me'] });
+      queryClient.invalidateQueries({ queryKey: ["users", "me"] });
     },
   });
 }
@@ -494,16 +499,16 @@ Error boundaries catch unexpected runtime errors and display a fallback UI:
 
 ```typescript
 // routes.ts
-import Home from './pages/Home.svelte';
-import Login from './pages/Login.svelte';
-import Game from './pages/Game.svelte';
-import Profile from './pages/Profile.svelte';
+import Home from "./pages/Home.svelte";
+import Login from "./pages/Login.svelte";
+import Game from "./pages/Game.svelte";
+import Profile from "./pages/Profile.svelte";
 
 export const routes = {
-  '/': Home,
-  '/login': Login,
-  '/game/:id': Game,
-  '/profile': Profile,
+  "/": Home,
+  "/login": Login,
+  "/game/:id": Game,
+  "/profile": Profile,
 };
 ```
 
@@ -620,14 +625,19 @@ export function cn(...inputs: ClassValue[]) {
 
 - **What we store**: Campus photo assets used for game rounds, uploaded by contributors.
 - **Why S3-compatible storage**: Simple, cost-effective object storage that scales with image volume and integrates cleanly with CDN or public delivery later.
-- **Current scope**: Keep it simple; only original uploads are stored for now.
+- **Current scope**: Store the original upload and a tiled pyramid for progressive panorama loading.
 
 ### Upload Pipeline and Metadata
 
 - **Upload endpoints**: Secret-code-protected HTML multi-upload for trusted operators; logged-in students use `POST /v1/images/submissions` (Bearer token, multipart) which stores images as **pending** until a reviewer approves them. Reviewers are configured via `REVIEWER_EMAIL_ALLOWLIST`.
 - **EXIF extraction**: GPS metadata is extracted from EXIF and used to seed location data into MongoDB.
-- **S3 object keys**: Images are stored under an `images/` prefix with unique UUIDs (e.g., `images/{uuid}.jpg`).
+- **Tiling**: After EXIF extraction, the backend generates a low-resolution base panorama plus tile levels for progressive streaming in the viewer.
+- **Tiling geometry**: Tile generation is aspect-ratio aware and stores pano crop/full geometry (`base_pano_data`) so non-2:1 sources (for example iPhone panoramas) render without stretching.
+- **Compression**: The stored fallback original is re-encoded with a configurable JPEG quality policy (EXIF-preserving) to reduce storage and egress while keeping gameplay compatibility.
+- **S3 object keys**: Images are stored under an `images/` prefix with unique UUIDs (e.g., `images/{uuid}.jpg`) and tiles under `images/{uuid}/base.jpg`, `images/{uuid}/l{level}/{col}_{row}.jpg`.
 - **MongoDB persistence**: Image metadata (URL, coordinates, environment, timestamps) is stored in the `images` collection.
+- **Backfill path**: Existing images can be tiled with `python -m scripts.backfill_image_tiles`.
+- **Compression backfill**: Existing originals can be recompressed and annotated with `python -m scripts.backfill_image_compression`.
 
 ### Images Domain Structure
 
@@ -660,6 +670,35 @@ apps/api/app/domains/images/
     "original_filename": str | None,
     "file_size": int,
     "location_name": str | None,   # Auto-tagged building/landmark name
+    "tiles": {
+        "version": int,
+        "base_url": str,
+        "tile_url_template": str,   # contains {level}, {col}, {row} placeholders
+        "level_count": int,
+        "original_width": int,
+        "original_height": int,
+        "aspect_ratio": float,
+        "base_pano_data": {
+            "full_width": int,
+            "full_height": int,
+            "cropped_width": int,
+            "cropped_height": int,
+            "cropped_x": int,
+            "cropped_y": int
+        },
+        "levels": [
+            {"level": int, "width": int, "height": int, "cols": int, "rows": int}
+        ]
+    } | None,
+    "compression": {
+        "version": int,
+        "source_size_bytes": int,
+        "stored_size_bytes": int,
+        "savings_ratio": float,
+        "quality": int,
+        "format": str,
+        "compressed": bool
+    } | None,
     "created_at": datetime,
     "moderation_status": "pending" | "approved" | "rejected",  # default approved; omitted on legacy = playable
     "submitted_by_user_id": str | None,  # Microsoft OID for crowd submissions

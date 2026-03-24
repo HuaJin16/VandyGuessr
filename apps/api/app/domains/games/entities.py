@@ -6,12 +6,41 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class RoundTileLevelEntity(BaseModel):
+    level: int
+    width: int
+    height: int
+    cols: int
+    rows: int
+
+
+class RoundPanoDataEntity(BaseModel):
+    full_width: int
+    full_height: int
+    cropped_width: int
+    cropped_height: int
+    cropped_x: int
+    cropped_y: int
+
+
+class RoundTilesEntity(BaseModel):
+    version: int
+    base_url: str
+    tile_url_template: str
+    original_width: int
+    original_height: int
+    aspect_ratio: float
+    base_pano_data: RoundPanoDataEntity
+    levels: list[RoundTileLevelEntity]
+
+
 class RoundEntity(BaseModel):
     """Represents a single round within a game document."""
 
     round_id: int
     image_id: str
     image_url: str
+    image_tiles: RoundTilesEntity | None = None
     actual_lat: float
     actual_lng: float
     guess: dict | None = None  # {"lat": float, "lng": float}
