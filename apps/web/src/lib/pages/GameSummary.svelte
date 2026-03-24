@@ -1,5 +1,6 @@
 <script lang="ts">
 import { gameQueries } from "$lib/domains/games/queries/games.queries";
+import { buildGameShareText } from "$lib/domains/games/share";
 import type { Game, Round } from "$lib/domains/games/types";
 import { auth } from "$lib/shared/auth/auth.store";
 import Navbar from "$lib/shared/components/Navbar.svelte";
@@ -7,6 +8,7 @@ import { createQuery } from "@tanstack/svelte-query";
 import L from "leaflet";
 import { tick } from "svelte";
 import { navigate } from "svelte-routing";
+import { toast } from "svelte-sonner";
 
 export let id: string;
 
@@ -61,6 +63,65 @@ function barClass(r: Round): string {
 	if (rc === "best") return "round-bar best";
 	if (rc === "worst") return "round-bar worst";
 	return "round-bar";
+}
+
+function getErrorName(error: unknown): string | null {
+	if (typeof error !== "object" || error === null) return null;
+
+	const name = Reflect.get(error, "name");
+	return typeof name === "string" ? name : null;
+}
+
+async function copyShareText(text: string) {
+	if (navigator.clipboard?.writeText) {
+		await navigator.clipboard.writeText(text);
+		return;
+	}
+
+	const textArea = document.createElement("textarea");
+	textArea.value = text;
+	textArea.setAttribute("readonly", "");
+	textArea.style.position = "fixed";
+	textArea.style.opacity = "0";
+	document.body.append(textArea);
+	textArea.select();
+
+	const copied = document.execCommand("copy");
+	textArea.remove();
+
+	if (!copied) {
+		throw new Error("Clipboard is not available on this device");
+	}
+}
+
+let isSharing = false;
+
+async function handleShare() {
+	if (!game || isSharing) return;
+
+	isSharing = true;
+	const shareText = buildGameShareText(game, window.location.origin);
+
+	try {
+		if (navigator.share) {
+			try {
+				await navigator.share({
+					title: "VandyGuessr Results",
+					text: shareText,
+				});
+				return;
+			} catch (error) {
+				if (getErrorName(error) === "AbortError") return;
+			}
+		}
+
+		await copyShareText(shareText);
+		toast.success("Results copied to clipboard");
+	} catch (error) {
+		toast.error(error instanceof Error ? error.message : "Failed to share results");
+	} finally {
+		isSharing = false;
+	}
 }
 
 let miniMapEls: HTMLDivElement[] = [];
@@ -186,8 +247,11 @@ function initMiniMaps() {
 				</div>
 
 				<div class="buttons">
-					<button class="play-btn" on:click={() => navigate("/", { replace: true })}>
+					<button class="play-btn" type="button" on:click={() => navigate("/", { replace: true })}>
 						Play Again
+					</button>
+					<button class="share-btn" type="button" on:click={handleShare} disabled={isSharing}>
+						{isSharing ? "Sharing..." : "Share Results"}
 					</button>
 				</div>
 			</section>
@@ -341,6 +405,8 @@ function initMiniMaps() {
 	/* Buttons */
 	.buttons {
 		margin-top: 18px;
+		display: grid;
+		gap: 10px;
 	}
 
 	.play-btn {
@@ -361,6 +427,42 @@ function initMiniMaps() {
 	.play-btn:hover { background: #278234; }
 	.play-btn:active { transform: translateY(4px); box-shadow: 0 0 0 var(--brand-dark); }
 	.play-btn:focus-visible { outline: none; box-shadow: 0 4px 0 var(--brand-dark), var(--ring); }
+
+	.share-btn {
+		width: 100%;
+		border: 2px solid var(--gold);
+		border-radius: var(--radius-md);
+		background: linear-gradient(105deg, var(--gold-light), transparent 68%), var(--surface);
+		color: var(--gold-dark);
+		font-family: Inter, sans-serif;
+		font-size: 15px;
+		font-weight: 700;
+		padding: 12px 14px;
+		box-shadow: 0 4px 0 var(--gold-dark);
+		cursor: pointer;
+		transition: all 120ms var(--ease);
+	}
+
+	.share-btn:hover {
+		background: linear-gradient(105deg, rgba(232, 168, 23, 0.22), transparent 68%),
+			var(--surface);
+	}
+
+	.share-btn:active {
+		transform: translateY(4px);
+		box-shadow: 0 0 0 var(--gold-dark);
+	}
+
+	.share-btn:focus-visible {
+		outline: none;
+		box-shadow: 0 4px 0 var(--gold-dark), 0 0 0 3px rgba(232, 168, 23, 0.24);
+	}
+
+	.share-btn:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+		pointer-events: none;
+	}
 
 	/* Round list */
 	.round-list {
@@ -476,6 +578,12 @@ function initMiniMaps() {
 		.card { padding: 18px; }
 		.round-row { padding: 14px 6px 14px 0; }
 		.mini-map { width: 100px; height: 70px; }
+	}
+
+	@media (min-width: 540px) {
+		.buttons {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
 	}
 
 	@media (max-width: 500px) {
