@@ -12,6 +12,7 @@ from app.domains.games.daily import (
     pick_daily_images,
     today_cst,
 )
+from app.domains.games.difficulty import DEFAULT_DIFFICULTY, Difficulty
 from app.domains.games.entities import GameEntity, RoundEntity, RoundTilesEntity
 from app.domains.games.repository import IGameRepository
 from app.domains.images.repository import IImageRepository
@@ -69,6 +70,7 @@ class GameService:
         timed: bool,
         environment: str,
         daily: bool,
+        difficulty: Difficulty = DEFAULT_DIFFICULTY,
     ) -> dict:
         """Create a new game with 5 rounds of randomly selected images."""
         # Check for existing active game
@@ -104,7 +106,12 @@ class GameService:
 
         game = GameEntity(
             user_id=user_id,
-            mode={"timed": timed, "environment": environment, "daily": daily},
+            mode={
+                "timed": timed,
+                "environment": environment,
+                "daily": daily,
+                "difficulty": difficulty,
+            },
             rounds=rounds,
             created_at=now,
             last_activity_at=now,
@@ -119,6 +126,7 @@ class GameService:
             timed=timed,
             environment=environment,
             daily=daily,
+            difficulty=difficulty,
         )
 
         return await self._reload(game_id)
@@ -174,15 +182,24 @@ class GameService:
             raise GameError(f"Round {round_number} has expired.", 409)
 
         distance = haversine(lat, lng, rd["actual_lat"], rd["actual_lng"])
+        difficulty = doc["mode"].get("difficulty", DEFAULT_DIFFICULTY)
 
         actual_building = rd.get("location_name")
-        guess_building = await self.location_service.resolve_location_name(lat, lng)
+        guess_building = await self.location_service.resolve_location_name(
+            lat,
+            lng,
+            difficulty=difficulty,
+        )
         same_building = (
             actual_building is not None
             and guess_building is not None
             and actual_building == guess_building
         )
-        score = compute_score(distance, same_building=same_building)
+        score = compute_score(
+            distance,
+            same_building=same_building,
+            difficulty=difficulty,
+        )
 
         now = datetime.now(UTC)
         round_update = {

@@ -18,3 +18,13 @@ export interface PendingSubmissionItem {
 	submitter_name: string | null;
 	submitter_email: string | null;
 }
+
+export interface TourImageItem {
+	id: string;
+	url: string;
+	latitude: number;
+	longitude: number;
+	environment: "indoor" | "outdoor";
+	location_name: string | null;
+	created_at: string | null;
+}

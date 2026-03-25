@@ -1,7 +1,12 @@
 <script lang="ts">
 import { gamesService } from "$lib/domains/games/api/games.service";
 import { gameQueries } from "$lib/domains/games/queries/games.queries";
-import type { Environment, GameMode } from "$lib/domains/games/types";
+import {
+	DEFAULT_DIFFICULTY,
+	type Difficulty,
+	type Environment,
+	type GameMode,
+} from "$lib/domains/games/types";
 import { leaderboardQueries } from "$lib/domains/leaderboard/queries/leaderboard.queries";
 import { multiplayerService } from "$lib/domains/multiplayer/api/multiplayer.service";
 import { multiplayerQueries } from "$lib/domains/multiplayer/queries/multiplayer.queries";
@@ -18,12 +23,17 @@ import { navigate } from "svelte-routing";
 import { toast } from "svelte-sonner";
 
 const multiplayerEnabled = import.meta.env.VITE_FEATURE_MULTIPLAYER === "true";
+const recentGamesParams = { status: "completed", limit: 5 };
 
 $: user = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
 $: activeGame = createQuery({ ...gameQueries.active(), enabled: $auth.isInitialized });
 $: activeMultiplayerGame = createQuery({
 	...multiplayerQueries.active(),
 	enabled: $auth.isInitialized && multiplayerEnabled,
+});
+$: recentGames = createQuery({
+	...gameQueries.list(recentGamesParams),
+	enabled: $auth.isInitialized,
 });
 
 $: leaderboard = createQuery({
@@ -52,8 +62,15 @@ const locationOptions = [
 	{ value: "outdoor", label: "Outdoor" },
 ] satisfies ToggleOption[];
 
+const difficultyOptions = [
+	{ value: "easy", label: "Easy" },
+	{ value: "medium", label: "Medium" },
+	{ value: "hard", label: "Hard" },
+] satisfies ToggleOption[];
+
 let timed = false;
 let environment: Environment = "any";
+let difficulty: Difficulty = DEFAULT_DIFFICULTY;
 
 let starting = false;
 
@@ -85,6 +102,22 @@ function getMultiplayerCta(game: MultiplayerGame) {
 		label: "Resume Match",
 		path: `/multiplayer/${game.id}`,
 	};
+}
+
+function formatDifficultyLabel(value: Difficulty): string {
+	return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatModeSummary(mode: GameMode): string {
+	const parts = [mode.daily ? "Daily" : "Random Drop", mode.timed ? "Timed" : "Untimed"];
+
+	if (mode.environment === "indoor") {
+		parts.push("Indoor");
+	} else if (mode.environment === "outdoor") {
+		parts.push("Outdoor");
+	}
+
+	return parts.join(" · ");
 }
 
 async function createMultiplayerGame() {
@@ -140,6 +173,7 @@ async function startGame(daily: boolean) {
 		daily,
 		timed: daily ? false : timed,
 		environment: daily ? "any" : environment,
+		difficulty,
 	};
 	try {
 		const game = await gamesService.start({ mode });
@@ -265,31 +299,54 @@ async function startGame(daily: boolean) {
 			<section class="card">
 				<p class="section-label">Play</p>
 				<h2>Choose your mode</h2>
-				<p class="desc">Pick your pace and environment, then jump in.</p>
+				<p class="desc">Pick your pace, environment, and difficulty, then jump in.</p>
 
 				<div class="toggle-bar">
-					<TogglePills
-						ariaLabel="Game timing"
-						selected={timed ? "timed" : "untimed"}
-						options={timingOptions}
-						on:change={(event) => {
-							timed = event.detail === "timed";
-						}}
-					/>
-					<TogglePills
-						ariaLabel="Game location"
-						selected={environment}
-						options={locationOptions}
-						on:change={(event) => {
-							if (
-								event.detail === "any" ||
-								event.detail === "indoor" ||
-								event.detail === "outdoor"
-							) {
-								environment = event.detail;
-							}
-						}}
-					/>
+					<div class="toggle-group">
+						<p class="toggle-label">Timing</p>
+						<TogglePills
+							ariaLabel="Game timing"
+							selected={timed ? "timed" : "untimed"}
+							options={timingOptions}
+							on:change={(event) => {
+								timed = event.detail === "timed";
+							}}
+						/>
+					</div>
+					<div class="toggle-group">
+						<p class="toggle-label">Location</p>
+						<TogglePills
+							ariaLabel="Game location"
+							selected={environment}
+							options={locationOptions}
+							on:change={(event) => {
+								if (
+									event.detail === "any" ||
+									event.detail === "indoor" ||
+									event.detail === "outdoor"
+								) {
+									environment = event.detail;
+								}
+							}}
+						/>
+					</div>
+					<div class="toggle-group">
+						<p class="toggle-label">Difficulty</p>
+						<TogglePills
+							ariaLabel="Game difficulty"
+							selected={difficulty}
+							options={difficultyOptions}
+							on:change={(event) => {
+								if (
+									event.detail === "easy" ||
+									event.detail === "medium" ||
+									event.detail === "hard"
+								) {
+									difficulty = event.detail;
+								}
+							}}
+						/>
+					</div>
 				</div>
 
 				<div class="mode-list">
@@ -330,6 +387,39 @@ async function startGame(daily: boolean) {
 				<button class="btn-3d mt-3 w-full" disabled={starting} type="button" on:click={() => startGame(false)}>
 					{starting ? "Starting..." : "Start New Round"}
 				</button>
+			</section>
+
+			<section class="card">
+				<p class="section-label">Recent Games</p>
+				<h2>Recent results</h2>
+				<p class="desc">Your latest completed games and the difficulty each one used.</p>
+
+				<div class="history-list">
+					{#if $recentGames.isLoading}
+						<p class="history-empty">Loading recent games...</p>
+					{:else if $recentGames.isError}
+						<p class="history-empty">Failed to load recent games.</p>
+					{:else if $recentGames.data && $recentGames.data.length > 0}
+						{#each $recentGames.data as game}
+							<button
+								class="history-row"
+								type="button"
+								on:click={() => navigate(`/game/${game.id}/summary`)}
+							>
+								<div class="history-main">
+									<p class="history-title">{formatModeSummary(game.mode)}</p>
+									<p class="history-meta">Played {new Date(game.createdAt).toLocaleDateString()}</p>
+								</div>
+								<div class="history-side">
+									<span class="difficulty-pill">{formatDifficultyLabel(game.mode.difficulty)}</span>
+									<span class="history-score">{game.totalScore.toLocaleString()} pts</span>
+								</div>
+							</button>
+						{/each}
+					{:else}
+						<p class="history-empty">No completed games yet.</p>
+					{/if}
+				</div>
 			</section>
 		</section>
 
@@ -534,6 +624,21 @@ async function startGame(daily: boolean) {
 		display: flex;
 		gap: 10px;
 		margin-top: 14px;
+		flex-wrap: wrap;
+	}
+
+	.toggle-group {
+		display: grid;
+		gap: 6px;
+	}
+
+	.toggle-label {
+		margin: 0;
+		color: var(--muted);
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 	}
 
 	.single-toggle {
@@ -610,6 +715,85 @@ async function startGame(daily: boolean) {
 		color: var(--gold-dark);
 	}
 
+	.history-list {
+		display: grid;
+		gap: 10px;
+		margin-top: 14px;
+	}
+
+	.history-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		width: 100%;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-lg);
+		background: var(--surface);
+		padding: 12px 14px;
+		cursor: pointer;
+		text-align: left;
+		transition: all 140ms var(--ease);
+	}
+
+	.history-row:hover {
+		border-color: var(--brand);
+		background: var(--brand-light);
+		transform: translateX(4px);
+	}
+
+	.history-row:focus-visible {
+		outline: none;
+		box-shadow: var(--ring);
+	}
+
+	.history-main {
+		min-width: 0;
+	}
+
+	.history-title {
+		margin: 0;
+		font-size: 14px;
+		font-weight: 700;
+		color: var(--ink);
+	}
+
+	.history-meta {
+		margin: 4px 0 0;
+		font-size: 12px;
+		color: var(--muted);
+	}
+
+	.history-side {
+		display: grid;
+		justify-items: end;
+		gap: 6px;
+		flex-shrink: 0;
+	}
+
+	.difficulty-pill {
+		border-radius: var(--radius-pill);
+		background: var(--gold-light);
+		color: var(--gold-dark);
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		padding: 4px 8px;
+		text-transform: uppercase;
+	}
+
+	.history-score {
+		font-family: "IBM Plex Mono", monospace;
+		font-size: 13px;
+		font-weight: 700;
+		color: var(--ink);
+	}
+
+	.history-empty {
+		margin: 14px 0 0;
+		color: var(--muted);
+		font-size: 14px;
+	}
 	.mp-divider {
 		display: flex;
 		align-items: center;
@@ -760,6 +944,14 @@ async function startGame(daily: boolean) {
 		.code-input {
 			font-size: 14px;
 			padding: 8px 10px;
+		}
+
+		.history-row {
+			align-items: flex-start;
+		}
+
+		.history-side {
+			justify-items: start;
 		}
 	}
 </style>

@@ -9,4 +9,8 @@ export const imageQueries = {
 		queryKey: ["images", "moderation", "pending"] as const,
 		queryFn: () => imagesService.listPendingModeration(),
 	}),
+	tour: (environment: "any" | "indoor" | "outdoor") => ({
+		queryKey: ["images", "tour", environment] as const,
+		queryFn: () => imagesService.listTour(environment),
+	}),
 };

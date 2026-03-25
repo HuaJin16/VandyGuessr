@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from app.container import deps
 from app.core.auth import CurrentUser
+from app.domains.games.difficulty import DEFAULT_DIFFICULTY
 from app.domains.games.entities import RoundTilesEntity
 from app.domains.games.models import (
     GameModeResponse,
@@ -100,6 +101,7 @@ def _to_response(doc: dict) -> GameResponse:
             timed=mode["timed"],
             environment=mode["environment"],
             daily=mode["daily"],
+            difficulty=mode.get("difficulty", DEFAULT_DIFFICULTY),
         ),
         status=doc["status"],
         rounds=rounds,
@@ -125,6 +127,7 @@ async def start_game(
             timed=body.mode.timed,
             environment=body.mode.environment,
             daily=body.mode.daily,
+            difficulty=body.mode.difficulty,
         )
     except GameError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message) from e

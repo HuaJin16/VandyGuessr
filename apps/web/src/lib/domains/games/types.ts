@@ -1,9 +1,13 @@
 export type Environment = "indoor" | "outdoor" | "any";
+export type Difficulty = "easy" | "medium" | "hard";
+
+export const DEFAULT_DIFFICULTY: Difficulty = "medium";
 
 export interface GameMode {
 	timed: boolean;
 	environment: Environment;
 	daily: boolean;
+	difficulty: Difficulty;
 }
 
 export interface RoundTileLevel {

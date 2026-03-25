@@ -2,6 +2,12 @@
 
 import math
 
+from app.domains.games.difficulty import (
+    DEFAULT_DIFFICULTY,
+    DIFFICULTY_SETTINGS,
+    Difficulty,
+)
+
 # Vanderbilt campus bounding box (approximate)
 # SW corner: 36.1395, -86.8105
 # NE corner: 36.1510, -86.7935
@@ -34,19 +40,25 @@ _CAMPUS_SIZE = campus_diagonal()
 
 
 MAX_SCORE = 5000
-_DECAY_CONSTANT = 5
 
 
-def compute_score(distance_meters: float, *, same_building: bool = False) -> int:
+def compute_score(
+    distance_meters: float,
+    *,
+    same_building: bool = False,
+    difficulty: Difficulty = DEFAULT_DIFFICULTY,
+) -> int:
     """Compute the round score from the distance.
 
     If the guess is inside the same building as the actual location, the player
     receives a perfect score regardless of distance.  Otherwise the score
-    follows an exponential-decay curve:
+    follows a difficulty-dependent exponential-decay curve.
 
-        Score = 5000 * e ^ (-5 * distance / campus_size)
+    Score = 5000 * e ^ (-decay * distance / campus_size)
     """
     if same_building:
         return MAX_SCORE
-    raw = MAX_SCORE * math.exp(-_DECAY_CONSTANT * distance_meters / _CAMPUS_SIZE)
+
+    decay = DIFFICULTY_SETTINGS[difficulty]["decay"]
+    raw = MAX_SCORE * math.exp(-decay * distance_meters / _CAMPUS_SIZE)
     return max(0, round(raw))

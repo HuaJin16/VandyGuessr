@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 import redis.asyncio as redis_lib
 import structlog
 
+from app.domains.games.difficulty import DEFAULT_DIFFICULTY
 from app.domains.locations.service import LocationService
 from app.domains.multiplayer.connection_manager import ConnectionManager
 from app.domains.multiplayer.entities import MultiplayerGuessEntity
@@ -403,13 +404,21 @@ class GameManager:
         distance = haversine(lat, lng, rd["actual_lat"], rd["actual_lng"])
 
         actual_building = rd.get("location_name")
-        guess_building = await self.location_service.resolve_location_name(lat, lng)
+        guess_building = await self.location_service.resolve_location_name(
+            lat,
+            lng,
+            difficulty=DEFAULT_DIFFICULTY,
+        )
         same_building = (
             actual_building is not None
             and guess_building is not None
             and actual_building == guess_building
         )
-        score = compute_score(distance, same_building=same_building)
+        score = compute_score(
+            distance,
+            same_building=same_building,
+            difficulty=DEFAULT_DIFFICULTY,
+        )
 
         guess = MultiplayerGuessEntity(
             lat=lat,
@@ -706,6 +715,10 @@ class GameManager:
             for i, s in enumerate(standings):
                 s["rank"] = i + 1
 
+            skip_event = asyncio.Event()
+            self._ready_events[game_id] = skip_event
+            self._ready_players[game_id] = set()
+
             await self.cm.broadcast(
                 game_id,
                 {
@@ -724,11 +737,10 @@ class GameManager:
 
             next_index = round_index + 1
             if next_index >= len(doc["rounds"]):
+                self._ready_events.pop(game_id, None)
+                self._ready_players.pop(game_id, None)
                 await self._complete_game(game_id)
             else:
-                skip_event = asyncio.Event()
-                self._ready_events[game_id] = skip_event
-                self._ready_players[game_id] = set()
                 with contextlib.suppress(TimeoutError):
                     await asyncio.wait_for(
                         skip_event.wait(), timeout=RESULTS_DISPLAY_SECONDS

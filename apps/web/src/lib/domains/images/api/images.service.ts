@@ -4,7 +4,7 @@
 
 import { apiClient } from "$lib/shared/api/client";
 import { getAccessToken } from "$lib/shared/auth/msalInstance";
-import type { CrowdSubmissionResponse, PendingSubmissionItem } from "../types";
+import type { CrowdSubmissionResponse, PendingSubmissionItem, TourImageItem } from "../types";
 
 const apiBase = () => import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -34,6 +34,13 @@ export const imagesService = {
 	listPendingModeration: () =>
 		apiClient
 			.get<{ items: PendingSubmissionItem[] }>("/v1/images/moderation/pending")
+			.then((r) => r.data.items),
+
+	listTour: (environment: "any" | "indoor" | "outdoor") =>
+		apiClient
+			.get<{ items: TourImageItem[] }>("/v1/images/tour", {
+				params: environment === "any" ? undefined : { environment },
+			})
 			.then((r) => r.data.items),
 
 	approveSubmission: (id: string) => apiClient.post(`/v1/images/moderation/${id}/approve`),

@@ -1,8 +1,12 @@
-"""Game API models for request/response schemas."""
+"""
+Game API models for request/response schemas.
+"""
 
 from typing import Literal
 
 from pydantic import BaseModel
+
+from app.domains.games.difficulty import DEFAULT_DIFFICULTY, Difficulty
 
 
 class GameModeRequest(BaseModel):
@@ -11,6 +15,16 @@ class GameModeRequest(BaseModel):
     timed: bool
     environment: Literal["indoor", "outdoor", "any"]
     daily: bool
+    difficulty: Difficulty = DEFAULT_DIFFICULTY
+
+
+class GameModeResponse(BaseModel):
+    """Game mode in the response."""
+
+    timed: bool
+    environment: str
+    daily: bool
+    difficulty: Difficulty
 
 
 class StartGameRequest(BaseModel):
@@ -70,14 +84,6 @@ class RoundResponse(BaseModel):
     guessedAt: str | None = None
     skipped: bool = False
     location_name: str | None = None
-
-
-class GameModeResponse(BaseModel):
-    """Game mode in the response."""
-
-    timed: bool
-    environment: str
-    daily: bool
 
 
 class GameResponse(BaseModel):

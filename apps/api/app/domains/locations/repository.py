@@ -10,7 +10,12 @@ from app.domains.locations.entities import LocationEntity
 class ILocationRepository(Protocol):
     """Protocol defining the location repository interface."""
 
-    async def find_by_coordinates(self, lng: float, lat: float) -> dict | None:
+    async def find_by_coordinates(
+        self,
+        lng: float,
+        lat: float,
+        max_distance_m: float = 15,
+    ) -> dict | None:
         """Find a location containing or nearest to the given coordinates."""
         ...
 
@@ -29,11 +34,16 @@ class LocationRepository:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.collection = db.locations
 
-    async def find_by_coordinates(self, lng: float, lat: float) -> dict | None:
+    async def find_by_coordinates(
+        self,
+        lng: float,
+        lat: float,
+        max_distance_m: float = 15,
+    ) -> dict | None:
         """Find a location containing or nearest to the given coordinates.
 
         Uses a two-step lookup: exact polygon intersection first,
-        then a 15m proximity fallback.
+        then a configurable proximity fallback.
         """
         point = {"type": "Point", "coordinates": [lng, lat]}
 
@@ -44,7 +54,11 @@ class LocationRepository:
             return result
 
         return await self.collection.find_one(
-            {"geometry": {"$near": {"$geometry": point, "$maxDistance": 15}}}
+            {
+                "geometry": {
+                    "$near": {"$geometry": point, "$maxDistance": max_distance_m}
+                }
+            }
         )
 
     async def upsert(self, location: LocationEntity) -> None:

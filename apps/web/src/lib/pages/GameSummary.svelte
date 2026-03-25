@@ -124,6 +124,25 @@ async function handleShare() {
 	}
 }
 
+function formatDifficultyLabel(difficulty: Game["mode"]["difficulty"]): string {
+	return difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+}
+
+function modeTags(game: Game): string[] {
+	const tags = [game.mode.timed ? "Timed" : "Untimed"];
+
+	if (game.mode.environment === "indoor") {
+		tags.push("Indoor");
+	} else if (game.mode.environment === "outdoor") {
+		tags.push("Outdoor");
+	}
+
+	tags.push(game.mode.daily ? "Daily" : "Random Drop");
+	tags.push(formatDifficultyLabel(game.mode.difficulty));
+
+	return tags;
+}
+
 let miniMapEls: HTMLDivElement[] = [];
 let mapsInitialized = false;
 
@@ -203,6 +222,11 @@ function initMiniMaps() {
 			<!-- Score Card -->
 			<section class="card">
 				<p class="section-label">Final Score</p>
+				<div class="mode-tags">
+					{#each modeTags(game) as tag}
+						<span class="mode-tag">{tag}</span>
+					{/each}
+				</div>
 				<div class="score-area">
 					<div class="score-left">
 						<div class="score-row">
@@ -320,6 +344,24 @@ function initMiniMaps() {
 	}
 
 	/* Score area */
+	.mode-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-top: 12px;
+	}
+
+	.mode-tag {
+		border-radius: var(--radius-pill);
+		background: var(--surface-raised, rgba(46, 147, 60, 0.1));
+		color: var(--ink);
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		padding: 5px 10px;
+		text-transform: uppercase;
+	}
+
 	.score-area {
 		margin-top: 12px;
 	}

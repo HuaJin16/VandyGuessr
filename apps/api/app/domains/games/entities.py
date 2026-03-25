@@ -58,7 +58,7 @@ class GameEntity(BaseModel):
 
     id: str | None = Field(default=None, alias="_id")
     user_id: str
-    mode: dict  # {"timed": bool, "environment": str, "daily": bool}
+    mode: dict  # {"timed": bool, "environment": str, "daily": bool, "difficulty": Difficulty}
     status: Literal["active", "completed", "abandoned"] = "active"
     rounds: list[RoundEntity] = Field(default_factory=list)
     total_score: int = 0
