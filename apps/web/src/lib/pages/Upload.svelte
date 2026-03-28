@@ -1,10 +1,11 @@
 <script lang="ts">
-import { imagesService } from "$lib/domains/images/api/images.service";
-import {
-	MISSING_GPS_MESSAGE,
-	fileHasGpsExif,
-	mapServerUploadError,
-} from "$lib/domains/images/exifPreflight";
+import { preflightUploadFile } from "$lib/domains/images/exifPreflight";
+import { submitUploadBatch } from "$lib/domains/images/submissionFlow";
+import type {
+	BatchSubmissionSummary,
+	UploadEnvironment,
+	UploadSelectionItem,
+} from "$lib/domains/images/types";
 import { auth } from "$lib/shared/auth/auth.store";
 import Navbar from "$lib/shared/components/Navbar.svelte";
 import TogglePills from "$lib/shared/components/TogglePills.svelte";
@@ -18,61 +19,99 @@ const environmentOptions = [
 	{ value: "indoor", label: "Indoor" },
 ] satisfies ToggleOption[];
 
-let environment: "indoor" | "outdoor" = "outdoor";
-let selectedFile: File | null = null;
-let preflightOk: boolean | null = null;
+let environment: UploadEnvironment = "outdoor";
+let selectedFiles: UploadSelectionItem[] = [];
 let preflightPending = false;
-let preflightError = "";
 let submitting = false;
+let submitProgressCurrent = 0;
+let submitProgressTotal = 0;
+let batchSummary: BatchSubmissionSummary | null = null;
+let selectionRunId = 0;
 
 let fileInput: HTMLInputElement;
 
+$: readyFiles = selectedFiles.filter((item) => item.preflightOk === true);
+$: rejectedFiles = selectedFiles.filter((item) => item.preflightOk === false);
+$: canSubmit = !preflightPending && !submitting && readyFiles.length > 0;
+
+function pluralizePhoto(count: number): string {
+	return `${count} photo${count === 1 ? "" : "s"}`;
+}
+
 async function onFileSelected(event: Event) {
 	const input = event.currentTarget as HTMLInputElement;
-	const file = input.files?.[0];
-	preflightError = "";
-	preflightOk = null;
-	selectedFile = null;
+	const files = Array.from(input.files ?? []);
+	const runId = ++selectionRunId;
+	batchSummary = null;
+	submitProgressCurrent = 0;
+	submitProgressTotal = 0;
 
-	if (!file) return;
-
-	const ext = file.name.includes(".") ? `.${file.name.split(".").pop()?.toLowerCase()}` : "";
-	const allowed = [".jpg", ".jpeg", ".png", ".heic"];
-	if (!allowed.includes(ext)) {
-		preflightError = "Use a JPEG, PNG, or HEIC photo.";
-		input.value = "";
+	if (!files.length) {
+		selectedFiles = [];
+		preflightPending = false;
 		return;
 	}
 
-	selectedFile = file;
+	const nextFiles: UploadSelectionItem[] = files.map((file, index) => ({
+		id: `${file.name}-${file.size}-${file.lastModified}-${index}`,
+		file,
+		preflightOk: null,
+		preflightError: "",
+	}));
+
+	selectedFiles = nextFiles;
 	preflightPending = true;
-	try {
-		const ok = await fileHasGpsExif(file);
-		preflightOk = ok;
-		if (!ok) preflightError = MISSING_GPS_MESSAGE;
-	} catch {
-		preflightOk = false;
-		preflightError = "Could not read this file. Try another photo.";
-	} finally {
-		preflightPending = false;
+
+	for (let i = 0; i < nextFiles.length; i += 1) {
+		if (selectionRunId !== runId) return;
+
+		const current = nextFiles[i];
+		const result = await preflightUploadFile(current.file);
+		if (selectionRunId !== runId) return;
+
+		nextFiles[i] = {
+			...current,
+			...result,
+		};
+
+		selectedFiles = [...nextFiles];
 	}
+
+	if (selectionRunId === runId) preflightPending = false;
 }
 
 async function submit() {
-	if (!selectedFile || !preflightOk || submitting) return;
+	if (!canSubmit) return;
+
 	submitting = true;
+	batchSummary = null;
+
 	try {
-		await imagesService.submitSubmission(selectedFile, environment);
-		toast.success("Thanks — we'll review your photo before it appears in games.");
-		selectedFile = null;
-		preflightOk = null;
-		preflightError = "";
+		const filesToSubmit = [...selectedFiles];
+		batchSummary = await submitUploadBatch({
+			items: filesToSubmit,
+			environment,
+			onProgress: ({ current, total }) => {
+				submitProgressCurrent = current;
+				submitProgressTotal = total;
+			},
+		});
+
+		if (batchSummary.failed === 0) {
+			toast.success(`Thanks — ${pluralizePhoto(batchSummary.succeeded)} submitted for review.`);
+		} else if (batchSummary.succeeded > 0) {
+			toast.warning(`${batchSummary.succeeded} succeeded, ${batchSummary.failed} failed.`);
+		} else {
+			toast.error("No photos were submitted. See details below.");
+		}
+
+		selectedFiles = [];
+		preflightPending = false;
 		if (fileInput) fileInput.value = "";
-	} catch (e: unknown) {
-		const msg = e instanceof Error ? mapServerUploadError(e.message) : "Upload failed.";
-		toast.error(msg);
 	} finally {
 		submitting = false;
+		submitProgressCurrent = 0;
+		submitProgressTotal = 0;
 	}
 }
 
@@ -94,12 +133,13 @@ onDestroy(unsub);
 				from when it was taken—enable location in your camera app. Screenshots usually won't work.
 			</p>
 
-			<div class="toggle-bar">
+			<div class="toggle-bar" class:toggle-bar--disabled={submitting}>
 				<TogglePills
 					ariaLabel="Photo environment"
 					selected={environment}
 					options={environmentOptions}
 					on:change={(event) => {
+						if (submitting) return;
 						if (event.detail === "indoor" || event.detail === "outdoor") {
 							environment = event.detail;
 						}
@@ -108,32 +148,79 @@ onDestroy(unsub);
 			</div>
 
 			<div class="field">
-				<label class="file-label" for="photo-upload">Photo file</label>
+				<label class="file-label" for="photo-upload">Photo files</label>
 				<input
 					id="photo-upload"
 					bind:this={fileInput}
 					class="file-input"
 					type="file"
 					accept="image/jpeg,image/png,image/heic,.heic,.jpg,.jpeg"
+					multiple
+					disabled={submitting}
 					on:change={onFileSelected}
 				/>
 			</div>
 
 			{#if preflightPending}
-				<p class="status status--muted">Checking location data in your photo…</p>
-			{:else if preflightOk === true && selectedFile}
-				<p class="status status--ok">Location data found. Ready to upload.</p>
-			{:else if preflightError}
-				<p class="status status--err" role="alert">{preflightError}</p>
+				<p class="status status--muted">
+					Checking location data in {pluralizePhoto(selectedFiles.length)}…
+				</p>
+			{:else if selectedFiles.length}
+				{#if readyFiles.length > 0}
+					<p class="status status--ok">
+						{readyFiles.length} ready to upload
+						{#if rejectedFiles.length > 0}
+							, {rejectedFiles.length} failed pre-check
+						{/if}
+						.
+					</p>
+				{:else}
+					<p class="status status--err" role="alert">No selected photos are uploadable yet.</p>
+				{/if}
+
+				{#if rejectedFiles.length > 0}
+					<ul class="status-list" role="alert">
+						{#each rejectedFiles as item (item.id)}
+							<li>
+								<span class="status-file">{item.file.name}</span>{item.preflightError}
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			{/if}
+
+			{#if batchSummary}
+				<section
+					class="result-summary"
+					data-tone={batchSummary.failed === 0 ? "success" : batchSummary.succeeded > 0 ? "warn" : "error"}
+				>
+					<p class="result-title">
+						Submission complete: {batchSummary.succeeded} succeeded, {batchSummary.failed}
+						failed out of {batchSummary.total}.
+					</p>
+					{#if batchSummary.failures.length > 0}
+						<ul class="status-list">
+							{#each batchSummary.failures as failure (failure.id)}
+								<li>
+									<span class="status-file">{failure.filename}</span>{failure.reason}
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</section>
 			{/if}
 
 			<button
 				class="btn-3d submit-btn"
 				type="button"
-				disabled={!selectedFile || preflightOk !== true || submitting}
+				disabled={!canSubmit}
 				on:click={submit}
 			>
-				{submitting ? "Uploading…" : "Submit for review"}
+				{submitting
+					? submitProgressTotal > 0
+						? `Uploading ${submitProgressCurrent}/${submitProgressTotal}…`
+						: "Uploading…"
+					: "Submit for review"}
 			</button>
 		</section>
 	</main>
@@ -175,6 +262,11 @@ onDestroy(unsub);
 		flex-wrap: wrap;
 	}
 
+	.toggle-bar--disabled {
+		pointer-events: none;
+		opacity: 0.65;
+	}
+
 	.field {
 		margin-top: 18px;
 	}
@@ -197,6 +289,21 @@ onDestroy(unsub);
 		line-height: 1.45;
 	}
 
+	.status-list {
+		margin: 8px 0 0;
+		padding-left: 18px;
+		display: grid;
+		gap: 6px;
+		font-size: 13px;
+		color: var(--muted);
+	}
+
+	.status-file {
+		font-weight: 600;
+		color: var(--ink);
+		margin-right: 6px;
+	}
+
 	.status--muted {
 		color: var(--muted);
 	}
@@ -208,6 +315,35 @@ onDestroy(unsub);
 
 	.status--err {
 		color: var(--danger, #b00020);
+	}
+
+	.result-summary {
+		margin-top: 14px;
+		padding: 12px;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-md);
+		background: var(--surface);
+	}
+
+	.result-summary[data-tone="success"] {
+		border-color: color-mix(in srgb, var(--success) 35%, var(--line));
+		background: color-mix(in srgb, var(--success-light) 35%, var(--surface));
+	}
+
+	.result-summary[data-tone="warn"] {
+		border-color: color-mix(in srgb, var(--warning-ink) 25%, var(--line));
+		background: color-mix(in srgb, var(--warning-light) 72%, var(--surface));
+	}
+
+	.result-summary[data-tone="error"] {
+		border-color: color-mix(in srgb, var(--danger) 35%, var(--line));
+		background: color-mix(in srgb, var(--danger-light) 55%, var(--surface));
+	}
+
+	.result-title {
+		margin: 0;
+		font-size: 14px;
+		font-weight: 600;
 	}
 
 	.submit-btn {
