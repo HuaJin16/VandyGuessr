@@ -60,10 +60,18 @@ export function createMultiplayerWs(options: MultiplayerWsOptions) {
 		};
 
 		ws.onmessage = (event) => {
+			let data: ServerMessage;
 			try {
-				const data = JSON.parse(event.data) as ServerMessage;
+				data = JSON.parse(event.data) as ServerMessage;
+			} catch (err) {
+				console.error("[multiplayer-ws] Failed to parse message:", err, event.data);
+				return;
+			}
+			try {
 				onMessage(data);
-			} catch {}
+			} catch (err) {
+				console.error("[multiplayer-ws] Error in message handler:", err);
+			}
 		};
 
 		ws.onclose = (event) => {

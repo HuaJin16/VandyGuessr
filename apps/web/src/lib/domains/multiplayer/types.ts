@@ -95,6 +95,7 @@ export interface PreviousRound {
 export interface GameStatePayload {
 	status: MultiplayerGameStatus;
 	currentRound: number;
+	totalRounds: number;
 	round: {
 		round: number;
 		imageUrl: string;
@@ -170,6 +171,7 @@ export interface GameCancelledMessage {
 export interface RoundStartMessage {
 	type: ServerEvent.RoundStart;
 	round: number;
+	totalRounds: number;
 	imageUrl: string;
 	expiresAt: string;
 }
@@ -228,6 +230,7 @@ export interface GameStateMessage {
 	type: ServerEvent.GameState;
 	status: MultiplayerGameStatus;
 	currentRound: number;
+	totalRounds: number;
 	round: { round: number; imageUrl: string; expiresAt: string | null } | null;
 	playersGuessed: string[];
 	hasGuessedThisRound: boolean;

@@ -285,6 +285,8 @@ class GameManager:
             del self._lobby_tasks[game_id]
         self._ready_events.pop(game_id, None)
         self._ready_players.pop(game_id, None)
+        for key in [k for k in self._rate_limits if k.startswith(f"{game_id}:")]:
+            del self._rate_limits[key]
 
     # ------------------------------------------------------------------
     # Event handlers
@@ -628,6 +630,7 @@ class GameManager:
             {
                 "type": ServerEvent.ROUND_START,
                 "round": round_index + 1,
+                "totalRounds": len(doc["rounds"]),
                 "imageUrl": rd["image_url"],
                 "expiresAt": _iso_utc(expires_at),
             },
@@ -1068,6 +1071,7 @@ class GameManager:
                 "type": ServerEvent.GAME_STATE,
                 "status": doc["status"],
                 "currentRound": current_round,
+                "totalRounds": len(doc["rounds"]),
                 "round": round_data,
                 "playersGuessed": players_guessed,
                 "hasGuessedThisRound": has_guessed,

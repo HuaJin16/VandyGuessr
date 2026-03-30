@@ -22,6 +22,7 @@ interface MultiplayerState {
 	game: MultiplayerGame | null;
 	phase: MultiplayerPhase;
 	currentRound: number;
+	totalRounds: number;
 	imageUrl: string | null;
 	expiresAt: string | null;
 	guessPosition: { lat: number; lng: number } | null;
@@ -38,6 +39,7 @@ const initial: MultiplayerState = {
 	game: null,
 	phase: "lobby",
 	currentRound: 0,
+	totalRounds: 0,
 	imageUrl: null,
 	expiresAt: null,
 	guessPosition: null,
@@ -63,11 +65,12 @@ function createMultiplayerStore() {
 		setPhase(phase: MultiplayerPhase) {
 			update((s) => ({ ...s, phase }));
 		},
-		startRound(round: number, imageUrl: string, expiresAt: string) {
+		startRound(round: number, totalRounds: number, imageUrl: string, expiresAt: string) {
 			update((s) => ({
 				...s,
 				phase: "playing",
 				currentRound: round,
+				totalRounds,
 				imageUrl,
 				expiresAt,
 				guessPosition: null,
@@ -128,6 +131,7 @@ function createMultiplayerStore() {
 		applyGameState(payload: {
 			status: MultiplayerGameStatus;
 			currentRound: number;
+			totalRounds: number;
 			round: { round: number; imageUrl: string; expiresAt: string | null } | null;
 			playersGuessed: string[];
 			hasGuessedThisRound: boolean;
@@ -151,6 +155,7 @@ function createMultiplayerStore() {
 				...s,
 				phase: payload.round ? "playing" : statusToPhase(payload.status),
 				currentRound: payload.currentRound,
+				totalRounds: payload.totalRounds,
 				imageUrl: payload.round?.imageUrl ?? null,
 				expiresAt: payload.round?.expiresAt ?? null,
 				playersGuessed: payload.playersGuessed,
