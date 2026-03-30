@@ -108,6 +108,8 @@ async function submit() {
 		selectedFiles = [];
 		preflightPending = false;
 		if (fileInput) fileInput.value = "";
+	} catch {
+		toast.error("Upload failed. Please try again.");
 	} finally {
 		submitting = false;
 		submitProgressCurrent = 0;
