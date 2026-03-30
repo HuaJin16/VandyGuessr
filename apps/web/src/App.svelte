@@ -6,6 +6,7 @@ import Home from "$lib/pages/Home.svelte";
 import Leaderboard from "$lib/pages/Leaderboard.svelte";
 import Login from "$lib/pages/Login.svelte";
 import MultiplayerGame from "$lib/pages/MultiplayerGame.svelte";
+import MultiplayerJoin from "$lib/pages/MultiplayerJoin.svelte";
 import MultiplayerLobby from "$lib/pages/MultiplayerLobby.svelte";
 import ReviewSubmissions from "$lib/pages/ReviewSubmissions.svelte";
 import Upload from "$lib/pages/Upload.svelte";
@@ -61,6 +62,7 @@ $: if (!$isLoading) {
     <Route path="/review/submissions" component={ReviewSubmissions} />
     <Route path="/login" component={Login} />
     {#if multiplayerEnabled}
+      <Route path="/multiplayer/join/:code" component={MultiplayerJoin} />
       <Route path="/multiplayer/:id/lobby" component={MultiplayerLobby} />
       <Route path="/multiplayer/:id" component={MultiplayerGame} />
     {/if}

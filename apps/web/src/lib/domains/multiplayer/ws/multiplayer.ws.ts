@@ -1,7 +1,7 @@
 import { auth } from "$lib/shared/auth/auth.store";
 import { getAccessToken } from "$lib/shared/auth/msalInstance";
 import { writable } from "svelte/store";
-import { ClientEvent, type ConnectionState, type ServerMessage } from "../types";
+import { ClientEvent, type ConnectionState, ServerEvent, type ServerMessage } from "../types";
 
 const WS_PROTOCOL_VERSION = 1;
 const MAX_RECONNECT_ATTEMPTS = 3;
@@ -65,6 +65,10 @@ export function createMultiplayerWs(options: MultiplayerWsOptions) {
 				data = JSON.parse(event.data) as ServerMessage;
 			} catch (err) {
 				console.error("[multiplayer-ws] Failed to parse message:", err, event.data);
+				return;
+			}
+			if (data.type === ServerEvent.Ping) {
+				send({ type: ClientEvent.Pong });
 				return;
 			}
 			try {

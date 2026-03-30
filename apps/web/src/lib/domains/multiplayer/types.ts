@@ -86,11 +86,7 @@ export interface RoundResult {
 	standings: Standing[];
 }
 
-export interface PreviousRound {
-	round: number;
-	score: number;
-	distanceMeters: number | null;
-}
+export type PreviousRound = RoundResult;
 
 export interface GameStatePayload {
 	status: MultiplayerGameStatus;
@@ -120,6 +116,7 @@ export enum ClientEvent {
 	ExtendLobby = "extend_lobby",
 	LeaveLobby = "leave_lobby",
 	ReadyNext = "ready_next",
+	Pong = "pong",
 }
 
 export enum ServerEvent {
@@ -138,6 +135,7 @@ export enum ServerEvent {
 	PlayerForfeited = "player_forfeited",
 	GameState = "game_state",
 	TokenExpiring = "token_expiring",
+	Ping = "ping",
 	Error = "error",
 }
 

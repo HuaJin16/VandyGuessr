@@ -365,11 +365,19 @@ onDestroy(() => {
 						</svg>
 						5 rounds
 					</span>
-					{#if game.mode?.environment && game.mode.environment !== "any"}
-						<span class="settings-pill">
-							{game.mode.environment === "indoor" ? "Indoor" : "Outdoor"}
-						</span>
-					{/if}
+					<span class="settings-pill" class:settings-pill-any={game.mode?.environment === "any"}>
+						<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z" />
+							<path d="M2 12h20" />
+							<path d="M12 2a15.3 15.3 0 0 1 0 20" />
+							<path d="M12 2a15.3 15.3 0 0 0 0 20" />
+						</svg>
+						{game.mode?.environment === "indoor"
+							? "Indoor only"
+							: game.mode?.environment === "outdoor"
+								? "Outdoor only"
+								: "All environments"}
+					</span>
 				</div>
 			</section>
 
@@ -456,6 +464,11 @@ onDestroy(() => {
 		border-radius: var(--radius-pill);
 		background: #f0ede6;
 		color: var(--muted);
+	}
+
+	.settings-pill-any {
+		background: color-mix(in srgb, var(--brand-light) 55%, #f0ede6);
+		color: color-mix(in srgb, var(--brand-dark) 75%, var(--muted));
 	}
 
 	.leave-btn {
