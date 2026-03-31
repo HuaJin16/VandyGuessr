@@ -3,7 +3,6 @@ export let currentRound: number;
 export let totalRounds: number;
 export let timeRemaining: number | null;
 export let totalScore: number;
-export let hasGuessed: boolean;
 export let playersGuessedCount: number;
 export let totalPlayers: number;
 

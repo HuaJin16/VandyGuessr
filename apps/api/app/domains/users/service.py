@@ -52,9 +52,6 @@ class UserService:
         """
         user_doc = await self.user_repository.find_by_microsoft_oid(oid)
         if user_doc:
-            if name and user_doc.get("name") != name:
-                await self.user_repository.update_name(oid, name)
-                user_doc["name"] = name
             return user_doc, False
 
         display_name = name or email.split("@")[0]
@@ -77,3 +74,13 @@ class UserService:
         user_doc["_id"] = user_id
 
         return user_doc, True
+
+    async def update_display_name(self, oid: str, email: str, name: str) -> dict:
+        """Ensure a user exists and update their display name."""
+        user_doc, _ = await self.get_or_create_user(oid=oid, email=email, name=name)
+
+        if user_doc.get("name") != name:
+            await self.user_repository.update_name(oid, name)
+            user_doc["name"] = name
+
+        return user_doc

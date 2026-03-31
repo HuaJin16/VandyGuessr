@@ -3,6 +3,7 @@
 from typing import Protocol
 
 from bson import ObjectId
+from bson.errors import InvalidId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.domains.games.entities import GameEntity
@@ -42,6 +43,19 @@ class GameRepository:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.collection = db.games
 
+    @staticmethod
+    def _object_id(game_id: str) -> ObjectId | None:
+        try:
+            return ObjectId(game_id)
+        except (InvalidId, TypeError):
+            return None
+
+    async def ensure_indexes(self) -> None:
+        await self.collection.create_index([("user_id", 1), ("status", 1)])
+        await self.collection.create_index([("user_id", 1), ("created_at", -1)])
+        await self.collection.create_index([("status", 1), ("created_at", -1)])
+        await self.collection.create_index([("status", 1), ("rounds.image_id", 1)])
+
     async def create(self, game: GameEntity) -> str:
         result = await self.collection.insert_one(
             game.model_dump(by_alias=True, exclude={"id"})
@@ -49,7 +63,10 @@ class GameRepository:
         return str(result.inserted_id)
 
     async def find_by_id(self, game_id: str) -> dict | None:
-        return await self.collection.find_one({"_id": ObjectId(game_id)})
+        object_id = self._object_id(game_id)
+        if object_id is None:
+            return None
+        return await self.collection.find_one({"_id": object_id})
 
     async def find_active_by_user(self, user_id: str) -> dict | None:
         return await self.collection.find_one({"user_id": user_id, "status": "active"})
@@ -72,13 +89,17 @@ class GameRepository:
     async def update_round(
         self, game_id: str, round_index: int, round_data: dict
     ) -> None:
+        object_id = self._object_id(game_id)
+        if object_id is None:
+            return
         update_fields = {f"rounds.{round_index}.{k}": v for k, v in round_data.items()}
-        await self.collection.update_one(
-            {"_id": ObjectId(game_id)}, {"$set": update_fields}
-        )
+        await self.collection.update_one({"_id": object_id}, {"$set": update_fields})
 
     async def update_game(self, game_id: str, update: dict) -> None:
-        await self.collection.update_one({"_id": ObjectId(game_id)}, {"$set": update})
+        object_id = self._object_id(game_id)
+        if object_id is None:
+            return
+        await self.collection.update_one({"_id": object_id}, {"$set": update})
 
     async def compute_score_distribution(
         self, image_id: str, score: int, bucket_count: int = 20

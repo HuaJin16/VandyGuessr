@@ -33,6 +33,10 @@ class UserRepository:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.collection = db.users
 
+    async def ensure_indexes(self) -> None:
+        await self.collection.create_index("microsoft_oid", unique=True)
+        await self.collection.create_index("username", unique=True)
+
     async def find_by_microsoft_oid(self, oid: str) -> dict | None:
         """Find a user by their Microsoft OID."""
         return await self.collection.find_one({"microsoft_oid": oid})

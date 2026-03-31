@@ -3,16 +3,21 @@ import { userQueries } from "$lib/domains/users/queries/users.queries";
 import { auth } from "$lib/shared/auth/auth.store";
 import { createQuery } from "@tanstack/svelte-query";
 import { History, LogOut, ShieldCheck, Trophy as TrophyIcon } from "lucide-svelte";
+import { navigate } from "svelte-routing";
 import logo from "../../../assets/logo.webp";
 
 export let activePage: "home" | "leaderboard" | "history" | "review" | undefined = undefined;
 
 $: me = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
+
+function go(path: string) {
+	navigate(path);
+}
 </script>
 
 <header class="sticky top-0 z-50 border-b border-line bg-surface">
 	<div class="mx-auto flex min-h-[48px] items-center justify-between gap-3 px-2 sm:min-h-[52px] sm:px-3" style="width: min(1180px, calc(100% - 32px));">
-		<a href="/" class="flex items-center gap-2.5">
+		<a href="/" class="flex items-center gap-2.5" on:click|preventDefault={() => go("/")}>
 			<img src={logo} alt="VandyGuessr" class="h-[34px] w-[34px] rounded-md" />
 			<span class="hidden text-lg font-extrabold text-ink sm:block">VandyGuessr</span>
 		</a>
@@ -21,6 +26,7 @@ $: me = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
 			{#if $me.data?.can_review_submissions}
 				<a
 					href="/review/submissions"
+					on:click|preventDefault={() => go("/review/submissions")}
 					class="flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-[7px] text-[13px] font-semibold transition-all {activePage === 'review'
 						? 'border-brand bg-brand-light text-brand'
 						: 'bg-surface text-ink hover:border-brand hover:bg-brand-light hover:text-brand'}"
@@ -32,6 +38,7 @@ $: me = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
 			{/if}
 			<a
 				href="/history"
+				on:click|preventDefault={() => go("/history")}
 				class="flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-[7px] text-[13px] font-semibold transition-all {activePage === 'history'
 					? 'border-brand bg-brand-light text-brand'
 					: 'bg-surface text-ink hover:border-brand hover:bg-brand-light hover:text-brand'}"
@@ -42,6 +49,7 @@ $: me = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
 			</a>
 			<a
 				href="/leaderboard"
+				on:click|preventDefault={() => go("/leaderboard")}
 				class="flex items-center gap-1.5 rounded-sm border border-line px-2.5 py-[7px] text-[13px] font-semibold transition-all {activePage === 'leaderboard'
 					? 'border-brand bg-brand-light text-brand'
 					: 'bg-surface text-ink hover:border-brand hover:bg-brand-light hover:text-brand'}"

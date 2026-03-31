@@ -11,8 +11,6 @@ export interface User {
 	can_review_submissions: boolean;
 }
 
-export interface UpdateProfileDto {
-	username?: string;
-	name?: string;
-	avatar_url?: string | null;
+export interface UpdateProfileRequest {
+	name: string;
 }

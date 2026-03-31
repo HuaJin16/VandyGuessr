@@ -45,7 +45,6 @@ $: standings = $multiplayerStore.standings;
 $: submitting = $multiplayerStore.submitting;
 $: remaining = $timeRemaining;
 
-let winnerId = "";
 let finalStandings: Standing[] = [];
 let finalRounds: GameOverRound[] = [];
 let timerInterval: ReturnType<typeof setInterval> | null = null;
@@ -158,7 +157,6 @@ function handleMessage(msg: ServerMessage) {
 				rounds: GameOverRound[];
 			};
 			stopTimerTick();
-			winnerId = data.winnerId;
 			finalStandings = data.standings;
 			finalRounds = data.rounds ?? [];
 			multiplayerStore.setGameOver(data.standings, finalRounds);
@@ -409,7 +407,6 @@ onDestroy(() => {
 	<MultiplayerSummary
 		standings={finalStandings}
 		rounds={finalRounds}
-		{winnerId}
 		{currentUserId}
 		hostId={$multiplayerStore.game?.hostId ?? ""}
 		on:rematch={requestRematch}
@@ -447,7 +444,6 @@ onDestroy(() => {
 					totalRounds={$multiplayerStore.totalRounds}
 					timeRemaining={displayTime}
 					totalScore={currentUserScore}
-					{hasGuessed}
 					playersGuessedCount={$multiplayerStore.playersGuessed.length}
 					{totalPlayers}
 				/>

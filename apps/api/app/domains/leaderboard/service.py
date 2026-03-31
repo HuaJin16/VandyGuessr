@@ -1,7 +1,8 @@
 """Leaderboard service for ranking and caching."""
 
 import json
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import redis.asyncio as redis
 import structlog
@@ -10,7 +11,7 @@ from app.domains.leaderboard.repository import ILeaderboardRepository
 
 logger = structlog.get_logger()
 
-CST = timezone(timedelta(hours=-6))
+CHICAGO_TZ = ZoneInfo("America/Chicago")
 CACHE_TTLS = {"daily": 300, "weekly": 300, "alltime": 900}
 
 
@@ -29,6 +30,10 @@ class LeaderboardService:
     ) -> None:
         self.leaderboard_repo = leaderboard_repository
         self.redis = redis_client
+
+    @staticmethod
+    def _now_local() -> datetime:
+        return datetime.now(tz=CHICAGO_TZ)
 
     async def get_leaderboard(
         self,
@@ -85,7 +90,7 @@ class LeaderboardService:
         if timeframe == "alltime":
             return None, None
 
-        now_cst = datetime.now(tz=CST)
+        now_cst = self._now_local()
         if timeframe == "daily":
             start_cst = now_cst.replace(hour=0, minute=0, second=0, microsecond=0)
             end_cst = start_cst + timedelta(days=1)

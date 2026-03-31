@@ -5,7 +5,6 @@ import type { GameOverRound, RoundPlayerResult, Standing } from "../types";
 
 export let standings: Standing[];
 export let rounds: GameOverRound[] = [];
-export let winnerId: string;
 export let currentUserId: string;
 export let hostId: string;
 const dispatch = createEventDispatcher<{ home: undefined; rematch: undefined }>();

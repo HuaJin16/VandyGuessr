@@ -2,6 +2,8 @@
 
 from typing import Protocol
 
+from bson import ObjectId
+from bson.errors import InvalidId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.domains.images.entities import ImageEntity
@@ -42,7 +44,18 @@ class ImageRepository:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.collection = db.images
 
+    @staticmethod
+    def _object_id(image_id: str) -> ObjectId | None:
+        try:
+            return ObjectId(image_id)
+        except (InvalidId, TypeError):
+            return None
+
     async def ensure_indexes(self) -> None:
+        await self.collection.create_index([("environment", 1), ("created_at", -1)])
+        await self.collection.create_index(
+            [("submitted_by_user_id", 1), ("submitted_at", -1)]
+        )
         await self.collection.create_index(
             [("moderation_status", 1), ("created_at", -1)]
         )
@@ -79,9 +92,9 @@ class ImageRepository:
 
     async def find_by_ids(self, image_ids: list[str]) -> list[dict]:
         """Return image documents matching the given IDs."""
-        from bson import ObjectId
-
-        oids = [ObjectId(iid) for iid in image_ids]
+        oids = [oid for iid in image_ids if (oid := self._object_id(iid)) is not None]
+        if not oids:
+            return []
         cursor = self.collection.find({"_id": {"$in": oids}})
         return await cursor.to_list(length=len(image_ids))
 
@@ -95,9 +108,10 @@ class ImageRepository:
         return await cursor.to_list(length=limit)
 
     async def find_by_id(self, image_id: str) -> dict | None:
-        from bson import ObjectId
-
-        return await self.collection.find_one({"_id": ObjectId(image_id)})
+        object_id = self._object_id(image_id)
+        if object_id is None:
+            return None
+        return await self.collection.find_one({"_id": object_id})
 
     async def update_moderation(
         self,
@@ -108,12 +122,13 @@ class ImageRepository:
     ) -> bool:
         from datetime import UTC, datetime
 
-        from bson import ObjectId
-
         if moderation_status not in ("approved", "rejected"):
             return False
+        object_id = self._object_id(image_id)
+        if object_id is None:
+            return False
         result = await self.collection.update_one(
-            {"_id": ObjectId(image_id), "moderation_status": "pending"},
+            {"_id": object_id, "moderation_status": "pending"},
             {
                 "$set": {
                     "moderation_status": moderation_status,

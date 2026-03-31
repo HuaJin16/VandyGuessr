@@ -40,12 +40,10 @@ function handleKeydown(e: KeyboardEvent) {
 <svelte:window on:keydown={open ? handleKeydown : undefined} />
 
 {#if open}
-	<!-- svelte-ignore a11y-click-events-have-key-events -->
-	<!-- svelte-ignore a11y-no-static-element-interactions -->
-	<div class="backdrop" on:click={onCancel}>
+	<div class="backdrop">
+		<button class="backdrop-hit" type="button" aria-label="Close dialog" on:click={onCancel} />
 		<div
 			class="dialog"
-			on:click|stopPropagation
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="confirm-dialog-title"
@@ -111,7 +109,16 @@ function handleKeydown(e: KeyboardEvent) {
 		backdrop-filter: blur(4px);
 	}
 
+	.backdrop-hit {
+		position: absolute;
+		inset: 0;
+		border: none;
+		background: transparent;
+		cursor: default;
+	}
+
 	.dialog {
+		position: relative;
 		width: 100%;
 		max-width: 28rem;
 		margin: 0 16px;

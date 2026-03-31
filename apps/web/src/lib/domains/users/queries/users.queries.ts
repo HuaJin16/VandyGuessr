@@ -10,9 +10,4 @@ export const userQueries = {
 		queryFn: () => usersService.getMe(),
 		staleTime: 5 * 60 * 1000, // 5 minutes
 	}),
-
-	byId: (id: string) => ({
-		queryKey: ["users", id] as const,
-		queryFn: () => usersService.getById(id),
-	}),
 };

@@ -28,15 +28,31 @@ logger = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Manage application lifespan events."""
+    settings = get_settings()
+
+    async def ensure_indexes() -> None:
+        from app.container import container
+        from app.domains.games.daily import DailyChallengeRepository
+        from app.domains.games.repository import GameRepository
+        from app.domains.images.repository import ImageRepository
+        from app.domains.locations.repository import LocationRepository
+        from app.domains.multiplayer.repository import MultiplayerGameRepository
+        from app.domains.users.repository import UserRepository
+
+        await container.resolve(ImageRepository).ensure_indexes()
+        await container.resolve(LocationRepository).ensure_indexes()
+        await container.resolve(GameRepository).ensure_indexes()
+        await container.resolve(UserRepository).ensure_indexes()
+        await container.resolve(DailyChallengeRepository).ensure_indexes()
+
+        if settings.feature_multiplayer:
+            await container.resolve(MultiplayerGameRepository).ensure_indexes()
+
     # Startup
     await connect_to_mongo()
-    from app.container import container
-    from app.domains.images.repository import ImageRepository
-
-    await container.resolve(ImageRepository).ensure_indexes()
+    await ensure_indexes()
     await connect_to_redis()
 
-    settings = get_settings()
     if settings.feature_multiplayer:
         logger.info("multiplayer_runtime_lazy_init")
 

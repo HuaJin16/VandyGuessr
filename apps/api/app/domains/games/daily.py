@@ -2,14 +2,16 @@
 
 import hashlib
 import random
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from typing import Protocol
+from zoneinfo import ZoneInfo
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 
 DAILY_SALT = "vandyguessr-daily-2025"
 ROUNDS_PER_GAME = 5
+CHICAGO_TZ = ZoneInfo("America/Chicago")
 
 
 class DailyChallengeEntity(BaseModel):
@@ -32,6 +34,9 @@ class IDailyChallengeRepository(Protocol):
 class DailyChallengeRepository:
     def __init__(self, db: AsyncIOMotorDatabase) -> None:
         self.collection = db.daily_challenges
+
+    async def ensure_indexes(self) -> None:
+        await self.collection.create_index("date", unique=True)
 
     async def find_by_date(self, date_str: str) -> dict | None:
         return await self.collection.find_one({"date": date_str})
@@ -56,8 +61,5 @@ def pick_daily_images(date_str: str, all_image_ids: list[str]) -> list[str]:
 
 
 def today_cst() -> str:
-    """Return today's date string in CST (UTC-6)."""
-    from datetime import timedelta
-
-    cst = timezone(timedelta(hours=-6))
-    return datetime.now(tz=cst).strftime("%Y-%m-%d")
+    """Return today's date string in America/Chicago."""
+    return datetime.now(tz=CHICAGO_TZ).strftime("%Y-%m-%d")
