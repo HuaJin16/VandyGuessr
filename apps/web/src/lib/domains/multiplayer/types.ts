@@ -105,6 +105,7 @@ export interface GameStatePayload {
 		status: PlayerStatus;
 		totalScore: number;
 	}>;
+	readyPlayers: string[];
 	previousRounds: PreviousRound[];
 }
 
@@ -117,19 +118,27 @@ export enum ClientEvent {
 	LeaveLobby = "leave_lobby",
 	ReadyNext = "ready_next",
 	Pong = "pong",
+	ReadyUp = "ready_up",
+	Unready = "unready",
+	Kick = "kick",
+	RequestRematch = "request_rematch",
 }
 
 export enum ServerEvent {
 	PlayerJoined = "player_joined",
 	PlayerLeft = "player_left",
+	PlayerReady = "player_ready",
+	PlayerUnready = "player_unready",
 	GameStarting = "game_starting",
 	GameCancelled = "game_cancelled",
+	Kicked = "kicked",
 	LobbyExpiring = "lobby_expiring",
 	RoundStart = "round_start",
 	PlayerGuessed = "player_guessed",
 	GuessAccepted = "guess_accepted",
 	RoundResult = "round_result",
 	GameOver = "game_over",
+	RematchStarting = "rematch_starting",
 	PlayerDisconnected = "player_disconnected",
 	PlayerReconnected = "player_reconnected",
 	PlayerForfeited = "player_forfeited",
@@ -156,6 +165,16 @@ export interface PlayerLeftMessage {
 	playerCount: number;
 }
 
+export interface PlayerReadyMessage {
+	type: ServerEvent.PlayerReady;
+	userId: string;
+}
+
+export interface PlayerUnreadyMessage {
+	type: ServerEvent.PlayerUnready;
+	userId: string;
+}
+
 export interface GameStartingMessage {
 	type: ServerEvent.GameStarting;
 	countdown: number;
@@ -164,6 +183,10 @@ export interface GameStartingMessage {
 export interface GameCancelledMessage {
 	type: ServerEvent.GameCancelled;
 	reason: string;
+}
+
+export interface KickedMessage {
+	type: ServerEvent.Kicked;
 }
 
 export interface RoundStartMessage {
@@ -208,6 +231,13 @@ export interface GameOverMessage {
 	rounds: GameOverRound[];
 }
 
+export interface RematchStartingMessage {
+	type: ServerEvent.RematchStarting;
+	newGameId: string;
+	inviteCode: string;
+	includedUserIds: string[];
+}
+
 export interface PlayerDisconnectedMessage {
 	type: ServerEvent.PlayerDisconnected;
 	userId: string;
@@ -238,6 +268,7 @@ export interface GameStateMessage {
 		status: PlayerStatus;
 		totalScore: number;
 	}>;
+	readyPlayers: string[];
 	previousRounds: PreviousRound[];
 }
 

@@ -185,6 +185,17 @@ function handleMessage(msg: ServerMessage) {
 			}
 			break;
 		}
+		case ServerEvent.RematchStarting: {
+			const data = msg as unknown as { newGameId: string; includedUserIds: string[] };
+			if (!data.includedUserIds.includes(currentUserId)) {
+				toast.info("Rematch started without you");
+				break;
+			}
+			toast.success("Rematch lobby ready");
+			ws?.close();
+			navigate(`/multiplayer/${data.newGameId}/lobby`, { replace: true });
+			break;
+		}
 		case ServerEvent.GameState: {
 			const data = msg as unknown as {
 				status: "waiting" | "active" | "completed" | "cancelled" | "abandoned";
@@ -200,6 +211,7 @@ function handleMessage(msg: ServerMessage) {
 					status: "connected" | "disconnected" | "forfeited";
 					totalScore: number;
 				}>;
+				readyPlayers: string[];
 			};
 			if (data.status === "cancelled" || data.status === "abandoned") {
 				toast.error("Game is no longer active");
@@ -329,6 +341,12 @@ function goHome() {
 	navigate("/", { replace: true });
 }
 
+function requestRematch() {
+	if (!ws?.send({ type: ClientEvent.RequestRematch })) {
+		toast.error("Not connected. Try reconnecting.");
+	}
+}
+
 $: currentUserId = $auth.account?.localAccountId ?? "";
 $: totalPlayers =
 	$multiplayerStore.game?.players.filter((player) => player.status !== "forfeited").length ?? 0;
@@ -381,6 +399,8 @@ onDestroy(() => {
 		rounds={finalRounds}
 		{winnerId}
 		{currentUserId}
+		hostId={$multiplayerStore.game?.hostId ?? ""}
+		on:rematch={requestRematch}
 		on:home={goHome}
 	/>
 {:else if phase === "results" && roundResult}

@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
+import redis.asyncio as redis
 import structlog
 from pydantic import ValidationError
 
@@ -16,6 +17,7 @@ from app.domains.games.difficulty import DEFAULT_DIFFICULTY, Difficulty
 from app.domains.games.entities import GameEntity, RoundEntity, RoundTilesEntity
 from app.domains.games.repository import IGameRepository
 from app.domains.images.repository import IImageRepository
+from app.domains.leaderboard.cache import invalidate_leaderboard_cache
 from app.domains.locations.service import LocationService
 from app.shared.scoring import compute_score, haversine
 
@@ -48,11 +50,13 @@ class GameService:
         image_repository: IImageRepository,
         daily_challenge_repository: IDailyChallengeRepository,
         location_service: LocationService,
+        redis_client: redis.Redis,
     ) -> None:
         self.game_repo = game_repository
         self.image_repo = image_repository
         self.daily_repo = daily_challenge_repository
         self.location_service = location_service
+        self.redis = redis_client
 
     @staticmethod
     def _round_tiles(image_doc: dict) -> RoundTilesEntity | None:
@@ -232,6 +236,9 @@ class GameService:
         await self.game_repo.update_game(game_id, game_update)
 
         if game_update.get("status") == "completed":
+            await invalidate_leaderboard_cache(self.redis)
+
+        if game_update.get("status") == "completed":
             doc["total_score"] = new_total
 
         logger.info(
@@ -260,6 +267,7 @@ class GameService:
             game_id,
             {"status": "completed", "last_activity_at": now},
         )
+        await invalidate_leaderboard_cache(self.redis)
 
         logger.info("game_ended_early", game_id=game_id, user_id=user_id)
 
@@ -394,6 +402,7 @@ class GameService:
                 doc["_id"], {"status": "completed", "last_activity_at": now}
             )
             doc["status"] = "completed"
+            await invalidate_leaderboard_cache(self.redis)
             logger.info("game_auto_completed", game_id=doc["_id"])
 
         await self.game_repo.update_game(doc["_id"], {"last_activity_at": now})

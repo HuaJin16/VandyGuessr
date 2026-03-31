@@ -7,7 +7,8 @@ export let standings: Standing[];
 export let rounds: GameOverRound[] = [];
 export let winnerId: string;
 export let currentUserId: string;
-const dispatch = createEventDispatcher<{ home: undefined }>();
+export let hostId: string;
+const dispatch = createEventDispatcher<{ home: undefined; rematch: undefined }>();
 
 const playerColors = [
 	"var(--p-you)",
@@ -68,6 +69,8 @@ $: roundBreakdown = rounds.map((round) => {
 		barPercent,
 	};
 });
+
+$: isHost = hostId === currentUserId;
 </script>
 
 <div class="min-h-screen bg-canvas">
@@ -190,6 +193,14 @@ $: roundBreakdown = rounds.map((round) => {
 
 		<!-- Actions -->
 		<div class="grid gap-1.5">
+			{#if isHost}
+				<button
+					class="btn-3d w-full text-center text-[15px]"
+					on:click={() => dispatch("rematch")}
+				>
+					Rematch
+				</button>
+			{/if}
 			<a href="/" class="btn-3d block w-full text-center text-[15px] no-underline">
 				New Game
 			</a>

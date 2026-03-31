@@ -34,6 +34,7 @@ $: if ($gameQuery.data && !hydratedFromQuery) {
 
 $: game = $lobbyStore.game;
 $: players = $lobbyStore.players;
+$: readyPlayers = $lobbyStore.readyPlayers;
 $: lobbyStatus = $lobbyStore.status;
 
 $: if (game?.status === "active") {
@@ -66,6 +67,16 @@ function handleMessage(msg: ServerMessage) {
 			lobbyStore.removePlayer(data.userId);
 			break;
 		}
+		case ServerEvent.PlayerReady: {
+			const data = msg as unknown as { userId: string };
+			lobbyStore.setPlayerReady(data.userId);
+			break;
+		}
+		case ServerEvent.PlayerUnready: {
+			const data = msg as unknown as { userId: string };
+			lobbyStore.setPlayerUnready(data.userId);
+			break;
+		}
 		case ServerEvent.PlayerDisconnected: {
 			const data = msg as unknown as { userId: string };
 			lobbyStore.updatePlayerStatus(data.userId, "disconnected");
@@ -89,6 +100,12 @@ function handleMessage(msg: ServerMessage) {
 			setTimeout(() => navigate("/", { replace: true }), 2000);
 			break;
 		}
+		case ServerEvent.Kicked: {
+			toast.error("You were removed from the lobby by the host");
+			ws?.close();
+			navigate("/", { replace: true });
+			break;
+		}
 		case ServerEvent.GameState: {
 			const data = msg as unknown as {
 				status: "waiting" | "active" | "completed" | "cancelled" | "abandoned";
@@ -98,6 +115,7 @@ function handleMessage(msg: ServerMessage) {
 					status: MultiplayerPlayer["status"];
 					totalScore: number;
 				}>;
+				readyPlayers: string[];
 			};
 
 			if (data.status === "active") {
@@ -123,6 +141,7 @@ function handleMessage(msg: ServerMessage) {
 					};
 				}),
 			);
+			lobbyStore.setReadyPlayers(data.readyPlayers ?? []);
 			break;
 		}
 		case ServerEvent.LobbyExpiring: {
@@ -193,6 +212,21 @@ function startGame() {
 	}
 }
 
+function toggleReady() {
+	const eventType = readyPlayers.includes(currentUserId)
+		? ClientEvent.Unready
+		: ClientEvent.ReadyUp;
+	if (!ws?.send({ type: eventType })) {
+		toast.error("Not connected. Try reconnecting.");
+	}
+}
+
+function kickPlayer(userId: string) {
+	if (!ws?.send({ type: ClientEvent.Kick, userId })) {
+		toast.error("Not connected. Try reconnecting.");
+	}
+}
+
 function extendLobby() {
 	if (!ws?.send({ type: ClientEvent.ExtendLobby })) {
 		toast.error("Not connected. Try reconnecting.");
@@ -211,6 +245,10 @@ function reconnect() {
 
 $: isHost = game?.hostId === $auth.account?.localAccountId;
 $: currentUserId = $auth.account?.localAccountId ?? "";
+$: connectedPlayers = players.filter((player) => player.status === "connected");
+$: allConnectedReady =
+	connectedPlayers.length >= 2 &&
+	connectedPlayers.every((player) => readyPlayers.includes(player.userId));
 
 function getInitials(name: string): string {
 	return name
@@ -345,7 +383,15 @@ onDestroy(() => {
 				{/if}
 			{/if}
 
-			<LobbyPlayerList {players} hostId={game.hostId} {currentUserId} />
+			<LobbyPlayerList
+				{players}
+				hostId={game.hostId}
+				{currentUserId}
+				{readyPlayers}
+				showReadyToggle={connectionState !== "disconnected"}
+				on:toggleReady={toggleReady}
+				on:kick={(event) => kickPlayer(event.detail.userId)}
+			/>
 
 			<!-- Settings -->
 			<section class="card">
@@ -388,11 +434,22 @@ onDestroy(() => {
 				{:else if isHost}
 					<button
 						class="btn-3d w-full text-center"
-						disabled={players.length < 2}
+						disabled={!allConnectedReady}
 						on:click={startGame}
 					>
-						{players.length < 2 ? "Waiting for players..." : "Start Game"}
+						{#if connectedPlayers.length < 2}
+							Waiting for players...
+						{:else if !allConnectedReady}
+							Waiting for ready checks...
+						{:else}
+							Start Game
+						{/if}
 					</button>
+					{#if connectedPlayers.length >= 2 && !allConnectedReady}
+						<p class="py-1 text-center text-xs font-medium text-[var(--muted)]">
+							{connectedPlayers.filter((player) => readyPlayers.includes(player.userId)).length}/{connectedPlayers.length} ready
+						</p>
+					{/if}
 					{#if lobbyExpiring}
 						<button class="leave-btn" on:click={extendLobby}>Extend Lobby</button>
 					{/if}

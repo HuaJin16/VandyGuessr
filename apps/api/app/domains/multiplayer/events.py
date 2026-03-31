@@ -12,14 +12,21 @@ class ClientEvent(StrEnum):
     LEAVE_LOBBY = "leave_lobby"
     READY_NEXT = "ready_next"
     PONG = "pong"
+    READY_UP = "ready_up"
+    UNREADY = "unready"
+    KICK = "kick"
+    REQUEST_REMATCH = "request_rematch"
 
 
 class ServerEvent(StrEnum):
     # Lobby
     PLAYER_JOINED = "player_joined"
     PLAYER_LEFT = "player_left"
+    PLAYER_READY = "player_ready"
+    PLAYER_UNREADY = "player_unready"
     GAME_STARTING = "game_starting"
     GAME_CANCELLED = "game_cancelled"
+    KICKED = "kicked"
     LOBBY_EXPIRING = "lobby_expiring"
     # Gameplay
     ROUND_START = "round_start"
@@ -27,6 +34,7 @@ class ServerEvent(StrEnum):
     GUESS_ACCEPTED = "guess_accepted"
     ROUND_RESULT = "round_result"
     GAME_OVER = "game_over"
+    REMATCH_STARTING = "rematch_starting"
     # Connection
     PLAYER_DISCONNECTED = "player_disconnected"
     PLAYER_RECONNECTED = "player_reconnected"
