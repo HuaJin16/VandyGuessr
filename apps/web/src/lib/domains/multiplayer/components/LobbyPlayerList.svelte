@@ -1,10 +1,18 @@
 <script lang="ts">
+import { createEventDispatcher } from "svelte";
 import type { MultiplayerPlayer } from "../types";
 
 export let players: MultiplayerPlayer[];
 export let hostId: string;
 export let currentUserId: string;
-export let maxPlayers = 6;
+export let maxPlayers = 10;
+export let readyPlayers: string[] = [];
+export let showReadyToggle = true;
+
+const dispatch = createEventDispatcher<{
+	toggleReady: undefined;
+	kick: { userId: string };
+}>();
 
 const PLAYER_COLORS = [
 	"var(--p-you)",
@@ -36,6 +44,15 @@ function getInitials(name: string): string {
 }
 
 $: emptySlots = Math.max(0, maxPlayers - players.length);
+$: currentUserReady = readyPlayers.includes(currentUserId);
+
+function handleKick(userId: string) {
+	dispatch("kick", { userId });
+}
+
+function toggleReady() {
+	dispatch("toggleReady");
+}
 </script>
 
 <section class="card p-0 sm:p-0">
@@ -50,6 +67,8 @@ $: emptySlots = Math.max(0, maxPlayers - players.length);
 		{#each players as player, i (player.userId)}
 			{@const isYou = player.userId === currentUserId}
 			{@const isHost = player.userId === hostId}
+			{@const isReady = readyPlayers.includes(player.userId)}
+			{@const canKick = hostId === currentUserId && !isHost}
 			{@const color = getColor(i, player.userId)}
 			<div
 				class="player-row"
@@ -72,13 +91,27 @@ $: emptySlots = Math.max(0, maxPlayers - players.length);
 				{#if isYou}
 					<span class="badge badge-you">You</span>
 				{/if}
+				{#if isReady}
+					<span class="badge badge-ready">Ready</span>
+				{/if}
 				{#if player.status === "disconnected"}
 					<span class="text-xs font-medium text-[var(--muted)]">Reconnecting...</span>
 				{:else if player.status === "forfeited"}
 					<span class="text-xs font-medium text-[var(--danger)]">Left</span>
 				{/if}
+				{#if canKick}
+					<button class="kick-btn" on:click={() => handleKick(player.userId)} aria-label={`Kick ${player.name}`}>
+						Kick
+					</button>
+				{/if}
 			</div>
 		{/each}
+
+		{#if showReadyToggle && players.some((player) => player.userId === currentUserId)}
+			<button class="ready-btn" class:ready={currentUserReady} on:click={toggleReady}>
+				{currentUserReady ? "Unready" : "Ready"}
+			</button>
+		{/if}
 
 		{#each Array(emptySlots) as _}
 			<div class="empty-row">
@@ -169,6 +202,44 @@ $: emptySlots = Math.max(0, maxPlayers - players.length);
 	.badge-you {
 		background: var(--brand-light);
 		color: var(--brand-dark);
+	}
+
+	.badge-ready {
+		background: #dff3e3;
+		color: #20723a;
+	}
+
+	.ready-btn {
+		border: none;
+		border-radius: var(--radius-md);
+		background: #e7efe9;
+		color: var(--muted);
+		font-size: 13px;
+		font-weight: 700;
+		padding: 10px 14px;
+		cursor: pointer;
+		transition: all 120ms var(--ease);
+	}
+
+	.ready-btn.ready {
+		background: #dff3e3;
+		color: #20723a;
+	}
+
+	.kick-btn {
+		border: 1px solid rgba(220, 74, 58, 0.35);
+		background: var(--danger-light);
+		color: var(--danger-ink);
+		font-size: 11px;
+		font-weight: 700;
+		padding: 4px 8px;
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+		transition: all 120ms var(--ease);
+	}
+
+	.kick-btn:hover {
+		background: #f6d9d6;
 	}
 
 	.empty-row {

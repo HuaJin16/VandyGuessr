@@ -1,6 +1,7 @@
 """Multiplayer game manager handling real-time gameplay orchestration."""
 
 import asyncio
+import contextlib
 import json
 import time
 from datetime import UTC, datetime, timedelta
@@ -9,12 +10,17 @@ import redis.asyncio as redis_lib
 import structlog
 
 from app.domains.games.difficulty import DEFAULT_DIFFICULTY
+from app.domains.leaderboard.cache import invalidate_leaderboard_cache
 from app.domains.locations.service import LocationService
 from app.domains.multiplayer.connection_manager import ConnectionManager
 from app.domains.multiplayer.entities import MultiplayerGuessEntity
 from app.domains.multiplayer.events import ClientEvent, ServerEvent
 from app.domains.multiplayer.repository import IMultiplayerGameRepository
-from app.domains.multiplayer.service import LOBBY_TTL_SECONDS, MAX_LOBBY_EXTENSIONS
+from app.domains.multiplayer.service import (
+    LOBBY_TTL_SECONDS,
+    MAX_LOBBY_EXTENSIONS,
+    MultiplayerService,
+)
 from app.shared.scoring import compute_score, haversine
 
 logger = structlog.get_logger()
@@ -39,11 +45,13 @@ class GameManager:
         repository: IMultiplayerGameRepository,
         connection_manager: ConnectionManager,
         location_service: LocationService,
+        multiplayer_service: MultiplayerService,
         redis_client: redis_lib.Redis,
     ) -> None:
         self.repo = repository
         self.cm = connection_manager
         self.location_service = location_service
+        self.multiplayer_service = multiplayer_service
         self.redis = redis_client
         self._round_locks: dict[str, asyncio.Lock] = {}
         self._timer_tasks: dict[str, asyncio.Task] = {}
@@ -53,6 +61,7 @@ class GameManager:
         self._rate_limits: dict[str, list[float]] = {}
         self._ready_events: dict[str, asyncio.Event] = {}
         self._ready_players: dict[str, set[str]] = {}
+        self._lobby_ready: dict[str, set[str]] = {}
 
     def _get_lock(self, game_id: str) -> asyncio.Lock:
         if game_id not in self._round_locks:
@@ -162,6 +171,26 @@ class GameManager:
             await self._handle_ready_next(game_id, user_id)
         elif event == ClientEvent.PONG:
             self.cm.mark_pong(game_id, user_id)
+        elif event == ClientEvent.READY_UP:
+            await self._handle_ready_up(game_id, user_id)
+        elif event == ClientEvent.UNREADY:
+            await self._handle_unready(game_id, user_id)
+        elif event == ClientEvent.KICK:
+            target_user_id = data.get("userId")
+            if not isinstance(target_user_id, str) or not target_user_id.strip():
+                await self.cm.send_to_player(
+                    game_id,
+                    user_id,
+                    {
+                        "type": ServerEvent.ERROR,
+                        "code": "MISSING_FIELD",
+                        "message": "userId is required for kick",
+                    },
+                )
+                return
+            await self._handle_kick(game_id, user_id, target_user_id)
+        elif event == ClientEvent.REQUEST_REMATCH:
+            await self._handle_request_rematch(game_id, user_id)
         elif event == ClientEvent.REFRESH_TOKEN:
             pass  # Token refresh handled at WS layer
 
@@ -229,6 +258,18 @@ class GameManager:
         if self.cm.has_local_connection(game_id, user_id):
             return
 
+        if doc["status"] == "waiting":
+            lobby_ready = self._lobby_ready.setdefault(game_id, set())
+            if user_id in lobby_ready:
+                lobby_ready.discard(user_id)
+                await self.cm.broadcast(
+                    game_id,
+                    {
+                        "type": ServerEvent.PLAYER_UNREADY,
+                        "userId": user_id,
+                    },
+                )
+
         await self.repo.update_player(
             game_id,
             user_id,
@@ -292,6 +333,8 @@ class GameManager:
         self._ready_players.pop(game_id, None)
         for key in [k for k in self._rate_limits if k.startswith(f"{game_id}:")]:
             del self._rate_limits[key]
+        self._lobby_ready.pop(game_id, None)
+        self._lobby_ready.pop(game_id, None)
 
     # ------------------------------------------------------------------
     # Event handlers
@@ -339,6 +382,19 @@ class GameManager:
             )
             return
 
+        lobby_ready = self._lobby_ready.setdefault(game_id, set())
+        if any(player["user_id"] not in lobby_ready for player in active_players):
+            await self.cm.send_to_player(
+                game_id,
+                user_id,
+                {
+                    "type": ServerEvent.ERROR,
+                    "code": "INVALID_ACTION",
+                    "message": "All players must be ready before starting",
+                },
+            )
+            return
+
         if game_id in self._lobby_tasks:
             self._lobby_tasks[game_id].cancel()
             del self._lobby_tasks[game_id]
@@ -364,6 +420,10 @@ class GameManager:
         if len(active_players) < 2:
             return
 
+        lobby_ready = self._lobby_ready.setdefault(game_id, set())
+        if any(player["user_id"] not in lobby_ready for player in active_players):
+            return
+
         now = datetime.now(UTC)
         started = await self.repo.update_game_if_status(
             game_id,
@@ -379,6 +439,7 @@ class GameManager:
         if not started:
             return
 
+        self._lobby_ready.pop(game_id, None)
         await self._start_round(game_id, 0)
 
     async def _handle_submit_guess(
@@ -564,6 +625,8 @@ class GameManager:
         await self.repo.remove_player(game_id, user_id)
         await self.repo.update_game(game_id, {"last_activity_at": datetime.now(UTC)})
 
+        self._lobby_ready.setdefault(game_id, set()).discard(user_id)
+
         reconnect_key = f"{game_id}:{user_id}"
         if reconnect_key in self._reconnect_tasks:
             self._reconnect_tasks[reconnect_key].cancel()
@@ -591,6 +654,210 @@ class GameManager:
 
         doc = await self._load(game_id)
         await self._maybe_release_ready_event(game_id, doc)
+
+    async def _handle_ready_up(self, game_id: str, user_id: str) -> None:
+        doc = await self._load(game_id)
+        if not doc or doc["status"] != "waiting":
+            return
+
+        is_player = any(p["user_id"] == user_id for p in doc["players"])
+        if not is_player:
+            return
+
+        ready = self._lobby_ready.setdefault(game_id, set())
+        if user_id in ready:
+            return
+
+        ready.add(user_id)
+        await self.repo.update_game(game_id, {"last_activity_at": datetime.now(UTC)})
+        await self.cm.broadcast(
+            game_id,
+            {
+                "type": ServerEvent.PLAYER_READY,
+                "userId": user_id,
+            },
+        )
+
+    async def _handle_unready(self, game_id: str, user_id: str) -> None:
+        doc = await self._load(game_id)
+        if not doc or doc["status"] != "waiting":
+            return
+
+        ready = self._lobby_ready.setdefault(game_id, set())
+        if user_id not in ready:
+            return
+
+        ready.discard(user_id)
+        await self.repo.update_game(game_id, {"last_activity_at": datetime.now(UTC)})
+        await self.cm.broadcast(
+            game_id,
+            {
+                "type": ServerEvent.PLAYER_UNREADY,
+                "userId": user_id,
+            },
+        )
+
+    async def _handle_kick(
+        self, game_id: str, user_id: str, target_user_id: str
+    ) -> None:
+        doc = await self._load(game_id)
+        if not doc:
+            return
+
+        if doc["status"] != "waiting":
+            await self.cm.send_to_player(
+                game_id,
+                user_id,
+                {
+                    "type": ServerEvent.ERROR,
+                    "code": "INVALID_ACTION",
+                    "message": "Kick is only available in the lobby",
+                },
+            )
+            return
+
+        if doc["host_id"] != user_id:
+            await self.cm.send_to_player(
+                game_id,
+                user_id,
+                {
+                    "type": ServerEvent.ERROR,
+                    "code": "UNAUTHORIZED",
+                    "message": "Only the host can kick players",
+                },
+            )
+            return
+
+        if target_user_id == doc["host_id"]:
+            await self.cm.send_to_player(
+                game_id,
+                user_id,
+                {
+                    "type": ServerEvent.ERROR,
+                    "code": "INVALID_ACTION",
+                    "message": "Host cannot be kicked",
+                },
+            )
+            return
+
+        target = next(
+            (p for p in doc["players"] if p["user_id"] == target_user_id), None
+        )
+        if not target:
+            return
+
+        await self.repo.remove_player(game_id, target_user_id)
+        await self.repo.update_game(game_id, {"last_activity_at": datetime.now(UTC)})
+
+        self._lobby_ready.setdefault(game_id, set()).discard(target_user_id)
+
+        reconnect_key = f"{game_id}:{target_user_id}"
+        if reconnect_key in self._reconnect_tasks:
+            self._reconnect_tasks[reconnect_key].cancel()
+            del self._reconnect_tasks[reconnect_key]
+
+        await self.cm.send_to_player(
+            game_id,
+            target_user_id,
+            {
+                "type": ServerEvent.KICKED,
+            },
+        )
+
+        target_ws = self.cm.get_local_connections(game_id).get(target_user_id)
+        if target_ws:
+            with contextlib.suppress(Exception):
+                await target_ws.close(code=4011, reason="Kicked by host")
+
+        fresh = await self._load(game_id)
+        player_count = (
+            len(fresh["players"]) if fresh else max(0, len(doc["players"]) - 1)
+        )
+        await self.cm.broadcast(
+            game_id,
+            {
+                "type": ServerEvent.PLAYER_LEFT,
+                "userId": target_user_id,
+                "playerCount": player_count,
+            },
+        )
+
+    async def _handle_request_rematch(self, game_id: str, user_id: str) -> None:
+        doc = await self._load(game_id)
+        if not doc:
+            return
+
+        if doc["status"] != "completed":
+            await self.cm.send_to_player(
+                game_id,
+                user_id,
+                {
+                    "type": ServerEvent.ERROR,
+                    "code": "INVALID_ACTION",
+                    "message": "Rematch is only available after the game ends",
+                },
+            )
+            return
+
+        if doc["host_id"] != user_id:
+            await self.cm.send_to_player(
+                game_id,
+                user_id,
+                {
+                    "type": ServerEvent.ERROR,
+                    "code": "UNAUTHORIZED",
+                    "message": "Only the host can start a rematch",
+                },
+            )
+            return
+
+        host_player = next((p for p in doc["players"] if p["user_id"] == user_id), None)
+        if not host_player:
+            return
+
+        mode = doc.get("mode", {})
+        environment = mode.get("environment", "any")
+        new_game = await self.multiplayer_service.create_game(
+            host_id=user_id,
+            host_name=host_player.get("name") or "Player",
+            avatar_url=host_player.get("avatar_url"),
+            environment=environment,
+        )
+
+        new_game_id = new_game["_id"]
+        invite_code = new_game["invite_code"]
+        included_user_ids = {user_id}
+
+        for player in doc["players"]:
+            player_id = player["user_id"]
+            if player_id == user_id:
+                continue
+
+            try:
+                await self.multiplayer_service.join_game(
+                    user_id=player_id,
+                    name=player.get("name") or "Player",
+                    avatar_url=player.get("avatar_url"),
+                    code=invite_code,
+                )
+                included_user_ids.add(player_id)
+            except Exception:
+                logger.warning(
+                    "rematch_player_join_failed",
+                    game_id=game_id,
+                    new_game_id=new_game_id,
+                    user_id=player_id,
+                )
+
+        await self.cm.broadcast(
+            game_id,
+            {
+                "type": ServerEvent.REMATCH_STARTING,
+                "newGameId": new_game_id,
+                "inviteCode": invite_code,
+                "includedUserIds": list(included_user_ids),
+            },
+        )
 
     # ------------------------------------------------------------------
     # Round lifecycle
@@ -719,6 +986,8 @@ class GameManager:
                 "last_activity_at": datetime.now(UTC),
             },
         )
+
+        await invalidate_leaderboard_cache(self.redis)
 
         player_distances: dict[str, float] = {}
         player_times: dict[str, float] = {}
@@ -1076,6 +1345,13 @@ class GameManager:
             for p in doc["players"]
         ]
 
+        ready_players = [
+            p["user_id"]
+            for p in doc["players"]
+            if p["status"] == "connected"
+            and p["user_id"] in self._lobby_ready.get(game_id, set())
+        ]
+
         await self.cm.send_to_player(
             game_id,
             user_id,
@@ -1088,6 +1364,7 @@ class GameManager:
                 "playersGuessed": players_guessed,
                 "hasGuessedThisRound": has_guessed,
                 "players": players,
+                "readyPlayers": ready_players,
                 "previousRounds": previous_rounds,
             },
         )

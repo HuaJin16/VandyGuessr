@@ -10,6 +10,7 @@ function toLobbyStatus(status: MultiplayerGame["status"]): LobbyStatus {
 interface LobbyState {
 	game: MultiplayerGame | null;
 	players: MultiplayerPlayer[];
+	readyPlayers: string[];
 	countdown: number | null;
 	status: LobbyStatus;
 }
@@ -17,6 +18,7 @@ interface LobbyState {
 const initial: LobbyState = {
 	game: null,
 	players: [],
+	readyPlayers: [],
 	countdown: null,
 	status: "waiting",
 };
@@ -31,13 +33,32 @@ function createLobbyStore() {
 				...s,
 				game,
 				players: game.players,
+				readyPlayers: [],
 				status: toLobbyStatus(game.status),
+			}));
+		},
+		setReadyPlayers(readyPlayers: string[]) {
+			update((s) => ({ ...s, readyPlayers }));
+		},
+		setPlayerReady(userId: string) {
+			update((s) => ({
+				...s,
+				readyPlayers: s.readyPlayers.includes(userId)
+					? s.readyPlayers
+					: [...s.readyPlayers, userId],
+			}));
+		},
+		setPlayerUnready(userId: string) {
+			update((s) => ({
+				...s,
+				readyPlayers: s.readyPlayers.filter((id) => id !== userId),
 			}));
 		},
 		setPlayers(players: MultiplayerPlayer[]) {
 			update((s) => ({
 				...s,
 				players,
+				readyPlayers: s.readyPlayers.filter((id) => players.some((p) => p.userId === id)),
 				game: s.game ? { ...s.game, players } : s.game,
 			}));
 		},
@@ -58,6 +79,7 @@ function createLobbyStore() {
 				return {
 					...s,
 					players,
+					readyPlayers: s.readyPlayers.filter((id) => id !== userId),
 					game: s.game ? { ...s.game, players } : s.game,
 				};
 			});

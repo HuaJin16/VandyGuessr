@@ -23,7 +23,7 @@ logger = structlog.get_logger()
 ROUNDS_PER_GAME = 5
 INVITE_CODE_LENGTH = 6
 INVITE_CODE_CHARS = string.ascii_uppercase + string.digits
-MAX_PLAYERS = 5
+MAX_PLAYERS = 10
 LOBBY_TTL_SECONDS = 600
 MAX_LOBBY_EXTENSIONS = 6
 
