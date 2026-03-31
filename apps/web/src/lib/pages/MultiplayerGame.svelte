@@ -80,11 +80,12 @@ function handleMessage(msg: ServerMessage) {
 		case ServerEvent.RoundStart: {
 			const data = msg as unknown as {
 				round: number;
+				totalRounds: number;
 				imageUrl: string;
 				expiresAt: string;
 			};
 			readySent = false;
-			multiplayerStore.startRound(data.round, data.imageUrl, data.expiresAt);
+			multiplayerStore.startRound(data.round, data.totalRounds, data.imageUrl, data.expiresAt);
 			startTimerTick();
 			break;
 		}
@@ -166,6 +167,7 @@ function handleMessage(msg: ServerMessage) {
 			const data = msg as unknown as {
 				status: "waiting" | "active" | "completed" | "cancelled" | "abandoned";
 				currentRound: number;
+				totalRounds: number;
 				round: { round: number; imageUrl: string; expiresAt: string | null } | null;
 				playersGuessed: string[];
 				hasGuessedThisRound: boolean;
@@ -379,7 +381,7 @@ onDestroy(() => {
 			<div class="hud-center">
 				<MultiplayerHud
 					{currentRound}
-					totalRounds={5}
+					totalRounds={$multiplayerStore.totalRounds}
 					timeRemaining={displayTime}
 					totalScore={currentUserScore}
 					{hasGuessed}
@@ -428,7 +430,7 @@ onDestroy(() => {
 				<div class="dialog-stats">
 					<div class="text-center">
 						<p class="dialog-stat-label">Rounds</p>
-						<p class="dialog-stat-value">{currentRound}/5</p>
+						<p class="dialog-stat-value">{currentRound}/{$multiplayerStore.totalRounds}</p>
 					</div>
 					<div class="text-center">
 						<p class="dialog-stat-label">Score</p>
