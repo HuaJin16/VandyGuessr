@@ -32,6 +32,7 @@ COUNTDOWN_SECONDS = 3
 LOBBY_EXPIRY_WARNING_SECONDS = 300
 RATE_LIMIT_MAX = 10
 RATE_LIMIT_WINDOW = 1.0
+REMATCH_LOCK_TTL_SECONDS = 120
 
 
 def _iso_utc(value: datetime) -> str:
@@ -121,6 +122,37 @@ class GameManager:
                 },
             )
             return
+
+        if event not in (ClientEvent.PONG, ClientEvent.REFRESH_TOKEN):
+            doc = await self._load(game_id)
+            if not doc:
+                await self.cm.send_to_player(
+                    game_id,
+                    user_id,
+                    {
+                        "type": ServerEvent.ERROR,
+                        "code": "INVALID_ACTION",
+                        "message": "Game not found",
+                    },
+                )
+                return
+
+            if not any(p["user_id"] == user_id for p in doc["players"]):
+                await self.cm.send_to_player(
+                    game_id,
+                    user_id,
+                    {
+                        "type": ServerEvent.ERROR,
+                        "code": "UNAUTHORIZED",
+                        "message": "You are not a participant in this game",
+                    },
+                )
+
+                ws = self.cm.get_local_connections(game_id).get(user_id)
+                if ws:
+                    with contextlib.suppress(Exception):
+                        await ws.close(code=4003, reason="Not a participant")
+                return
 
         if event == ClientEvent.START_GAME:
             await self._handle_start_game(game_id, user_id)
@@ -333,7 +365,6 @@ class GameManager:
         self._ready_players.pop(game_id, None)
         for key in [k for k in self._rate_limits if k.startswith(f"{game_id}:")]:
             del self._rate_limits[key]
-        self._lobby_ready.pop(game_id, None)
         self._lobby_ready.pop(game_id, None)
 
     # ------------------------------------------------------------------
@@ -811,53 +842,88 @@ class GameManager:
             )
             return
 
-        host_player = next((p for p in doc["players"] if p["user_id"] == user_id), None)
-        if not host_player:
+        rematch_lock_key = f"mp:rematch:{game_id}"
+        acquired = await self.redis.set(
+            rematch_lock_key,
+            user_id,
+            ex=REMATCH_LOCK_TTL_SECONDS,
+            nx=True,
+        )
+        if not acquired:
+            await self.cm.send_to_player(
+                game_id,
+                user_id,
+                {
+                    "type": ServerEvent.ERROR,
+                    "code": "INVALID_ACTION",
+                    "message": "Rematch is already starting",
+                },
+            )
             return
 
-        mode = doc.get("mode", {})
-        environment = mode.get("environment", "any")
-        new_game = await self.multiplayer_service.create_game(
-            host_id=user_id,
-            host_name=host_player.get("name") or "Player",
-            avatar_url=host_player.get("avatar_url"),
-            environment=environment,
-        )
+        host_player = next((p for p in doc["players"] if p["user_id"] == user_id), None)
+        if not host_player:
+            with contextlib.suppress(Exception):
+                await self.redis.delete(rematch_lock_key)
+            return
 
-        new_game_id = new_game["_id"]
-        invite_code = new_game["invite_code"]
-        included_user_ids = {user_id}
+        try:
+            mode = doc.get("mode", {})
+            environment = mode.get("environment", "any")
+            new_game = await self.multiplayer_service.create_game(
+                host_id=user_id,
+                host_name=host_player.get("name") or "Player",
+                avatar_url=host_player.get("avatar_url"),
+                environment=environment,
+            )
 
-        for player in doc["players"]:
-            player_id = player["user_id"]
-            if player_id == user_id:
-                continue
+            new_game_id = new_game["_id"]
+            invite_code = new_game["invite_code"]
+            included_user_ids = {user_id}
 
-            try:
-                await self.multiplayer_service.join_game(
-                    user_id=player_id,
-                    name=player.get("name") or "Player",
-                    avatar_url=player.get("avatar_url"),
-                    code=invite_code,
-                )
-                included_user_ids.add(player_id)
-            except Exception:
-                logger.warning(
-                    "rematch_player_join_failed",
-                    game_id=game_id,
-                    new_game_id=new_game_id,
-                    user_id=player_id,
-                )
+            for player in doc["players"]:
+                player_id = player["user_id"]
+                if player_id == user_id:
+                    continue
 
-        await self.cm.broadcast(
-            game_id,
-            {
-                "type": ServerEvent.REMATCH_STARTING,
-                "newGameId": new_game_id,
-                "inviteCode": invite_code,
-                "includedUserIds": list(included_user_ids),
-            },
-        )
+                try:
+                    await self.multiplayer_service.join_game(
+                        user_id=player_id,
+                        name=player.get("name") or "Player",
+                        avatar_url=player.get("avatar_url"),
+                        code=invite_code,
+                    )
+                    included_user_ids.add(player_id)
+                except Exception:
+                    logger.warning(
+                        "rematch_player_join_failed",
+                        game_id=game_id,
+                        new_game_id=new_game_id,
+                        user_id=player_id,
+                    )
+
+            await self.cm.broadcast(
+                game_id,
+                {
+                    "type": ServerEvent.REMATCH_STARTING,
+                    "newGameId": new_game_id,
+                    "inviteCode": invite_code,
+                    "includedUserIds": list(included_user_ids),
+                },
+            )
+        except Exception:
+            with contextlib.suppress(Exception):
+                await self.redis.delete(rematch_lock_key)
+            logger.exception("rematch_start_failed", game_id=game_id, user_id=user_id)
+            await self.cm.send_to_player(
+                game_id,
+                user_id,
+                {
+                    "type": ServerEvent.ERROR,
+                    "code": "INVALID_ACTION",
+                    "message": "Unable to start rematch right now",
+                },
+            )
 
     # ------------------------------------------------------------------
     # Round lifecycle

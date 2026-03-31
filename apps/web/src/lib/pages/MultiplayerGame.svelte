@@ -60,6 +60,13 @@ let pendingRoundStart: {
 	expiresAt: string;
 } | null = null;
 
+function secondsUntilDeadline(deadline: string | undefined): number {
+	if (!deadline) return 30;
+	const msRemaining = new Date(deadline).getTime() - Date.now();
+	if (Number.isNaN(msRemaining)) return 30;
+	return Math.max(0, Math.ceil(msRemaining / 1000));
+}
+
 function applyRoundStart(data: {
 	round: number;
 	totalRounds: number;
@@ -158,12 +165,13 @@ function handleMessage(msg: ServerMessage) {
 			break;
 		}
 		case ServerEvent.PlayerDisconnected: {
-			const data = msg as unknown as { userId: string };
+			const data = msg as unknown as { userId: string; reconnectDeadline?: string };
 			const player = $multiplayerStore.game?.players.find((p) => p.userId === data.userId);
 			if (player) {
+				const timer = secondsUntilDeadline(data.reconnectDeadline);
 				disconnectedPlayers = [
 					...disconnectedPlayers.filter((p) => p.userId !== data.userId),
-					{ userId: data.userId, name: player.name, timer: 30 },
+					{ userId: data.userId, name: player.name, timer },
 				];
 				startDisconnectCountdown(data.userId);
 			}
@@ -323,7 +331,11 @@ function handleTimerExpiry() {
 
 function sendReadyNext() {
 	if (readySent) return;
-	ws?.send({ type: ClientEvent.ReadyNext });
+	const sent = ws?.send({ type: ClientEvent.ReadyNext });
+	if (!sent) {
+		toast.error("Not connected. Try reconnecting.");
+		return;
+	}
 	readySent = true;
 	if (pendingRoundStart) {
 		applyRoundStart(pendingRoundStart);

@@ -237,8 +237,6 @@ class GameService:
 
         if game_update.get("status") == "completed":
             await invalidate_leaderboard_cache(self.redis)
-
-        if game_update.get("status") == "completed":
             doc["total_score"] = new_total
 
         logger.info(
