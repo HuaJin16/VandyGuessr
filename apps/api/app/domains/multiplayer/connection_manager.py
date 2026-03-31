@@ -10,7 +10,13 @@ import structlog
 from redis.asyncio.client import PubSub
 from starlette.websockets import WebSocket, WebSocketState
 
+from app.domains.multiplayer.events import ServerEvent
+
 logger = structlog.get_logger()
+
+HEARTBEAT_INTERVAL_SECONDS = 15
+HEARTBEAT_SEND_TIMEOUT_SECONDS = 10
+PONG_TIMEOUT_SECONDS = HEARTBEAT_INTERVAL_SECONDS * 2
 
 
 class ConnectionManager:
@@ -22,6 +28,7 @@ class ConnectionManager:
         self._subscribed_channels: set[str] = set()
         self._listener_task: asyncio.Task | None = None
         self._heartbeat_tasks: dict[str, asyncio.Task] = {}
+        self._last_pong_at: dict[str, float] = {}
         self._subscription_lock = asyncio.Lock()
 
     async def start(self) -> None:
@@ -47,6 +54,7 @@ class ConnectionManager:
             with contextlib.suppress(asyncio.CancelledError):
                 await task
         self._heartbeat_tasks.clear()
+        self._last_pong_at.clear()
 
         if self._pubsub:
             if self._subscribed_channels:
@@ -92,6 +100,7 @@ class ConnectionManager:
         hb_key = f"{game_id}:{user_id}"
         if hb_key in self._heartbeat_tasks:
             self._heartbeat_tasks[hb_key].cancel()
+        self._last_pong_at[hb_key] = asyncio.get_running_loop().time()
         self._heartbeat_tasks[hb_key] = asyncio.create_task(
             self._heartbeat(game_id, user_id, ws)
         )
@@ -110,6 +119,7 @@ class ConnectionManager:
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await task
+        self._last_pong_at.pop(hb_key, None)
 
         del self._local[game_id][user_id]
         if not self._local[game_id]:
@@ -160,6 +170,11 @@ class ConnectionManager:
 
     def has_local_connection(self, game_id: str, user_id: str) -> bool:
         return game_id in self._local and user_id in self._local[game_id]
+
+    def mark_pong(self, game_id: str, user_id: str) -> None:
+        hb_key = f"{game_id}:{user_id}"
+        if hb_key in self._heartbeat_tasks:
+            self._last_pong_at[hb_key] = asyncio.get_running_loop().time()
 
     async def _safe_send(self, ws: WebSocket, data: str) -> None:
         try:
@@ -219,15 +234,28 @@ class ConnectionManager:
                 await asyncio.sleep(1)
 
     async def _heartbeat(self, game_id: str, user_id: str, ws: WebSocket) -> None:
+        hb_key = f"{game_id}:{user_id}"
         try:
             while True:
-                await asyncio.sleep(15)
+                await asyncio.sleep(HEARTBEAT_INTERVAL_SECONDS)
                 if ws.client_state != WebSocketState.CONNECTED:
                     break
                 try:
-                    await asyncio.wait_for(ws.send_json({"type": "ping"}), timeout=10)
+                    await asyncio.wait_for(
+                        ws.send_json({"type": ServerEvent.PING}),
+                        timeout=HEARTBEAT_SEND_TIMEOUT_SECONDS,
+                    )
                 except (TimeoutError, Exception):
                     logger.info("heartbeat_failed", game_id=game_id, user_id=user_id)
+                    with contextlib.suppress(Exception):
+                        await ws.close(code=1001, reason="Heartbeat failed")
+                    break
+                now = asyncio.get_running_loop().time()
+                last_pong_at = self._last_pong_at.get(hb_key, now)
+                if now - last_pong_at > PONG_TIMEOUT_SECONDS:
+                    logger.info("pong_timeout", game_id=game_id, user_id=user_id)
+                    with contextlib.suppress(Exception):
+                        await ws.close(code=1001, reason="Pong timeout")
                     break
         except asyncio.CancelledError:
             pass

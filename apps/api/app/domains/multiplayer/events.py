@@ -11,6 +11,7 @@ class ClientEvent(StrEnum):
     EXTEND_LOBBY = "extend_lobby"
     LEAVE_LOBBY = "leave_lobby"
     READY_NEXT = "ready_next"
+    PONG = "pong"
 
 
 class ServerEvent(StrEnum):
@@ -32,4 +33,5 @@ class ServerEvent(StrEnum):
     PLAYER_FORFEITED = "player_forfeited"
     GAME_STATE = "game_state"
     TOKEN_EXPIRING = "token_expiring"
+    PING = "ping"
     ERROR = "error"

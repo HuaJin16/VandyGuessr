@@ -1,14 +1,63 @@
 <script lang="ts">
+import { toast } from "svelte-sonner";
+
 export let code: string;
 
 let copied = false;
+let copiedLink = false;
+
+function getErrorMessage(error: unknown): string {
+	if (error instanceof Error && error.message) {
+		return error.message;
+	}
+	return "Clipboard is not available on this device";
+}
+
+async function copyText(value: string) {
+	if (navigator.clipboard?.writeText) {
+		await navigator.clipboard.writeText(value);
+		return;
+	}
+
+	const textArea = document.createElement("textarea");
+	textArea.value = value;
+	textArea.setAttribute("readonly", "");
+	textArea.style.position = "fixed";
+	textArea.style.opacity = "0";
+	document.body.append(textArea);
+	textArea.select();
+
+	const copied = document.execCommand("copy");
+	textArea.remove();
+
+	if (!copied) {
+		throw new Error("Clipboard is not available on this device");
+	}
+}
 
 async function copyCode() {
-	await navigator.clipboard.writeText(code);
-	copied = true;
-	setTimeout(() => {
-		copied = false;
-	}, 2000);
+	try {
+		await copyText(code);
+		copied = true;
+		setTimeout(() => {
+			copied = false;
+		}, 2000);
+	} catch (error) {
+		toast.error(getErrorMessage(error));
+	}
+}
+
+async function copyLink() {
+	try {
+		const link = `${window.location.origin}/multiplayer/join/${code}`;
+		await copyText(link);
+		copiedLink = true;
+		setTimeout(() => {
+			copiedLink = false;
+		}, 2000);
+	} catch (error) {
+		toast.error(getErrorMessage(error));
+	}
 }
 
 $: chars = code.split("");
@@ -23,21 +72,38 @@ $: chars = code.split("");
 		{/each}
 	</div>
 
-	<button class="copy-btn mt-3.5" type="button" on:click={copyCode}>
-		<svg
-			class="h-3.5 w-3.5"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<rect x="9" y="9" width="13" height="13" rx="2" />
-			<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-		</svg>
-		{copied ? "Copied!" : "Copy Code"}
-	</button>
+	<div class="actions mt-3.5">
+		<button class="copy-btn" type="button" on:click={copyCode}>
+			<svg
+				class="h-3.5 w-3.5"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
+				<rect x="9" y="9" width="13" height="13" rx="2" />
+				<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+			</svg>
+			{copied ? "Copied!" : "Copy Code"}
+		</button>
+		<button class="copy-btn" type="button" on:click={copyLink}>
+			<svg
+				class="h-3.5 w-3.5"
+				viewBox="0 0 24 24"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
+				<path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07L11.7 5.24" />
+				<path d="M14 11a5 5 0 0 0-7.54-.54l-2.92 2.92a5 5 0 1 0 7.07 7.07l1.69-1.69" />
+			</svg>
+			{copiedLink ? "Copied!" : "Copy Link"}
+		</button>
+	</div>
 </section>
 
 <style>
@@ -68,6 +134,13 @@ $: chars = code.split("");
 
 	.code-char:hover {
 		transform: translateY(-2px);
+	}
+
+	.actions {
+		display: flex;
+		justify-content: center;
+		gap: 8px;
+		flex-wrap: wrap;
 	}
 
 	.copy-btn {

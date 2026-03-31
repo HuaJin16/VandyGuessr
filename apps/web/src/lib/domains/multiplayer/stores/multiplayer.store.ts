@@ -6,6 +6,7 @@ import type {
 	MultiplayerGameStatus,
 	MultiplayerPhase,
 	MultiplayerPlayer,
+	PreviousRound,
 	RoundResult,
 	Standing,
 } from "../types";
@@ -135,6 +136,7 @@ function createMultiplayerStore() {
 			round: { round: number; imageUrl: string; expiresAt: string | null } | null;
 			playersGuessed: string[];
 			hasGuessedThisRound: boolean;
+			previousRounds: PreviousRound[];
 			players: Array<{
 				userId: string;
 				name: string;
@@ -142,6 +144,13 @@ function createMultiplayerStore() {
 				totalScore: number;
 			}>;
 		}) {
+			const latestResolvedRound =
+				payload.previousRounds.length > 0
+					? payload.previousRounds[payload.previousRounds.length - 1]
+					: null;
+			const shouldShowResults =
+				!payload.round && payload.status === "active" && latestResolvedRound;
+
 			const standings = [...payload.players]
 				.sort((a, b) => b.totalScore - a.totalScore)
 				.map((player, index) => ({
@@ -153,13 +162,18 @@ function createMultiplayerStore() {
 
 			update((s) => ({
 				...s,
-				phase: payload.round ? "playing" : statusToPhase(payload.status),
+				phase: shouldShowResults
+					? "results"
+					: payload.round
+						? "playing"
+						: statusToPhase(payload.status),
 				currentRound: payload.currentRound,
 				totalRounds: payload.totalRounds,
 				imageUrl: payload.round?.imageUrl ?? null,
 				expiresAt: payload.round?.expiresAt ?? null,
 				playersGuessed: payload.playersGuessed,
 				hasGuessedThisRound: payload.hasGuessedThisRound,
+				roundResult: shouldShowResults ? latestResolvedRound : s.roundResult,
 				standings,
 				game: s.game
 					? {

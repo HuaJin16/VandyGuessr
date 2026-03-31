@@ -9,6 +9,7 @@ import { multiplayerStore, timeRemaining } from "$lib/domains/multiplayer/stores
 import {
 	ClientEvent,
 	type GameOverRound,
+	type PreviousRound,
 	ServerEvent,
 	type ServerMessage,
 	type Standing,
@@ -52,6 +53,23 @@ let displayTime: number | null = null;
 let showForfeitDialog = false;
 let readySent = false;
 let disconnectedPlayers: Array<{ userId: string; name: string; timer: number }> = [];
+let pendingRoundStart: {
+	round: number;
+	totalRounds: number;
+	imageUrl: string;
+	expiresAt: string;
+} | null = null;
+
+function applyRoundStart(data: {
+	round: number;
+	totalRounds: number;
+	imageUrl: string;
+	expiresAt: string;
+}) {
+	readySent = false;
+	multiplayerStore.startRound(data.round, data.totalRounds, data.imageUrl, data.expiresAt);
+	startTimerTick();
+}
 
 function startTimerTick() {
 	stopTimerTick();
@@ -84,9 +102,13 @@ function handleMessage(msg: ServerMessage) {
 				imageUrl: string;
 				expiresAt: string;
 			};
-			readySent = false;
-			multiplayerStore.startRound(data.round, data.totalRounds, data.imageUrl, data.expiresAt);
-			startTimerTick();
+			if ($multiplayerStore.phase === "results") {
+				if (!readySent) {
+					pendingRoundStart = data;
+					break;
+				}
+			}
+			applyRoundStart(data);
 			break;
 		}
 		case ServerEvent.GuessAccepted: {
@@ -171,6 +193,7 @@ function handleMessage(msg: ServerMessage) {
 				round: { round: number; imageUrl: string; expiresAt: string | null } | null;
 				playersGuessed: string[];
 				hasGuessedThisRound: boolean;
+				previousRounds: PreviousRound[];
 				players: Array<{
 					userId: string;
 					name: string;
@@ -189,6 +212,10 @@ function handleMessage(msg: ServerMessage) {
 				startTimerTick();
 			} else {
 				stopTimerTick();
+			}
+			if (pendingRoundStart && $multiplayerStore.phase !== "results") {
+				applyRoundStart(pendingRoundStart);
+				pendingRoundStart = null;
 			}
 			break;
 		}
@@ -286,6 +313,10 @@ function sendReadyNext() {
 	if (readySent) return;
 	ws?.send({ type: ClientEvent.ReadyNext });
 	readySent = true;
+	if (pendingRoundStart) {
+		applyRoundStart(pendingRoundStart);
+		pendingRoundStart = null;
+	}
 }
 
 function forfeit() {
