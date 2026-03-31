@@ -1,9 +1,37 @@
+export type UploadEnvironment = "indoor" | "outdoor";
+export type TourEnvironment = UploadEnvironment | "any";
+
+export interface UploadSelectionItem {
+	id: string;
+	file: File;
+	preflightOk: boolean | null;
+	preflightError: string;
+}
+
+export interface UploadFilePreflightResult {
+	preflightOk: boolean;
+	preflightError: string;
+}
+
+export interface SubmissionFailure {
+	id: string;
+	filename: string;
+	reason: string;
+}
+
+export interface BatchSubmissionSummary {
+	total: number;
+	succeeded: number;
+	failed: number;
+	failures: SubmissionFailure[];
+}
+
 export interface CrowdSubmissionResponse {
 	id: string;
 	url: string;
 	latitude: number;
 	longitude: number;
-	environment: "indoor" | "outdoor";
+	environment: UploadEnvironment;
 }
 
 export interface PendingSubmissionItem {
@@ -11,7 +39,7 @@ export interface PendingSubmissionItem {
 	url: string;
 	latitude: number;
 	longitude: number;
-	environment: "indoor" | "outdoor";
+	environment: UploadEnvironment;
 	location_name: string | null;
 	original_filename: string | null;
 	created_at: string;
@@ -24,7 +52,7 @@ export interface TourImageItem {
 	url: string;
 	latitude: number;
 	longitude: number;
-	environment: "indoor" | "outdoor";
+	environment: UploadEnvironment;
 	location_name: string | null;
 	created_at: string | null;
 }
