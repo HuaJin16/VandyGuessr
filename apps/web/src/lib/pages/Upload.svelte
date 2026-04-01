@@ -133,6 +133,7 @@ onDestroy(unsub);
 			<p class="desc">
 				Photos are reviewed before they can appear in rounds. Your image must include embedded GPS
 				from when it was taken—enable location in your camera app. Screenshots usually won't work.
+				Large panoramas may fail; export smaller images if needed.
 			</p>
 
 			<div class="toggle-bar" class:toggle-bar--disabled={submitting}>

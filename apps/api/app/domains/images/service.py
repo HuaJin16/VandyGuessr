@@ -72,6 +72,24 @@ class ImageService:
         if file_size > settings.upload_max_bytes:
             raise ImageUploadError("File exceeds maximum size")
 
+    def _validate_image_geometry(self, width: int | None, height: int | None) -> None:
+        """Validate image dimensions before expensive processing."""
+        settings = get_settings()
+        if not isinstance(width, int) or width <= 0:
+            raise ImageUploadError("Unable to determine image dimensions")
+        if not isinstance(height, int) or height <= 0:
+            raise ImageUploadError("Unable to determine image dimensions")
+
+        if max(width, height) > settings.upload_max_dimension:
+            raise ImageUploadError("Image dimensions exceed maximum allowed")
+
+        if width * height > settings.upload_max_pixels:
+            raise ImageUploadError("Image resolution exceeds maximum allowed")
+
+        projected_full_width = max(width, height * 2)
+        if projected_full_width > settings.upload_max_projected_full_width:
+            raise ImageUploadError("Panorama projection exceeds maximum allowed")
+
     async def upload_image(
         self,
         file_bytes: bytes,
@@ -99,6 +117,7 @@ class ImageService:
 
             # Extract EXIF metadata
             metadata = extract_metadata(file_bytes)
+            self._validate_image_geometry(metadata.get("width"), metadata.get("height"))
             latitude = metadata.get("latitude")
             longitude = metadata.get("longitude")
 
