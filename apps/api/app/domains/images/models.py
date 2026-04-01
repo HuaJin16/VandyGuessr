@@ -18,26 +18,9 @@ class ImageUploadResult(BaseModel):
     error: str | None = None
 
 
-class ImageUploadResponse(BaseModel):
-    """Response for image upload endpoint."""
-
-    total: int
-    successful: int
-    failed: int
-    results: list[ImageUploadResult]
-
-
 class ImageResponse(BaseModel):
     """Image response for API."""
 
-    id: str
-    url: str
-    latitude: float
-    longitude: float
-    environment: Literal["indoor", "outdoor"]
-
-
-class CrowdSubmissionResponse(BaseModel):
     id: str
     url: str
     latitude: float

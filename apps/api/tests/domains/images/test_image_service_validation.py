@@ -20,14 +20,14 @@ def test_validate_image_geometry_rejects_too_many_pixels() -> None:
     service = _service()
 
     with pytest.raises(ImageUploadError, match="Image resolution exceeds"):
-        service._validate_image_geometry(9000, 7000)
+        service._validate_image_geometry(10000, 7001)
 
 
 def test_validate_image_geometry_rejects_large_projected_width() -> None:
     service = _service()
 
     with pytest.raises(ImageUploadError, match="Panorama projection exceeds"):
-        service._validate_image_geometry(7000, 6100)
+        service._validate_image_geometry(8000, 8501)
 
 
 def test_validate_image_geometry_accepts_reasonable_dimensions() -> None:

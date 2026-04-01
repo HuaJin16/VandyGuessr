@@ -10,8 +10,9 @@ from fastapi.responses import HTMLResponse
 
 from app.config import get_settings
 from app.container import deps
-from app.domains.images.models import ImageUploadResponse
-from app.domains.images.service import ImageService
+from app.domains.images.service import ImageUploadError
+from app.domains.images.submission_job_models import SubmissionJobStatusResponse
+from app.domains.images.submission_job_service import SubmissionJobService
 
 logger = structlog.get_logger()
 
@@ -138,7 +139,7 @@ def _build_upload_form_html(environment: str) -> str:
         const btn = document.getElementById('submit-btn');
         form.addEventListener('submit', () => {{
             btn.disabled = true;
-            btn.textContent = 'Uploading...';
+            btn.textContent = 'Queueing...';
         }});
     </script>
 </body>
@@ -146,40 +147,47 @@ def _build_upload_form_html(environment: str) -> str:
 
 
 def _build_result_html(
-    environment: str, response: ImageUploadResponse, code: str
+    environment: str,
+    *,
+    total: int,
+    queued_count: int,
+    queued_items: list[dict[str, str]],
+    failed_items: list[dict[str, str]],
+    code: str,
 ) -> str:
     """Build the HTML result page."""
     success_items = ""
-    failed_items = ""
+    failed_items_html = ""
 
-    for result in response.results:
-        if result.success:
+    for result in queued_items:
+        if result.get("filename"):
             success_items += f"""
             <li class="success">
-                <strong>{result.filename or "Unknown"}</strong>
-                <br><small>({result.latitude:.6f}, {result.longitude:.6f})</small>
+                <strong>{result["filename"]}</strong>
+                <br><small>Queued for background processing</small>
             </li>"""
-        else:
-            failed_items += f"""
+    for result in failed_items:
+        if result.get("filename"):
+            failed_items_html += f"""
             <li class="failed">
-                <strong>{result.filename or "Unknown"}</strong>
-                <br><small>{result.error}</small>
+                <strong>{result["filename"]}</strong>
+                <br><small>{result["error"]}</small>
             </li>"""
 
     success_section = ""
-    if response.successful > 0:
+    if queued_count > 0:
         success_section = f"""
         <div class="section success-section">
-            <h2>Uploaded ({response.successful})</h2>
+            <h2>Queued ({queued_count})</h2>
             <ul>{success_items}</ul>
         </div>"""
 
     failed_section = ""
-    if response.failed > 0:
+    if len(failed_items) > 0:
         failed_section = f"""
         <div class="section failed-section">
-            <h2>Failed ({response.failed})</h2>
-            <ul>{failed_items}</ul>
+            <h2>Failed ({len(failed_items)})</h2>
+            <ul>{failed_items_html}</ul>
         </div>"""
 
     return f"""<!DOCTYPE html>
@@ -261,7 +269,7 @@ def _build_result_html(
 
     <div class="summary">
         <span class="summary-text">
-            {response.successful} of {response.total} photo(s) uploaded
+            {queued_count} of {total} photo(s) queued
         </span>
     </div>
 
@@ -359,7 +367,7 @@ async def upload_images(
     code: str | None = Query(default=None),
     environment: Literal["indoor", "outdoor"] | None = Query(default=None),
     files: list[UploadFile] = File(...),
-    service: ImageService = deps(ImageService),
+    service: SubmissionJobService = deps(SubmissionJobService),
 ) -> HTMLResponse:
     """Handle multi-file image upload, return HTML response."""
     # Validate code
@@ -395,24 +403,55 @@ async def upload_images(
             status_code=400,
         )
 
-    # Process each file
-    results = []
+    queued_items: list[dict[str, str]] = []
+    failed_items: list[dict[str, str]] = []
     for file in files:
         file_bytes = await file.read()
-        result = await service.upload_image(
-            file_bytes=file_bytes,
-            filename=file.filename,
-            content_type=file.content_type,
-            environment=environment,
-        )
-        results.append(result)
+        try:
+            await service.enqueue_submission(
+                file_bytes=file_bytes,
+                filename=file.filename,
+                content_type=file.content_type,
+                environment=environment,
+                moderation_status="approved",
+                submitted_by_user_id=None,
+            )
+            queued_items.append({"filename": file.filename or "Unknown"})
+        except ImageUploadError as exc:
+            failed_items.append(
+                {"filename": file.filename or "Unknown", "error": exc.message}
+            )
+        except Exception:
+            failed_items.append(
+                {
+                    "filename": file.filename or "Unknown",
+                    "error": "An unexpected error occurred",
+                }
+            )
 
-    # Build response
-    response = ImageUploadResponse(
-        total=len(results),
-        successful=sum(1 for r in results if r.success),
-        failed=sum(1 for r in results if not r.success),
-        results=results,
+    return HTMLResponse(
+        content=_build_result_html(
+            environment,
+            total=len(files),
+            queued_count=len(queued_items),
+            queued_items=queued_items,
+            failed_items=failed_items,
+            code=code or "",
+        )
     )
 
-    return HTMLResponse(content=_build_result_html(environment, response, code or ""))
+
+@router.get("/upload/jobs/{job_id}", response_model=SubmissionJobStatusResponse)
+async def get_upload_job_status(
+    job_id: str,
+    code: str | None = Query(default=None),
+    service: SubmissionJobService = deps(SubmissionJobService),
+) -> SubmissionJobStatusResponse:
+    _require_code(code)
+    status_payload = await service.get_job_status_by_code(job_id=job_id)
+    if status_payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Submission job not found",
+        )
+    return status_payload

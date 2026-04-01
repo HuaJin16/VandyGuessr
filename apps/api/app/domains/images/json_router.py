@@ -8,48 +8,68 @@ from app.container import deps
 from app.core.auth import CurrentUser
 from app.core.auth.reviewer import ReviewerUser
 from app.domains.images.models import (
-    CrowdSubmissionResponse,
     PendingSubmissionItem,
     PendingSubmissionsResponse,
 )
 from app.domains.images.moderation_service import ImageModerationService
-from app.domains.images.service import ImageService
+from app.domains.images.service import ImageUploadError
+from app.domains.images.submission_job_models import (
+    SubmissionJobAcceptedResponse,
+    SubmissionJobStatusResponse,
+)
+from app.domains.images.submission_job_service import SubmissionJobService
 
 router = APIRouter(prefix="/images", tags=["images"])
 
 
 @router.post(
     "/submissions",
-    response_model=CrowdSubmissionResponse,
-    status_code=status.HTTP_201_CREATED,
+    response_model=SubmissionJobAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
 )
 async def submit_crowd_image(
     current_user: CurrentUser,
     environment: Literal["indoor", "outdoor"] = Query(...),
     file: UploadFile = File(...),
-    image_service: ImageService = deps(ImageService),
-) -> CrowdSubmissionResponse:
+    job_service: SubmissionJobService = deps(SubmissionJobService),
+) -> SubmissionJobAcceptedResponse:
     file_bytes = await file.read()
-    result = await image_service.upload_image(
-        file_bytes=file_bytes,
-        filename=file.filename,
-        content_type=file.content_type,
-        environment=environment,
-        moderation_status="pending",
-        submitted_by_user_id=current_user["oid"],
-    )
-    if not result.success:
+    try:
+        return await job_service.enqueue_submission(
+            file_bytes=file_bytes,
+            filename=file.filename,
+            content_type=file.content_type,
+            environment=environment,
+            moderation_status="pending",
+            submitted_by_user_id=current_user["oid"],
+        )
+    except ImageUploadError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=result.error or "Upload failed",
-        )
-    return CrowdSubmissionResponse(
-        id=result.id or "",
-        url=result.url or "",
-        latitude=result.latitude or 0.0,
-        longitude=result.longitude or 0.0,
-        environment=environment,
+            detail=exc.message,
+        ) from exc
+
+
+@router.get(
+    "/submissions/{job_id}",
+    response_model=SubmissionJobStatusResponse,
+)
+async def get_crowd_submission_status(
+    job_id: str,
+    current_user: CurrentUser,
+    job_service: SubmissionJobService = deps(SubmissionJobService),
+) -> SubmissionJobStatusResponse:
+    status_payload = await job_service.get_job_status(
+        job_id=job_id,
+        requester_oid=current_user["oid"],
+        require_owner=True,
     )
+    if status_payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Submission job not found",
+        )
+    return status_payload
 
 
 @router.get("/moderation/pending", response_model=PendingSubmissionsResponse)

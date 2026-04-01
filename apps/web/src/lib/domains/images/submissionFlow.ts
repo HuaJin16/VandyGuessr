@@ -25,7 +25,7 @@ export async function submitUploadBatch({
 	onProgress,
 }: SubmitUploadBatchInput): Promise<BatchSubmissionSummary> {
 	const failures: SubmissionFailure[] = [];
-	let succeeded = 0;
+	let queued = 0;
 
 	for (const item of items) {
 		if (item.preflightOk === true) continue;
@@ -48,7 +48,7 @@ export async function submitUploadBatch({
 
 		try {
 			await imagesService.submitSubmission(item.file, environment);
-			succeeded += 1;
+			queued += 1;
 		} catch (e: unknown) {
 			const reason = e instanceof Error ? mapServerUploadError(e.message) : "Upload failed.";
 			failures.push({
@@ -61,7 +61,7 @@ export async function submitUploadBatch({
 
 	return {
 		total: items.length,
-		succeeded,
+		queued,
 		failed: failures.length,
 		failures,
 	};

@@ -21,17 +21,14 @@ export interface SubmissionFailure {
 
 export interface BatchSubmissionSummary {
 	total: number;
-	succeeded: number;
+	queued: number;
 	failed: number;
 	failures: SubmissionFailure[];
 }
 
-export interface CrowdSubmissionResponse {
-	id: string;
-	url: string;
-	latitude: number;
-	longitude: number;
-	environment: UploadEnvironment;
+export interface SubmissionJobAcceptedResponse {
+	jobId: string;
+	status: "queued";
 }
 
 export interface PendingSubmissionItem {

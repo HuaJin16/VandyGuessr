@@ -98,11 +98,13 @@ async function submit() {
 		});
 
 		if (batchSummary.failed === 0) {
-			toast.success(`Thanks — ${pluralizePhoto(batchSummary.succeeded)} submitted for review.`);
-		} else if (batchSummary.succeeded > 0) {
-			toast.warning(`${batchSummary.succeeded} succeeded, ${batchSummary.failed} failed.`);
+			toast.success(
+				`Thanks — ${pluralizePhoto(batchSummary.queued)} queued for background processing.`,
+			);
+		} else if (batchSummary.queued > 0) {
+			toast.warning(`${batchSummary.queued} queued, ${batchSummary.failed} failed.`);
 		} else {
-			toast.error("No photos were submitted. See details below.");
+			toast.error("No photos were queued. See details below.");
 		}
 
 		selectedFiles = [];
@@ -133,7 +135,7 @@ onDestroy(unsub);
 			<p class="desc">
 				Photos are reviewed before they can appear in rounds. Your image must include embedded GPS
 				from when it was taken—enable location in your camera app. Screenshots usually won't work.
-				Large panoramas may fail; export smaller images if needed.
+				After you submit, uploads are queued and processed in the background.
 			</p>
 
 			<div class="toggle-bar" class:toggle-bar--disabled={submitting}>
@@ -195,11 +197,11 @@ onDestroy(unsub);
 			{#if batchSummary}
 				<section
 					class="result-summary"
-					data-tone={batchSummary.failed === 0 ? "success" : batchSummary.succeeded > 0 ? "warn" : "error"}
+					data-tone={batchSummary.failed === 0 ? "success" : batchSummary.queued > 0 ? "warn" : "error"}
 				>
 					<p class="result-title">
-						Submission complete: {batchSummary.succeeded} succeeded, {batchSummary.failed}
-						failed out of {batchSummary.total}.
+						Queueing complete: {batchSummary.queued} queued, {batchSummary.failed} failed out of
+						{batchSummary.total}.
 					</p>
 					{#if batchSummary.failures.length > 0}
 						<ul class="status-list">
@@ -221,8 +223,8 @@ onDestroy(unsub);
 			>
 				{submitting
 					? submitProgressTotal > 0
-						? `Uploading ${submitProgressCurrent}/${submitProgressTotal}…`
-						: "Uploading…"
+						? `Queueing ${submitProgressCurrent}/${submitProgressTotal}…`
+						: "Queueing…"
 					: "Submit for review"}
 			</button>
 		</section>
