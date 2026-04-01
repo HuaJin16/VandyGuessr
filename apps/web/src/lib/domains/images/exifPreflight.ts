@@ -9,10 +9,19 @@ import type { UploadFilePreflightResult } from "./types";
 export const MISSING_GPS_MESSAGE =
 	"This photo doesn't include embedded location data. Use your camera with location turned on—screenshots and some edited photos won't work.";
 
+export const FILE_TOO_LARGE_MESSAGE = "This photo is too large. Use a file under 50MB.";
+
+export const PANORAMA_TOO_LARGE_MESSAGE =
+	"This panorama is too large to process. Export a smaller image and try again.";
+
 export const ALLOWED_UPLOAD_EXTENSIONS = [".jpg", ".jpeg", ".png", ".heic"] as const;
 const allowedUploadExtensionSet = new Set<string>(ALLOWED_UPLOAD_EXTENSIONS);
 
 const EXIF_SLICE_BYTES = 512 * 1024;
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const MAX_UPLOAD_DIMENSION = 12000;
+const MAX_UPLOAD_PIXELS = 45_000_000;
+const MAX_PROJECTED_FULL_WIDTH = 12000;
 
 function getFileExtension(filename: string): string {
 	if (!filename.includes(".")) return "";
@@ -29,6 +38,45 @@ function hasLatLng(gps: unknown): gps is { latitude: number; longitude: number }
 		Number.isFinite(lat) &&
 		Number.isFinite(lng)
 	);
+}
+
+async function readImageDimensions(file: File): Promise<{ width: number; height: number } | null> {
+	const objectUrl = URL.createObjectURL(file);
+	const image = new Image();
+
+	try {
+		const result = await new Promise<{ width: number; height: number } | null>((resolve) => {
+			image.onload = () => {
+				resolve({
+					width: image.naturalWidth,
+					height: image.naturalHeight,
+				});
+			};
+			image.onerror = () => resolve(null);
+			image.src = objectUrl;
+		});
+		return result;
+	} finally {
+		URL.revokeObjectURL(objectUrl);
+	}
+}
+
+async function imageGeometryError(file: File): Promise<string | null> {
+	const dimensions = await readImageDimensions(file);
+	if (!dimensions) return null;
+
+	const { width, height } = dimensions;
+	if (Math.max(width, height) > MAX_UPLOAD_DIMENSION) {
+		return PANORAMA_TOO_LARGE_MESSAGE;
+	}
+	if (width * height > MAX_UPLOAD_PIXELS) {
+		return PANORAMA_TOO_LARGE_MESSAGE;
+	}
+	if (Math.max(width, height * 2) > MAX_PROJECTED_FULL_WIDTH) {
+		return PANORAMA_TOO_LARGE_MESSAGE;
+	}
+
+	return null;
 }
 
 export async function fileHasGpsExif(file: File): Promise<boolean> {
@@ -54,6 +102,21 @@ export async function preflightUploadFile(file: File): Promise<UploadFilePreflig
 		};
 	}
 
+	if (file.size > MAX_UPLOAD_BYTES) {
+		return {
+			preflightOk: false,
+			preflightError: FILE_TOO_LARGE_MESSAGE,
+		};
+	}
+
+	const geometryError = await imageGeometryError(file);
+	if (geometryError) {
+		return {
+			preflightOk: false,
+			preflightError: geometryError,
+		};
+	}
+
 	try {
 		const ok = await fileHasGpsExif(file);
 		return {
@@ -71,5 +134,9 @@ export async function preflightUploadFile(file: File): Promise<UploadFilePreflig
 export function mapServerUploadError(detail: string | undefined): string {
 	if (!detail) return "Upload failed.";
 	if (detail.includes("missing GPS EXIF")) return MISSING_GPS_MESSAGE;
+	if (detail.includes("File exceeds maximum size")) return FILE_TOO_LARGE_MESSAGE;
+	if (detail.includes("Image dimensions exceed")) return PANORAMA_TOO_LARGE_MESSAGE;
+	if (detail.includes("Image resolution exceeds")) return PANORAMA_TOO_LARGE_MESSAGE;
+	if (detail.includes("Panorama projection exceeds")) return PANORAMA_TOO_LARGE_MESSAGE;
 	return detail;
 }
