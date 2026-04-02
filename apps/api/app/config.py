@@ -51,6 +51,7 @@ class Settings(BaseSettings):
 
     # Image processing
     panorama_base_max_width: int = Field(default=2048, ge=512, le=8192)
+    panorama_max_source_width: int = Field(default=16384, ge=1024, le=32768)
     panorama_base_quality: int = Field(default=60, ge=1, le=95)
     panorama_tile_quality: int = Field(default=80, ge=1, le=95)
     image_original_jpeg_quality: int = Field(default=84, ge=1, le=95)

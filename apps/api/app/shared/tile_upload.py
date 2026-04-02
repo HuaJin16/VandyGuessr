@@ -7,8 +7,63 @@ from app.domains.images.entities import (
     ImageTileLevelEntity,
     ImageTilesEntity,
 )
-from app.shared.panorama_tiling import PanoramaTileArtifacts
-from app.shared.s3 import build_public_url, upload_bytes
+from app.shared.panorama_tiling import PanoramaTileArtifacts, stream_panorama_tiles
+from app.shared.s3 import build_public_url, upload_bytes, upload_bytes_sync
+
+
+async def upload_panorama_tiles(asset_id: str, file_bytes: bytes) -> ImageTilesEntity:
+    return await asyncio.to_thread(_upload_panorama_tiles_sync, asset_id, file_bytes)
+
+
+def _upload_panorama_tiles_sync(asset_id: str, file_bytes: bytes) -> ImageTilesEntity:
+    base_key = f"images/{asset_id}/base.jpg"
+
+    def _on_base_image(payload: bytes) -> None:
+        upload_bytes_sync(base_key, payload, "image/jpeg")
+
+    def _on_tile(level: int, col: int, row: int, payload: bytes) -> None:
+        key = f"images/{asset_id}/l{level}/{col}_{row}.jpg"
+        upload_bytes_sync(key, payload, "image/jpeg")
+
+    metadata = stream_panorama_tiles(
+        file_bytes,
+        on_base_image=_on_base_image,
+        on_tile=_on_tile,
+    )
+
+    levels = [
+        ImageTileLevelEntity(
+            level=spec.level,
+            width=spec.width,
+            height=spec.height,
+            cols=spec.cols,
+            rows=spec.rows,
+        )
+        for spec in metadata.levels
+    ]
+
+    geometry = metadata.geometry
+
+    return ImageTilesEntity(
+        version=metadata.version,
+        base_url=build_public_url(base_key),
+        tile_url_template=build_public_url(
+            f"images/{asset_id}/l{{level}}/{{col}}_{{row}}.jpg"
+        ),
+        level_count=len(levels),
+        original_width=metadata.original_width,
+        original_height=metadata.original_height,
+        aspect_ratio=metadata.aspect_ratio,
+        base_pano_data=ImagePanoDataEntity(
+            full_width=geometry.full_width,
+            full_height=geometry.full_height,
+            cropped_width=geometry.cropped_width,
+            cropped_height=geometry.cropped_height,
+            cropped_x=geometry.cropped_x,
+            cropped_y=geometry.cropped_y,
+        ),
+        levels=levels,
+    )
 
 
 async def upload_tile_artifacts(

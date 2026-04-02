@@ -18,9 +18,8 @@ from app.domains.images.repository import IImageRepository
 from app.domains.locations.service import LocationService
 from app.shared.exif import extract_metadata
 from app.shared.image_compression import compress_original_image, extension_for_format
-from app.shared.panorama_tiling import generate_panorama_tiles
 from app.shared.s3 import upload_bytes
-from app.shared.tile_upload import upload_tile_artifacts
+from app.shared.tile_upload import upload_panorama_tiles
 
 logger = structlog.get_logger()
 
@@ -126,16 +125,7 @@ class ImageService:
 
             asset_id = str(uuid.uuid4())
 
-            tile_artifacts = await asyncio.to_thread(
-                generate_panorama_tiles, file_bytes
-            )
-            tile_gps = extract_metadata(tile_artifacts.base_image)
-            if tile_gps.get("latitude") is None or tile_gps.get("longitude") is None:
-                raise ImageUploadError(
-                    "Generated base panorama is missing GPS EXIF data"
-                )
-
-            tiles = await upload_tile_artifacts(asset_id, tile_artifacts)
+            tiles = await upload_panorama_tiles(asset_id, file_bytes)
 
             compression_result = await asyncio.to_thread(
                 compress_original_image,

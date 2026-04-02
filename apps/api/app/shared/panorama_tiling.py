@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from PIL import Image, ImageFilter, ImageOps
@@ -97,6 +98,13 @@ def _project_to_canvas(source: Image.Image, geometry: PanoramaGeometry) -> Image
     return canvas
 
 
+def _cap_source_width(source: Image.Image, max_width: int) -> Image.Image:
+    if source.width <= max_width:
+        return source
+    target_height = max(1, round(source.height * max_width / source.width))
+    return source.resize((max_width, target_height), Image.Resampling.LANCZOS)
+
+
 def _power_of_two_floor(value: int, max_power: int) -> int:
     capped = max(1, min(value, max_power))
     power = 1
@@ -144,7 +152,12 @@ def _build_levels(
     return levels
 
 
-def generate_panorama_tiles(file_bytes: bytes) -> PanoramaTileArtifacts:
+def stream_panorama_tiles(
+    file_bytes: bytes,
+    *,
+    on_base_image: Callable[[bytes], None],
+    on_tile: Callable[[int, int, int, bytes], None],
+) -> PanoramaTileMetadata:
     settings = get_settings()
 
     with Image.open(io.BytesIO(file_bytes)) as raw_image:
@@ -153,10 +166,12 @@ def generate_panorama_tiles(file_bytes: bytes) -> PanoramaTileArtifacts:
             exif[274] = 1
         exif_bytes = exif.tobytes() if exif else None
 
-        oriented = ImageOps.exif_transpose(raw_image).convert("RGB")
-        source_width, source_height = oriented.size
+        source = ImageOps.exif_transpose(raw_image).convert("RGB")
+        source = _cap_source_width(source, settings.panorama_max_source_width)
+
+        source_width, source_height = source.size
         geometry = _derive_geometry(source_width, source_height)
-        source = _project_to_canvas(oriented, geometry)
+        projected = _project_to_canvas(source, geometry)
 
         levels = _build_levels(
             geometry,
@@ -164,27 +179,25 @@ def generate_panorama_tiles(file_bytes: bytes) -> PanoramaTileArtifacts:
         )
 
         base_spec = levels[0]
-        base_image = source.resize(
+        base_image = projected.resize(
             (base_spec.width, base_spec.height),
             Image.Resampling.LANCZOS,
         ).filter(ImageFilter.GaussianBlur(radius=2))
-        base_bytes = _encode_jpeg(
-            base_image, settings.panorama_base_quality, exif_bytes
+        on_base_image(
+            _encode_jpeg(base_image, settings.panorama_base_quality, exif_bytes)
         )
 
-        tile_payload: dict[int, dict[tuple[int, int], bytes]] = {}
         for spec in levels:
-            if spec.width == source.width and spec.height == source.height:
-                level_image = source
+            if spec.width == projected.width and spec.height == projected.height:
+                level_image = projected
             else:
-                level_image = source.resize(
+                level_image = projected.resize(
                     (spec.width, spec.height),
                     Image.Resampling.LANCZOS,
                 )
 
             tile_width = max(1, level_image.width // spec.cols)
             tile_height = max(1, level_image.height // spec.rows)
-            level_tiles: dict[tuple[int, int], bytes] = {}
 
             for row in range(spec.rows):
                 for col in range(spec.cols):
@@ -199,23 +212,51 @@ def generate_panorama_tiles(file_bytes: bytes) -> PanoramaTileArtifacts:
                         else upper + tile_height
                     )
                     tile = level_image.crop((left, upper, right, lower))
-                    level_tiles[(col, row)] = _encode_jpeg(
-                        tile,
-                        settings.panorama_tile_quality,
-                        exif_bytes,
+                    on_tile(
+                        spec.level,
+                        col,
+                        row,
+                        _encode_jpeg(
+                            tile,
+                            settings.panorama_tile_quality,
+                            exif_bytes,
+                        ),
                     )
 
-            tile_payload[spec.level] = level_tiles
+    return PanoramaTileMetadata(
+        version=TILES_METADATA_VERSION,
+        original_width=geometry.source_width,
+        original_height=geometry.source_height,
+        aspect_ratio=geometry.source_width / geometry.source_height,
+        geometry=geometry,
+        levels=levels,
+    )
+
+
+def generate_panorama_tiles(file_bytes: bytes) -> PanoramaTileArtifacts:
+    base_image: bytes | None = None
+    tile_payload: dict[int, dict[tuple[int, int], bytes]] = {}
+
+    def _on_base(payload: bytes) -> None:
+        nonlocal base_image
+        base_image = payload
+
+    def _on_tile(level: int, col: int, row: int, payload: bytes) -> None:
+        if level not in tile_payload:
+            tile_payload[level] = {}
+        tile_payload[level][(col, row)] = payload
+
+    metadata = stream_panorama_tiles(
+        file_bytes,
+        on_base_image=_on_base,
+        on_tile=_on_tile,
+    )
+
+    if base_image is None:
+        raise ValueError("Panorama base image generation failed")
 
     return PanoramaTileArtifacts(
-        base_image=base_bytes,
+        base_image=base_image,
         tiles=tile_payload,
-        metadata=PanoramaTileMetadata(
-            version=TILES_METADATA_VERSION,
-            original_width=geometry.source_width,
-            original_height=geometry.source_height,
-            aspect_ratio=geometry.source_width / geometry.source_height,
-            geometry=geometry,
-            levels=levels,
-        ),
+        metadata=metadata,
     )

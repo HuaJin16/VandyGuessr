@@ -45,6 +45,22 @@ async def upload_bytes(
     *,
     public: bool = True,
 ) -> str:
+    return await asyncio.to_thread(
+        upload_bytes_sync,
+        key,
+        data,
+        content_type,
+        public=public,
+    )
+
+
+def upload_bytes_sync(
+    key: str,
+    data: bytes,
+    content_type: str | None,
+    *,
+    public: bool = True,
+) -> str:
     settings = get_settings()
     if not settings.spaces_bucket:
         raise ValueError("Spaces bucket is required")
@@ -59,7 +75,7 @@ async def upload_bytes(
     if public:
         put_kwargs["ACL"] = "public-read"
 
-    await asyncio.to_thread(client.put_object, **put_kwargs)
+    client.put_object(**put_kwargs)
     return build_public_url(key)
 
 
