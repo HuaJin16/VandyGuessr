@@ -11,15 +11,23 @@ import { createQuery } from "@tanstack/svelte-query";
 const viewStore = createLeaderboardViewStore();
 
 $: view = $viewStore;
-$: user = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
+$: isAuthenticated = $auth.currentUserOid !== null;
+
+$: user = createQuery({
+	...userQueries.me($auth.currentUserOid),
+	enabled: isAuthenticated,
+});
 $: leaderboard = createQuery({
-	...leaderboardQueries.leaderboard({
-		timeframe: view.timeframe,
-		mode: view.mode,
-		limit: view.limit,
-		offset: view.offset,
-	}),
-	enabled: $auth.isInitialized,
+	...leaderboardQueries.leaderboard(
+		{
+			timeframe: view.timeframe,
+			mode: view.mode,
+			limit: view.limit,
+			offset: view.offset,
+		},
+		$auth.currentUserOid,
+	),
+	enabled: isAuthenticated,
 });
 
 $: currentUserId = $user.data?.id;

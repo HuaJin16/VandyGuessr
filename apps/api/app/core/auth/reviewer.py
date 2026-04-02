@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 
 from app.config import Settings, get_settings
-from app.core.auth.microsoft import get_current_user
+from app.core.auth.provider import get_current_user
 
 
 def require_reviewer(

@@ -12,7 +12,10 @@ import { toast } from "svelte-sonner";
 
 export let id: string;
 
-$: gameQuery = createQuery({ ...gameQueries.byId(id), enabled: $auth.isInitialized });
+$: gameQuery = createQuery({
+	...gameQueries.byId(id, $auth.currentUserOid),
+	enabled: $auth.currentUserOid !== null,
+});
 $: game = $gameQuery.data as Game | undefined;
 
 $: playedRounds = game?.rounds.filter((r) => r.guess && !r.skipped) ?? [];

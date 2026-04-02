@@ -6,7 +6,7 @@
 - **Frontend**: Svelte + Vite + TypeScript + Tailwind CSS
 - **Database**: MongoDB
 - **Cache**: Redis
-- **Authentication**: Microsoft OAuth (Azure AD)
+- **Authentication**: Guided dual OAuth (Microsoft for Vanderbilt students, Google for any Google account)
 - **Containerization**: Docker + Docker Compose
 
 ### Additional Libraries
@@ -42,7 +42,9 @@ apps/api/app/
 │   │   ├── responses.py             # HTTP response helpers
 │   │   └── exceptions.py            # Custom HTTP exceptions
 │   └── auth/
-│       └── microsoft.py             # OAuth/JWT verification
+│       ├── microsoft.py             # Microsoft OAuth/JWT verification
+│       ├── google.py                # Google OAuth/JWT verification
+│       └── provider.py              # Provider selector + shared CurrentUser dependency
 ├── domains/                         # Business domains (bounded contexts)
 │   ├── users/
 │   │   ├── __init__.py
@@ -247,7 +249,9 @@ apps/web/src/
 │   │       └── error.interceptor.ts # Transforms API errors
 │   ├── auth/
 │   │   ├── msalConfig.ts            # MSAL configuration
-│   │   └── msalInstance.ts          # MSAL singleton
+│   │   ├── msalInstance.ts          # MSAL singleton
+│   │   ├── googleIdentity.ts        # GIS loader + Google ID token helpers
+│   │   └── token.ts                 # Provider-aware token accessor
 │   ├── components/                  # Shared UI components
 │   │   ├── Button.svelte
 │   │   ├── Modal.svelte
@@ -310,12 +314,12 @@ apiClient.interceptors.response.use((response) => response, errorInterceptor);
 
 ```typescript
 import type { InternalAxiosRequestConfig } from "axios";
-import { getAccessToken } from "$lib/shared/auth/msalInstance";
+import { getAuthToken } from "$lib/shared/auth/token";
 
 export async function authInterceptor(
   config: InternalAxiosRequestConfig,
 ): Promise<InternalAxiosRequestConfig> {
-  const token = await getAccessToken();
+  const token = await getAuthToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -542,6 +546,12 @@ export const routes = {
 - **Stores** are for client-only state (UI state, form state, etc.)
 - **Optimistic updates** for mutations where instant feedback improves UX
 - **Error boundaries** wrap major sections to prevent full-page crashes
+
+### Auth Identity Contract
+
+- Downstream domains continue to treat auth identity as `oid` (string user key) for games, leaderboard, multiplayer, and uploads.
+- Microsoft keeps existing `oid` behavior unchanged.
+- Google users map to `oid = google:{sub}` so cross-provider identities stay collision-safe without domain-wide refactors.
 
 ### UI Components with Bits UI
 

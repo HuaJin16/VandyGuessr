@@ -1,5 +1,5 @@
 import { auth } from "$lib/shared/auth/auth.store";
-import { getAccessToken } from "$lib/shared/auth/msalInstance";
+import { getAuthToken } from "$lib/shared/auth/token";
 import { writable } from "svelte/store";
 import { ClientEvent, type ConnectionState, ServerEvent, type ServerMessage } from "../types";
 
@@ -43,7 +43,7 @@ export function createMultiplayerWs(options: MultiplayerWsOptions) {
 			return;
 		}
 
-		const token = await getAccessToken();
+		const token = await getAuthToken();
 		if (!token) {
 			handleSessionExpired();
 			return;
@@ -143,7 +143,7 @@ export function createMultiplayerWs(options: MultiplayerWsOptions) {
 	}
 
 	async function refreshToken() {
-		const token = await getAccessToken();
+		const token = await getAuthToken();
 		if (token) {
 			send({ type: ClientEvent.RefreshToken, token });
 			return;

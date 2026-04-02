@@ -24,8 +24,8 @@ import { toast } from "svelte-sonner";
 export let id: string;
 
 $: gameQuery = createQuery({
-	...multiplayerQueries.byId(id),
-	enabled: $auth.isInitialized,
+	...multiplayerQueries.byId(id, $auth.currentUserOid),
+	enabled: $auth.currentUserOid !== null,
 });
 
 let hydratedFromQuery = false;
@@ -284,7 +284,7 @@ function dismissDisconnectToast(userId: string) {
 
 let ws: ReturnType<typeof createMultiplayerWs> | null = null;
 
-$: if ($auth.isInitialized && $gameQuery.data) {
+$: if ($auth.currentUserOid !== null && $gameQuery.data) {
 	if (!ws) {
 		ws = createMultiplayerWs({
 			gameId: id,
@@ -357,7 +357,7 @@ function requestRematch() {
 	}
 }
 
-$: currentUserId = $auth.account?.localAccountId ?? "";
+$: currentUserId = $auth.currentUserOid ?? "";
 $: totalPlayers =
 	$multiplayerStore.game?.players.filter((player) => player.status !== "forfeited").length ?? 0;
 

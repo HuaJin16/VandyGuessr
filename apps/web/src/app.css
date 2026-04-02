@@ -130,6 +130,46 @@ body {
 		box-shadow: 0 4px 0 var(--brand-dark), var(--ring);
 	}
 
+	.google-provider-wrap {
+		position: relative;
+		width: 100%;
+		min-height: 52px;
+	}
+
+	.google-provider-visual {
+		width: 100%;
+		pointer-events: none;
+	}
+
+	.google-provider-wrap:not(.google-provider-wrap-disabled):hover .google-provider-visual {
+		background: var(--brand-dark);
+	}
+
+	.google-provider-wrap:not(.google-provider-wrap-disabled):focus-within .google-provider-visual {
+		outline: none;
+		box-shadow: 0 4px 0 var(--brand-dark), var(--ring);
+	}
+
+	.google-provider-wrap:not(.google-provider-wrap-disabled):active .google-provider-visual {
+		transform: translateY(4px);
+		box-shadow: 0 0 0 var(--brand-dark);
+	}
+
+	.google-provider-overlay {
+		position: absolute;
+		inset: 0;
+		opacity: 0;
+		border-radius: var(--radius-md);
+	}
+
+	.google-provider-wrap-disabled .google-provider-visual {
+		opacity: 0.5;
+	}
+
+	.google-provider-overlay-disabled {
+		pointer-events: none;
+	}
+
 	/* Danger variant */
 	.btn-3d--danger {
 		background: var(--danger);

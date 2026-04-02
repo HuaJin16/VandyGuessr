@@ -25,20 +25,31 @@ import { toast } from "svelte-sonner";
 const multiplayerEnabled = import.meta.env.VITE_FEATURE_MULTIPLAYER === "true";
 const recentGamesParams = { status: "completed", limit: 5 };
 
-$: user = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
-$: activeGame = createQuery({ ...gameQueries.active(), enabled: $auth.isInitialized });
+$: isAuthenticated = $auth.currentUserOid !== null;
+
+$: user = createQuery({
+	...userQueries.me($auth.currentUserOid),
+	enabled: isAuthenticated,
+});
+$: activeGame = createQuery({
+	...gameQueries.active($auth.currentUserOid),
+	enabled: isAuthenticated,
+});
 $: activeMultiplayerGame = createQuery({
-	...multiplayerQueries.active(),
-	enabled: $auth.isInitialized && multiplayerEnabled,
+	...multiplayerQueries.active($auth.currentUserOid),
+	enabled: isAuthenticated && multiplayerEnabled,
 });
 $: recentGames = createQuery({
-	...gameQueries.list(recentGamesParams),
-	enabled: $auth.isInitialized,
+	...gameQueries.list(recentGamesParams, $auth.currentUserOid),
+	enabled: isAuthenticated,
 });
 
 $: leaderboard = createQuery({
-	...leaderboardQueries.leaderboard({ timeframe: "alltime", mode: "all", limit: 1, offset: 0 }),
-	enabled: $auth.isInitialized,
+	...leaderboardQueries.leaderboard(
+		{ timeframe: "alltime", mode: "all", limit: 1, offset: 0 },
+		$auth.currentUserOid,
+	),
+	enabled: isAuthenticated,
 });
 
 $: leaderboardStats = $leaderboard.data?.userEntry;

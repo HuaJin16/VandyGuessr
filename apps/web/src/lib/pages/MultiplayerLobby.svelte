@@ -21,8 +21,8 @@ import logo from "../../assets/logo.webp";
 export let id: string;
 
 $: gameQuery = createQuery({
-	...multiplayerQueries.byId(id),
-	enabled: $auth.isInitialized,
+	...multiplayerQueries.byId(id, $auth.currentUserOid),
+	enabled: $auth.currentUserOid !== null,
 });
 
 let hydratedFromQuery = false;
@@ -170,7 +170,7 @@ function handleMessage(msg: ServerMessage) {
 let ws: ReturnType<typeof createMultiplayerWs> | null = null;
 let connectionState: ConnectionState = "connecting";
 
-$: if ($auth.isInitialized && $gameQuery.data) {
+$: if ($auth.currentUserOid !== null && $gameQuery.data) {
 	if (!ws) {
 		ws = createMultiplayerWs({
 			gameId: id,
@@ -243,8 +243,8 @@ function reconnect() {
 	ws?.reconnect();
 }
 
-$: isHost = game?.hostId === $auth.account?.localAccountId;
-$: currentUserId = $auth.account?.localAccountId ?? "";
+$: currentUserId = $auth.currentUserOid ?? "";
+$: isHost = game?.hostId === currentUserId;
 $: connectedPlayers = players.filter((player) => player.status === "connected");
 $: allConnectedReady =
 	connectedPlayers.length >= 2 &&

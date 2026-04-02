@@ -10,8 +10,8 @@ import { navigate } from "svelte-routing";
 const listParams = { limit: 50 } as const;
 
 $: historyQuery = createQuery({
-	...gameQueries.list(listParams),
-	enabled: $auth.isInitialized,
+	...gameQueries.list(listParams, $auth.currentUserOid),
+	enabled: $auth.currentUserOid !== null,
 	staleTime: 0,
 });
 

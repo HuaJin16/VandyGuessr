@@ -3,7 +3,7 @@
  */
 
 import { apiClient } from "$lib/shared/api/client";
-import { getAccessToken } from "$lib/shared/auth/msalInstance";
+import { getAuthToken } from "$lib/shared/auth/token";
 import type {
 	PendingSubmissionItem,
 	SubmissionJobAcceptedResponse,
@@ -19,7 +19,7 @@ export const imagesService = {
 		file: File,
 		environment: UploadEnvironment,
 	): Promise<SubmissionJobAcceptedResponse> => {
-		const token = await getAccessToken();
+		const token = await getAuthToken();
 		const body = new FormData();
 		body.append("file", file);
 		const url = `${apiBase()}/v1/images/submissions?environment=${environment}`;

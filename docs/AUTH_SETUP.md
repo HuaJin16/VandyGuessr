@@ -1,15 +1,18 @@
-# Azure AD (Microsoft OAuth) Setup
+# OAuth Setup (Microsoft + Google)
 
-This guide describes how to configure Microsoft OAuth for Vanderbilt-only access
-using a multi-tenant Azure AD app registration. Vanderbilt SSO admin access is
-not required; the app validates `@vanderbilt.edu` emails in code after login.
+This guide describes how to configure:
+
+- Microsoft OAuth for Vanderbilt students
+- Google OAuth for any Google account
+
+Vanderbilt SSO admin access is not required; the backend enforces policy after login.
 
 ## Overview
 
 - **App type**: Single-page application (SPA)
 - **Tenant**: Multi-tenant (`common`)
 - **Flow**: OAuth redirect flow
-- **Access**: Validate Vanderbilt email domain in the backend
+- **Access**: Validate Vanderbilt domain on Microsoft path; require valid verified Google identity on Google path
 - **Profile data**: Name, email, profile photo (via Microsoft Graph)
 
 ## 1) Create an Azure AD App Registration
@@ -65,10 +68,10 @@ Note: These permissions do not require admin consent for basic profile access.
 If you deploy to multiple environments, add all frontend URLs here. Microsoft
 only allows redirects to registered URIs.
 
-## 6) Backend Vanderbilt-Only Validation
+## 6) Backend Vanderbilt-Only Validation (Microsoft Path)
 
 Because this is a multi-tenant app, **any Microsoft account** can log in.
-The backend must enforce Vanderbilt-only access:
+The backend enforces Vanderbilt-only access on the Microsoft sign-in path:
 
 ```python
 def is_vanderbilt_email(email: str) -> bool:
@@ -85,6 +88,8 @@ Add these variables to your environment:
 
 ```bash
 MICROSOFT_CLIENT_ID=your-azure-client-id
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
 
 ### Frontend
@@ -92,12 +97,33 @@ MICROSOFT_CLIENT_ID=your-azure-client-id
 ```bash
 VITE_MICROSOFT_CLIENT_ID=your-azure-client-id
 VITE_MICROSOFT_REDIRECT_URI=http://localhost:5173/
+VITE_GOOGLE_CLIENT_ID=your-google-client-id
 ```
 
 Note: The tenant ID (`common`) is hardcoded in the application since we always
 use multi-tenant authentication with email validation.
 
-## 8) Fetching Profile Data and Photos
+`GOOGLE_CLIENT_SECRET` is backend-only and must never be exposed to the frontend.
+
+## 8) Google OAuth Setup
+
+Use Google Identity Services (GIS) for the frontend and backend JWT verification.
+
+1. Open Google Cloud Console -> APIs & Services -> Credentials.
+2. Create an OAuth Client ID for a **Web application**.
+3. Add authorized JavaScript origins:
+   - `http://localhost:5173`
+   - Your production frontend origin
+4. Add authorized redirect URIs if required by your deployment flow.
+5. Copy:
+   - Client ID -> `VITE_GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_ID`
+   - Client Secret -> `GOOGLE_CLIENT_SECRET` (backend only)
+### Google Policy Enforced by Backend
+
+- Token must be a valid Google ID token.
+- `email_verified` must be true.
+
+## 9) Fetching Profile Data and Photos
 
 After login, use Microsoft Graph to fetch profile data and the avatar:
 
@@ -108,13 +134,13 @@ These endpoints are free for basic usage and are well within rate limits for
 VandyGuessr. Recommended practice is to store the returned data in MongoDB and
 avoid re-fetching on every request.
 
-## 9) Rate Limits (Practical Notes)
+## 10) Rate Limits (Practical Notes)
 
 Microsoft Graph rate limits for user profile and photo endpoints are generous
 (typically ~10,000 requests per 10 minutes per app). VandyGuessr will be far
 below these limits when fetching profile data only on login.
 
-## 10) Troubleshooting
+## 11) Troubleshooting
 
 - **AADSTS50011**: Redirect URI mismatch
   - Ensure the exact redirect URI is registered in Azure.

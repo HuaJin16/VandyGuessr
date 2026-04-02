@@ -8,7 +8,10 @@ import logo from "../../../assets/logo.webp";
 
 export let activePage: "home" | "leaderboard" | "history" | "review" | undefined = undefined;
 
-$: me = createQuery({ ...userQueries.me(), enabled: $auth.isInitialized });
+$: me = createQuery({
+	...userQueries.me($auth.currentUserOid),
+	enabled: $auth.currentUserOid !== null,
+});
 
 function go(path: string) {
 	navigate(path);

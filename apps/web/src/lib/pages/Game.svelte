@@ -13,7 +13,10 @@ import { toast } from "svelte-sonner";
 export let id: string;
 
 const queryClient = useQueryClient();
-$: gameQueryOptions = { ...gameQueries.byId(id), enabled: $auth.isInitialized };
+$: gameQueryOptions = {
+	...gameQueries.byId(id, $auth.currentUserOid),
+	enabled: $auth.currentUserOid !== null,
+};
 $: gameQuery = createQuery(gameQueryOptions);
 
 let hydratedFromQuery = false;
@@ -35,7 +38,7 @@ async function handleGuess() {
 	try {
 		const updated = await gamesService.submitGuess(game.id, roundNumber, $gameStore.guessPosition);
 		gameStore.showResults(updated, $gameStore.currentRoundIndex);
-		queryClient.setQueryData(["games", id], updated);
+		queryClient.setQueryData(gameQueryOptions.queryKey, updated);
 	} catch (err: unknown) {
 		const e = err as {
 			response?: { status?: number; data?: { detail?: string } };
@@ -68,7 +71,7 @@ async function refetchAndReconcile(message?: string) {
 	try {
 		const updated = await gamesService.getById(game.id);
 		if (!updated) return;
-		queryClient.setQueryData(["games", id], updated);
+		queryClient.setQueryData(gameQueryOptions.queryKey, updated);
 		if (updated.status !== "active") {
 			navigate(`/game/${updated.id}/summary`, { replace: true });
 			return;
@@ -84,7 +87,7 @@ async function handleEndGame() {
 	if (!game) return;
 	try {
 		const ended = await gamesService.end(game.id);
-		queryClient.setQueryData(["games", id], ended);
+		queryClient.setQueryData(gameQueryOptions.queryKey, ended);
 		gameStore.updateGame(ended);
 		gameStore.toggleEndDialog();
 		navigate("/", { replace: true });

@@ -21,9 +21,12 @@ VandyGuessr is a GeoGuessr-style game for Vanderbilt students using 360-degree (
 
 ## 5) Core User Experience
 ### 5.1 Welcome/Login
-- Centered card: “Welcome back” + “Log in with Vanderbilt”
-- Microsoft OAuth login
-- Vanderbilt-only access: validate `@vanderbilt.edu`
+- Centered card with guided dual-provider options:
+  - “Continue with Vanderbilt” (students)
+  - “Continue with Google” (any Google account)
+- Microsoft OAuth for Vanderbilt students
+- Google OAuth ID token path for any Google account
+- Vanderbilt-only student policy remains enforced on Microsoft path
 - On success: redirect to Home; on failure: simple error
 - User profile loaded (name, email, avatar)
 
@@ -97,8 +100,9 @@ Score = 5000 * e ^ (-5 * distance / size)
 - Svelte integration
 
 ## 10) Authentication & Profiles
-- Microsoft OAuth for sign-in
-- Vanderbilt-only access via `@vanderbilt.edu` validation
+- Microsoft OAuth for Vanderbilt student sign-in (`@vanderbilt.edu` only)
+- Google OAuth for any Google account
+- Google sign-in requires: valid ID token and `email_verified = true`
 - User fields stored: `email`, `username`, `name`
 - `username`: auto-generated from email local part, normalized, unique
 - `name`: editable display name (default from Microsoft profile)
@@ -222,16 +226,17 @@ Score = 5000 * e ^ (-5 * distance / size)
 ## 14) User Stories
 
 ### Authentication & Access
-**A1 - Vanderbilt-only login**
+**A1 - Guided dual-provider login**
 - Acceptance Criteria:
-  - Only `@vanderbilt.edu` emails can complete login.
-  - Non-Vanderbilt emails are blocked with a clear error.
+  - Students can complete login through Microsoft with `@vanderbilt.edu` emails.
+  - Any Google account can complete login through Google.
 - Constraints:
   - Email domain validation is case-insensitive.
+  - Google path requires `email_verified = true`.
 - Dependencies:
-  - Azure AD app registration; Vanderbilt email validation in backend.
+  - Azure AD app registration; Google OAuth app credentials.
 - Edge Cases:
-  - Uppercase domains; missing email claim.
+  - Uppercase domains; missing email claim; unverified Google email.
 - Data Contracts:
   - `UserProfile`
 - Telemetry (optional):
