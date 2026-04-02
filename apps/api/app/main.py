@@ -35,11 +35,15 @@ async def lifespan(_app: FastAPI):
         from app.domains.games.daily import DailyChallengeRepository
         from app.domains.games.repository import GameRepository
         from app.domains.images.repository import ImageRepository
+        from app.domains.images.submission_job_repository import (
+            ImageSubmissionJobRepository,
+        )
         from app.domains.locations.repository import LocationRepository
         from app.domains.multiplayer.repository import MultiplayerGameRepository
         from app.domains.users.repository import UserRepository
 
         await container.resolve(ImageRepository).ensure_indexes()
+        await container.resolve(ImageSubmissionJobRepository).ensure_indexes()
         await container.resolve(LocationRepository).ensure_indexes()
         await container.resolve(GameRepository).ensure_indexes()
         await container.resolve(UserRepository).ensure_indexes()

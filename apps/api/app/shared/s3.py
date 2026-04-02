@@ -38,18 +38,70 @@ def build_public_url(key: str) -> str:
     return f"{scheme}://{bucket}.{host}/{key}"
 
 
-async def upload_bytes(key: str, data: bytes, content_type: str | None) -> str:
+async def upload_bytes(
+    key: str,
+    data: bytes,
+    content_type: str | None,
+    *,
+    public: bool = True,
+) -> str:
+    return await asyncio.to_thread(
+        upload_bytes_sync,
+        key,
+        data,
+        content_type,
+        public=public,
+    )
+
+
+def upload_bytes_sync(
+    key: str,
+    data: bytes,
+    content_type: str | None,
+    *,
+    public: bool = True,
+) -> str:
+    settings = get_settings()
+    if not settings.spaces_bucket:
+        raise ValueError("Spaces bucket is required")
+
+    client = get_s3_client()
+    put_kwargs: dict[str, str | bytes] = {
+        "Bucket": settings.spaces_bucket,
+        "Key": key,
+        "Body": data,
+        "ContentType": content_type or "application/octet-stream",
+    }
+    if public:
+        put_kwargs["ACL"] = "public-read"
+
+    client.put_object(**put_kwargs)
+    return build_public_url(key)
+
+
+async def download_bytes(key: str) -> bytes:
+    settings = get_settings()
+    if not settings.spaces_bucket:
+        raise ValueError("Spaces bucket is required")
+
+    client = get_s3_client()
+    response = await asyncio.to_thread(
+        client.get_object,
+        Bucket=settings.spaces_bucket,
+        Key=key,
+    )
+    body = response["Body"]
+    return await asyncio.to_thread(body.read)
+
+
+async def delete_object(key: str) -> None:
     settings = get_settings()
     if not settings.spaces_bucket:
         raise ValueError("Spaces bucket is required")
 
     client = get_s3_client()
     await asyncio.to_thread(
-        client.put_object,
+        client.delete_object,
         Bucket=settings.spaces_bucket,
         Key=key,
-        Body=data,
-        ContentType=content_type or "application/octet-stream",
-        ACL="public-read",
     )
-    return build_public_url(key)

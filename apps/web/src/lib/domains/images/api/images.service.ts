@@ -5,8 +5,8 @@
 import { apiClient } from "$lib/shared/api/client";
 import { getAccessToken } from "$lib/shared/auth/msalInstance";
 import type {
-	CrowdSubmissionResponse,
 	PendingSubmissionItem,
+	SubmissionJobAcceptedResponse,
 	TourEnvironment,
 	TourImageItem,
 	UploadEnvironment,
@@ -18,7 +18,7 @@ export const imagesService = {
 	submitSubmission: async (
 		file: File,
 		environment: UploadEnvironment,
-	): Promise<CrowdSubmissionResponse> => {
+	): Promise<SubmissionJobAcceptedResponse> => {
 		const token = await getAccessToken();
 		const body = new FormData();
 		body.append("file", file);
@@ -30,11 +30,11 @@ export const imagesService = {
 		});
 		const data = (await res.json().catch(() => ({}))) as {
 			detail?: string;
-		} & Partial<CrowdSubmissionResponse>;
+		} & Partial<SubmissionJobAcceptedResponse>;
 		if (!res.ok) {
 			throw new Error(typeof data.detail === "string" ? data.detail : "Upload failed");
 		}
-		return data as CrowdSubmissionResponse;
+		return data as SubmissionJobAcceptedResponse;
 	},
 
 	listPendingModeration: () =>

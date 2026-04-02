@@ -19,9 +19,9 @@ const allowedUploadExtensionSet = new Set<string>(ALLOWED_UPLOAD_EXTENSIONS);
 
 const EXIF_SLICE_BYTES = 512 * 1024;
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
-const MAX_UPLOAD_DIMENSION = 12000;
-const MAX_UPLOAD_PIXELS = 45_000_000;
-const MAX_PROJECTED_FULL_WIDTH = 12000;
+const MAX_UPLOAD_DIMENSION = 17000;
+const MAX_UPLOAD_PIXELS = 70_000_000;
+const MAX_PROJECTED_FULL_WIDTH = 17000;
 
 function getFileExtension(filename: string): string {
 	if (!filename.includes(".")) return "";

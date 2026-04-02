@@ -42,12 +42,16 @@ class Settings(BaseSettings):
     # Upload
     upload_secret_code: str = ""
     upload_max_bytes: int = 50 * 1024 * 1024
-    upload_max_dimension: int = Field(default=12000, ge=1024, le=65535)
-    upload_max_pixels: int = Field(default=45_000_000, ge=1_000_000, le=500_000_000)
-    upload_max_projected_full_width: int = Field(default=12000, ge=1024, le=65535)
+    upload_max_dimension: int = Field(default=17000, ge=1024, le=65535)
+    upload_max_pixels: int = Field(default=70_000_000, ge=1_000_000, le=500_000_000)
+    upload_max_projected_full_width: int = Field(default=17000, ge=1024, le=65535)
+    upload_queue_key: str = "images:submission:queue"
+    upload_queue_max_attempts: int = Field(default=3, ge=1, le=10)
+    upload_temp_prefix: str = "images/uploads-temp"
 
     # Image processing
     panorama_base_max_width: int = Field(default=2048, ge=512, le=8192)
+    panorama_max_source_width: int = Field(default=16384, ge=1024, le=32768)
     panorama_base_quality: int = Field(default=60, ge=1, le=95)
     panorama_tile_quality: int = Field(default=80, ge=1, le=95)
     image_original_jpeg_quality: int = Field(default=84, ge=1, le=95)

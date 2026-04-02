@@ -13,6 +13,11 @@ from app.domains.games.service import GameService
 from app.domains.images.moderation_service import ImageModerationService
 from app.domains.images.repository import IImageRepository, ImageRepository
 from app.domains.images.service import ImageService
+from app.domains.images.submission_job_repository import (
+    IImageSubmissionJobRepository,
+    ImageSubmissionJobRepository,
+)
+from app.domains.images.submission_job_service import SubmissionJobService
 from app.domains.leaderboard.repository import (
     ILeaderboardRepository,
     LeaderboardRepository,
@@ -42,6 +47,7 @@ container[aioredis.Redis] = lambda: get_redis()
 # Register repositories
 container[IUserRepository] = UserRepository
 container[IImageRepository] = ImageRepository
+container[IImageSubmissionJobRepository] = ImageSubmissionJobRepository
 container[ILocationRepository] = LocationRepository
 container[IGameRepository] = GameRepository
 container[IDailyChallengeRepository] = DailyChallengeRepository
@@ -52,6 +58,7 @@ container[IMultiplayerGameRepository] = MultiplayerGameRepository
 container[UserService] = UserService
 container[LocationService] = LocationService
 container[ImageService] = ImageService
+container[SubmissionJobService] = SubmissionJobService
 container[ImageModerationService] = ImageModerationService
 container[GameService] = GameService
 container[LeaderboardService] = LeaderboardService
