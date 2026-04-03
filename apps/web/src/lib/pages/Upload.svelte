@@ -120,7 +120,7 @@ async function submit() {
 }
 
 const unsub = auth.subscribe((a) => {
-	if (a.isInitialized && a.account === null) navigate("/login", { replace: true });
+	if (a.isInitialized && a.currentUserOid === null) navigate("/login", { replace: true });
 });
 onDestroy(unsub);
 </script>

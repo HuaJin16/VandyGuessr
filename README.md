@@ -27,7 +27,7 @@ cd VandyGuessr
 # Copy environment files
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
-# Edit .env files with your Microsoft OAuth credentials
+# Edit .env files with your Microsoft/Google OAuth credentials
 ```
 
 ### 2. Install Dependencies

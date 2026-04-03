@@ -26,8 +26,8 @@ function closePreview() {
 }
 
 $: pending = createQuery({
-	...imageQueries.pendingModeration(),
-	enabled: $auth.isInitialized,
+	...imageQueries.pendingModeration($auth.currentUserOid),
+	enabled: $auth.currentUserOid !== null,
 });
 
 let actingId: string | null = null;
@@ -62,7 +62,7 @@ async function reject(id: string) {
 }
 
 const unsub = auth.subscribe((a) => {
-	if (a.isInitialized && a.account === null) navigate("/login", { replace: true });
+	if (a.isInitialized && a.currentUserOid === null) navigate("/login", { replace: true });
 });
 onDestroy(unsub);
 </script>

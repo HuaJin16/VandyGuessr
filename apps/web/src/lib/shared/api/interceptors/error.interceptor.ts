@@ -17,7 +17,7 @@ export function errorInterceptor(error: AxiosError<ApiErrorResponse>): never {
 	const detail = error.response?.data?.detail || error.response?.data?.message;
 	const message = detail || error.message || "An unexpected error occurred";
 
-	if (status === 401 && get(auth).account !== null) {
+	if (status === 401 && get(auth).currentUserOid !== null) {
 		auth.logout();
 	}
 

@@ -2,14 +2,14 @@
  * Auth interceptor - attaches Bearer token to requests.
  */
 
-import { getAccessToken } from "$lib/shared/auth/msalInstance";
+import { getAuthToken } from "$lib/shared/auth/token";
 import type { InternalAxiosRequestConfig } from "axios";
 
 export async function authInterceptor(
 	config: InternalAxiosRequestConfig,
 ): Promise<InternalAxiosRequestConfig> {
 	try {
-		const token = await getAccessToken();
+		const token = await getAuthToken();
 		if (token) {
 			config.headers.Authorization = `Bearer ${token}`;
 		}

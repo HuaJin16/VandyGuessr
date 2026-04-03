@@ -6,8 +6,8 @@ import { imagesService } from "../api/images.service";
 import type { TourEnvironment } from "../types";
 
 export const imageQueries = {
-	pendingModeration: () => ({
-		queryKey: ["images", "moderation", "pending"] as const,
+	pendingModeration: (currentUserOid: string | null) => ({
+		queryKey: ["images", "moderation", "pending", currentUserOid] as const,
 		queryFn: () => imagesService.listPendingModeration(),
 	}),
 	tour: (environment: TourEnvironment) => ({

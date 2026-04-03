@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     microsoft_tenant_id: str = "common"
     microsoft_algorithms: str = "RS256"
 
+    # Google OAuth
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_algorithms: str = "RS256"
+
     # CORS
     cors_origins: list[str] = ["http://localhost:5173"]
 
@@ -62,6 +67,7 @@ class Settings(BaseSettings):
 
     # Feature flags
     feature_multiplayer: bool = False
+    feature_vanderbilt_restricted_logins: bool = True
 
     # DigitalOcean Spaces (S3-compatible)
     spaces_region: str = ""
@@ -79,6 +85,14 @@ class Settings(BaseSettings):
     def microsoft_issuer(self) -> str:
         """Get the issuer URL for Microsoft OAuth."""
         return f"https://login.microsoftonline.com/{self.microsoft_tenant_id}/v2.0"
+
+    @property
+    def google_jwks_url(self) -> str:
+        return "https://www.googleapis.com/oauth2/v3/certs"
+
+    @property
+    def google_issuers(self) -> list[str]:
+        return ["accounts.google.com", "https://accounts.google.com"]
 
     @property
     def reviewer_emails(self) -> list[str]:

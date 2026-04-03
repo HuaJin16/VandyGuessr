@@ -59,8 +59,10 @@ async def verify_token(
     Returns the decoded token payload if valid.
     Raises HTTPException if invalid.
     """
-    token = credentials.credentials
+    return await verify_token_raw(credentials.credentials, settings)
 
+
+async def verify_token_raw(token: str, settings: Settings) -> dict:
     if not settings.microsoft_client_id:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -77,7 +79,7 @@ async def verify_token(
             decode_options = {"verify_iss": False}
             issuer = None
 
-        payload = jwt.decode(
+        return jwt.decode(
             token,
             signing_key,
             algorithms=[settings.microsoft_algorithms],
@@ -85,9 +87,6 @@ async def verify_token(
             issuer=issuer,
             options=decode_options,
         )
-
-        return payload
-
     except JWTError as e:
         logger.warning("jwt_verification_failed", error=str(e))
         raise HTTPException(
@@ -135,13 +134,20 @@ def _build_display_name(token_payload: dict) -> str | None:
 
 async def get_current_user(
     token_payload: Annotated[dict, Depends(verify_token)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> dict:
     """Get the current user from the verified token.
 
     Returns user information extracted from token.
     """
+    return build_current_user(token_payload, settings)
+
+
+def build_current_user(token_payload: dict, settings: Settings) -> dict:
     email = token_payload.get("email") or token_payload.get("preferred_username")
-    if not _is_vanderbilt_email(email):
+    if settings.feature_vanderbilt_restricted_logins and not _is_vanderbilt_email(
+        email
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized email domain",

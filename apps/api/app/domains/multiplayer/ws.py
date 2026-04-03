@@ -4,11 +4,11 @@ import asyncio
 from datetime import UTC, datetime
 
 import structlog
-from fastapi import WebSocket, WebSocketDisconnect
-from jose import JWTError, jwt
+from fastapi import HTTPException, WebSocket, WebSocketDisconnect
+from jose import jwt
 
 from app.config import get_settings
-from app.core.auth.microsoft import get_current_user, get_jwks, get_signing_key
+from app.core.auth.provider import build_current_user, verify_token_raw
 from app.domains.multiplayer.connection_manager import ConnectionManager
 from app.domains.multiplayer.events import ServerEvent
 from app.domains.multiplayer.game_manager import GameManager
@@ -24,28 +24,10 @@ TOKEN_EXPIRY_GRACE_SECONDS = 60
 async def _authenticate(token: str) -> dict | None:
     """Validate a JWT and return the user dict, or None on failure."""
     settings = get_settings()
-    if not settings.microsoft_client_id:
-        return None
     try:
-        jwks = await get_jwks(settings)
-        signing_key = get_signing_key(jwks, token)
-
-        decode_options = {}
-        issuer = settings.microsoft_issuer
-        if settings.microsoft_tenant_id == "common":
-            decode_options = {"verify_iss": False}
-            issuer = None
-
-        payload = jwt.decode(
-            token,
-            signing_key,
-            algorithms=[settings.microsoft_algorithms],
-            audience=settings.microsoft_client_id,
-            issuer=issuer,
-            options=decode_options,
-        )
-        return await get_current_user(payload)
-    except (JWTError, Exception):
+        payload = await verify_token_raw(token, settings)
+        return build_current_user(payload, settings)
+    except HTTPException:
         return None
 
 
