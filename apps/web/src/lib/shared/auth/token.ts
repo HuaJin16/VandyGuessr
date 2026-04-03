@@ -13,6 +13,7 @@ export async function getAuthToken(): Promise<string | null> {
 	if (state.provider === "google") {
 		const token = getStoredGoogleToken();
 		if (!token || isGoogleTokenExpired(token)) {
+			auth.logout();
 			return null;
 		}
 		return token;

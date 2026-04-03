@@ -108,6 +108,7 @@ function loadGoogleScript(): Promise<void> {
 		const script = existing ?? document.createElement("script");
 		const timeoutId = window.setTimeout(() => {
 			cleanup();
+			scriptPromise = null;
 			reject(new Error("Failed to load Google sign-in"));
 		}, 10000);
 
@@ -123,11 +124,13 @@ function loadGoogleScript(): Promise<void> {
 				resolve();
 				return;
 			}
+			scriptPromise = null;
 			reject(new Error("Google sign-in is unavailable"));
 		};
 
 		const onError = () => {
 			cleanup();
+			scriptPromise = null;
 			reject(new Error("Failed to load Google sign-in"));
 		};
 

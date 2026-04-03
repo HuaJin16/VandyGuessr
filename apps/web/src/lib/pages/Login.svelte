@@ -9,10 +9,13 @@ import {
 } from "$lib/shared/auth/auth.store";
 import { renderGoogleSignInButton } from "$lib/shared/auth/googleIdentity";
 import { onMount } from "svelte";
+import { toast } from "svelte-sonner";
 import logo from "../../assets/logo.webp";
 
+const isVanderbiltRestricted =
+	import.meta.env.VITE_FEATURE_VANDERBILT_RESTRICTED_LOGINS !== "false";
+
 let googleButtonContainer: HTMLDivElement;
-let googleRenderError: string | null = null;
 let googleButtonReady = false;
 
 $: isGoogleButtonDisabled = $isLoading || $isAuthFlowLoading || !googleButtonReady;
@@ -22,14 +25,10 @@ async function setupGoogleButton() {
 
 	const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 	if (!clientId) {
-		const message = "Google OAuth is not configured";
-		googleRenderError = message;
-		googleButtonReady = false;
-		auth.failGoogleLogin(message);
+		toast.error("Google OAuth is not configured");
+		auth.failGoogleLogin("Google OAuth is not configured");
 		return;
 	}
-
-	googleRenderError = null;
 
 	try {
 		await renderGoogleSignInButton({
@@ -45,14 +44,15 @@ async function setupGoogleButton() {
 		googleButtonReady = true;
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Failed to load Google sign-in";
-		googleRenderError = message;
-		googleButtonReady = false;
+		toast.error(message);
 		auth.failGoogleLogin(message);
 	}
 }
 
 onMount(() => {
-	void setupGoogleButton();
+	if (!isVanderbiltRestricted) {
+		void setupGoogleButton();
+	}
 });
 </script>
 
@@ -85,7 +85,7 @@ onMount(() => {
 			{/if}
 
 			<p class="mt-6 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted/60">
-				Choose the sign-in path for your role
+				{isVanderbiltRestricted ? "Made exclusively for Vanderbilt students" : "Sign in to get started"}
 			</p>
 
 			<div class="mt-4 flex w-full flex-col gap-4">
@@ -103,40 +103,32 @@ onMount(() => {
 					{$isMicrosoftLoading ? "Loading..." : "Continue with Vanderbilt"}
 				</button>
 
-				<div class={`google-provider-wrap ${isGoogleButtonDisabled ? "google-provider-wrap-disabled" : ""}`}>
-					<button
-						type="button"
-						class="btn-3d google-provider-visual flex w-full items-center justify-center gap-3 text-[15px]"
-						disabled={isGoogleButtonDisabled}
-					>
-						<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-							<path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C33.8 6.1 29.2 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z" />
-							<path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 18.9 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C33.8 6.1 29.2 4 24 4c-7.7 0-14.3 4.3-17.7 10.7z" />
-							<path fill="#4CAF50" d="M24 44c5.1 0 9.8-1.9 13.4-5.1l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.4-8l-6.5 5C9.5 39.5 16.2 44 24 44z" />
-							<path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1 2.7-2.8 4.8-5.1 6.2l6.2 5.2C36 39.7 44 34 44 24c0-1.3-.1-2.3-.4-3.5z" />
-						</svg>
-						{$isGoogleLoading ? "Loading..." : "Continue with Google"}
-					</button>
+				{#if !isVanderbiltRestricted}
+					<div class={`google-provider-wrap ${isGoogleButtonDisabled ? "google-provider-wrap-disabled" : ""}`}>
+						<button
+							type="button"
+							class="btn-3d google-provider-visual flex w-full items-center justify-center gap-3 text-[15px]"
+							disabled={isGoogleButtonDisabled}
+						>
+							<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+								<path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C33.8 6.1 29.2 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z" />
+								<path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 18.9 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C33.8 6.1 29.2 4 24 4c-7.7 0-14.3 4.3-17.7 10.7z" />
+								<path fill="#4CAF50" d="M24 44c5.1 0 9.8-1.9 13.4-5.1l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.4-8l-6.5 5C9.5 39.5 16.2 44 24 44z" />
+								<path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1 2.7-2.8 4.8-5.1 6.2l6.2 5.2C36 39.7 44 34 44 24c0-1.3-.1-2.3-.4-3.5z" />
+							</svg>
+							{$isGoogleLoading ? "Loading..." : "Continue with Google"}
+						</button>
 
-					<div
-						bind:this={googleButtonContainer}
-						class={`google-provider-overlay ${isGoogleButtonDisabled ? "google-provider-overlay-disabled" : ""}`}
-						aria-hidden="true"
-					/>
-				</div>
+						<div
+							bind:this={googleButtonContainer}
+							class={`google-provider-overlay ${isGoogleButtonDisabled ? "google-provider-overlay-disabled" : ""}`}
+							aria-hidden="true"
+						/>
+					</div>
 
-				{#if $isGoogleLoading}
-					<p class="text-[12px] text-muted">Finishing Google sign-in...</p>
-				{/if}
-
-				{#if googleRenderError}
-					<button
-						class="btn-ghost w-full text-[14px]"
-						on:click={() => setupGoogleButton()}
-						type="button"
-					>
-						Retry Google sign-in
-					</button>
+					{#if $isGoogleLoading}
+						<p class="text-[12px] text-muted">Finishing Google sign-in...</p>
+					{/if}
 				{/if}
 			</div>
 		</main>

@@ -67,6 +67,7 @@ class Settings(BaseSettings):
 
     # Feature flags
     feature_multiplayer: bool = False
+    feature_vanderbilt_restricted_logins: bool = True
 
     # DigitalOcean Spaces (S3-compatible)
     spaces_region: str = ""

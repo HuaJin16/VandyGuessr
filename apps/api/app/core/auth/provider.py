@@ -45,6 +45,11 @@ def _is_google_issuer(issuer: str) -> bool:
 async def verify_token_raw(token: str, settings: Settings) -> dict:
     issuer = _get_issuer(token)
     if _is_google_issuer(issuer):
+        if settings.feature_vanderbilt_restricted_logins:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Google login is not available",
+            )
         return await verify_google_token_raw(token, settings)
     if _is_microsoft_issuer(issuer):
         return await verify_microsoft_token_raw(token, settings)
@@ -59,7 +64,7 @@ def build_current_user(token_payload: dict, settings: Settings) -> dict:
     issuer = token_payload.get("iss")
     if isinstance(issuer, str) and _is_google_issuer(issuer):
         return build_google_user(token_payload, settings)
-    return build_microsoft_user(token_payload)
+    return build_microsoft_user(token_payload, settings)
 
 
 async def verify_token(

@@ -46,6 +46,9 @@ function createAuthStore() {
 
 		/** Initialize MSAL and restore session if available */
 		async initialize() {
+			const isVanderbiltRestricted =
+				import.meta.env.VITE_FEATURE_VANDERBILT_RESTRICTED_LOGINS !== "false";
+
 			try {
 				await initializeMsal();
 				const microsoftAccount = msalInstance.getActiveAccount();
@@ -62,25 +65,25 @@ function createAuthStore() {
 					return;
 				}
 
-				const googleToken = getStoredGoogleToken();
-				if (googleToken && !isGoogleTokenExpired(googleToken)) {
-					const decoded = decodeGoogleIdToken(googleToken);
-					if (decoded?.sub) {
-						update((state) => ({
-							...state,
-							provider: "google",
-							account: null,
-							currentUserOid: `google:${decoded.sub}`,
-							isInitialized: true,
-							isLoading: false,
-						}));
-						return;
+				if (!isVanderbiltRestricted) {
+					const googleToken = getStoredGoogleToken();
+					if (googleToken && !isGoogleTokenExpired(googleToken)) {
+						const decoded = decodeGoogleIdToken(googleToken);
+						if (decoded?.sub) {
+							update((state) => ({
+								...state,
+								provider: "google",
+								account: null,
+								currentUserOid: `google:${decoded.sub}`,
+								isInitialized: true,
+								isLoading: false,
+							}));
+							return;
+						}
 					}
 				}
 
-				if (googleToken) {
-					clearGoogleToken();
-				}
+				clearGoogleToken();
 
 				update((state) => ({
 					...state,

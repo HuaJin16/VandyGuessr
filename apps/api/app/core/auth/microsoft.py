@@ -134,17 +134,20 @@ def _build_display_name(token_payload: dict) -> str | None:
 
 async def get_current_user(
     token_payload: Annotated[dict, Depends(verify_token)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> dict:
     """Get the current user from the verified token.
 
     Returns user information extracted from token.
     """
-    return build_current_user(token_payload)
+    return build_current_user(token_payload, settings)
 
 
-def build_current_user(token_payload: dict) -> dict:
+def build_current_user(token_payload: dict, settings: Settings) -> dict:
     email = token_payload.get("email") or token_payload.get("preferred_username")
-    if not _is_vanderbilt_email(email):
+    if settings.feature_vanderbilt_restricted_logins and not _is_vanderbilt_email(
+        email
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized email domain",
