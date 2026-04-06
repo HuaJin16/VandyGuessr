@@ -90,10 +90,6 @@ class GameManagerRoundsMixin:
                 return
             round_payload = self._build_round_result_payload(doc, round_index)
 
-            skip_event = asyncio.Event()
-            self._ready_events[game_id] = skip_event
-            self._ready_players[game_id] = set()
-
             await self.cm.broadcast(
                 game_id,
                 {
@@ -108,17 +104,7 @@ class GameManagerRoundsMixin:
 
             next_index = round_index + 1
             if next_index >= len(doc["rounds"]):
-                self._ready_events.pop(game_id, None)
-                self._ready_players.pop(game_id, None)
                 await self._complete_game(game_id)
-            else:
-                await skip_event.wait()
-                self._ready_events.pop(game_id, None)
-                self._ready_players.pop(game_id, None)
-                fresh = await self._load(game_id)
-                if not fresh or fresh["status"] != "active":
-                    return
-                await self._start_round(game_id, next_index)
 
     async def _complete_game(self, game_id: str) -> None:
         doc = await self._load(game_id)

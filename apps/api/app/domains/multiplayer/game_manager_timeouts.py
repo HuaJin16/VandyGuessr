@@ -30,10 +30,7 @@ class GameManagerTimeoutsMixin:
         if game_id in self._lobby_tasks:
             self._lobby_tasks[game_id].cancel()
             del self._lobby_tasks[game_id]
-        ready_event = self._ready_events.pop(game_id, None)
-        if ready_event:
-            ready_event.set()
-        self._ready_players.pop(game_id, None)
+        await self._clear_all_ready_barriers(game_id)
         for key in [k for k in self._rate_limits if k.startswith(f"{game_id}:")]:
             del self._rate_limits[key]
         self._lobby_ready.pop(game_id, None)
@@ -95,6 +92,8 @@ class GameManagerTimeoutsMixin:
                 fresh_doc = await self._load(game_id)
                 if fresh_doc:
                     await self._check_last_player_standing(game_id, fresh_doc)
+                    updated_doc = await self._load(game_id)
+                    await self._maybe_advance_ready_barrier(game_id, updated_doc)
         except asyncio.CancelledError:
             pass
         finally:

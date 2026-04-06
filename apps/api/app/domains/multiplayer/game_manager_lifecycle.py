@@ -97,7 +97,6 @@ class GameManagerLifecycleMixin:
         )
 
         updated_doc = await self._load(game_id)
-        await self._maybe_release_ready_event(game_id, updated_doc)
 
         deadline = datetime.now(UTC) + timedelta(seconds=RECONNECT_TIMEOUT_SECONDS)
 
@@ -109,6 +108,8 @@ class GameManagerLifecycleMixin:
                 "reconnectDeadline": iso_utc(deadline),
             },
         )
+
+        await self._maybe_advance_ready_barrier(game_id, updated_doc)
 
         reconnect_key = f"{game_id}:{user_id}"
         self._reconnect_tasks[reconnect_key] = asyncio.create_task(
