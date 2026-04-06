@@ -2,7 +2,52 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.domains.multiplayer.service import MultiplayerError, MultiplayerService
+from app.domains.multiplayer.service import (
+    ROUNDS_PER_GAME,
+    MultiplayerError,
+    MultiplayerService,
+)
+
+
+def _tiles_payload() -> dict:
+    return {
+        "version": 1,
+        "base_url": "https://cdn.test/images/base.jpg",
+        "tile_url_template": "https://cdn.test/images/l{level}/{col}_{row}.jpg",
+        "original_width": 4000,
+        "original_height": 2000,
+        "aspect_ratio": 2.0,
+        "base_pano_data": {
+            "full_width": 4000,
+            "full_height": 2000,
+            "cropped_width": 4000,
+            "cropped_height": 2000,
+            "cropped_x": 0,
+            "cropped_y": 0,
+        },
+        "levels": [
+            {
+                "level": 0,
+                "width": 1024,
+                "height": 512,
+                "cols": 2,
+                "rows": 1,
+            }
+        ],
+    }
+
+
+def _image_doc(index: int, *, tiles: object | None = None) -> dict:
+    payload = {
+        "_id": f"img-{index}",
+        "url": f"https://cdn.test/images/{index}.jpg",
+        "latitude": 36.14 + index,
+        "longitude": -86.8 - index,
+        "location_name": f"Location {index}",
+    }
+    if tiles is not None:
+        payload["tiles"] = tiles
+    return payload
 
 
 def _service(
@@ -53,6 +98,90 @@ async def test_create_game_requires_enough_images() -> None:
             avatar_url=None,
             environment="any",
         )
+
+
+@pytest.mark.asyncio
+async def test_create_game_carries_valid_image_tiles_into_rounds() -> None:
+    repo = AsyncMock()
+    repo.find_active_by_user = AsyncMock(return_value=None)
+    repo.find_by_invite_code = AsyncMock(return_value=None)
+    repo.create = AsyncMock(return_value="game-1")
+    repo.find_by_id = AsyncMock(
+        return_value={
+            "_id": "game-1",
+            "status": "waiting",
+            "invite_code": "ABC123",
+            "players": [],
+            "rounds": [],
+        }
+    )
+
+    image_repo = AsyncMock()
+    image_repo.sample_random = AsyncMock(
+        return_value=[
+            _image_doc(index, tiles=_tiles_payload())
+            for index in range(ROUNDS_PER_GAME)
+        ]
+    )
+    redis_client = AsyncMock()
+    service = _service(repo=repo, image_repo=image_repo, redis_client=redis_client)
+
+    await service.create_game(
+        host_id="host-1",
+        host_name="Host",
+        avatar_url=None,
+        environment="any",
+    )
+
+    created_game = repo.create.await_args.args[0]
+    assert all(round_data.image_tiles is not None for round_data in created_game.rounds)
+
+
+@pytest.mark.asyncio
+async def test_create_game_falls_back_when_image_tiles_invalid() -> None:
+    repo = AsyncMock()
+    repo.find_active_by_user = AsyncMock(return_value=None)
+    repo.find_by_invite_code = AsyncMock(return_value=None)
+    repo.create = AsyncMock(return_value="game-1")
+    repo.find_by_id = AsyncMock(
+        return_value={
+            "_id": "game-1",
+            "status": "waiting",
+            "invite_code": "ABC123",
+            "players": [],
+            "rounds": [],
+        }
+    )
+
+    image_repo = AsyncMock()
+    image_repo.sample_random = AsyncMock(
+        return_value=[
+            _image_doc(0, tiles={"version": 1}),
+            _image_doc(1),
+            _image_doc(2, tiles="bad"),
+            *[
+                _image_doc(index, tiles=_tiles_payload())
+                for index in range(3, ROUNDS_PER_GAME)
+            ],
+        ]
+    )
+    redis_client = AsyncMock()
+    service = _service(repo=repo, image_repo=image_repo, redis_client=redis_client)
+
+    await service.create_game(
+        host_id="host-1",
+        host_name="Host",
+        avatar_url=None,
+        environment="any",
+    )
+
+    created_game = repo.create.await_args.args[0]
+    assert created_game.rounds[0].image_tiles is None
+    assert created_game.rounds[1].image_tiles is None
+    assert created_game.rounds[2].image_tiles is None
+    assert all(
+        round_data.image_tiles is not None for round_data in created_game.rounds[3:]
+    )
 
 
 @pytest.mark.asyncio

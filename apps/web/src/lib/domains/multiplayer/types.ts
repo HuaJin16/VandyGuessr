@@ -1,3 +1,5 @@
+import type { RoundTiles } from "$lib/domains/games/types";
+
 export type MultiplayerGameStatus = "waiting" | "active" | "completed" | "cancelled" | "abandoned";
 
 export type PlayerStatus = "connected" | "disconnected" | "forfeited";
@@ -34,6 +36,7 @@ export interface MultiplayerGuess {
 export interface MultiplayerRound {
 	roundId: number;
 	imageUrl: string | null;
+	imageTiles?: RoundTiles | null;
 	actual: { lat: number; lng: number } | null;
 	locationName: string | null;
 	startedAt: string | null;
@@ -95,6 +98,7 @@ export interface GameStatePayload {
 	round: {
 		round: number;
 		imageUrl: string;
+		imageTiles?: RoundTiles | null;
 		expiresAt: string | null;
 	} | null;
 	playersGuessed: string[];
@@ -194,6 +198,7 @@ export interface RoundStartMessage {
 	round: number;
 	totalRounds: number;
 	imageUrl: string;
+	imageTiles?: RoundTiles | null;
 	expiresAt: string;
 }
 
@@ -259,7 +264,12 @@ export interface GameStateMessage {
 	status: MultiplayerGameStatus;
 	currentRound: number;
 	totalRounds: number;
-	round: { round: number; imageUrl: string; expiresAt: string | null } | null;
+	round: {
+		round: number;
+		imageUrl: string;
+		imageTiles?: RoundTiles | null;
+		expiresAt: string | null;
+	} | null;
 	playersGuessed: string[];
 	hasGuessedThisRound: boolean;
 	players: Array<{

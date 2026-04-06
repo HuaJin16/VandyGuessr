@@ -1,3 +1,4 @@
+import type { RoundTiles } from "$lib/domains/games/types";
 import { derived, writable } from "svelte/store";
 import type {
 	ConnectionState,
@@ -25,6 +26,7 @@ interface MultiplayerState {
 	currentRound: number;
 	totalRounds: number;
 	imageUrl: string | null;
+	imageTiles: RoundTiles | null;
 	expiresAt: string | null;
 	guessPosition: { lat: number; lng: number } | null;
 	hasGuessedThisRound: boolean;
@@ -42,6 +44,7 @@ const initial: MultiplayerState = {
 	currentRound: 0,
 	totalRounds: 0,
 	imageUrl: null,
+	imageTiles: null,
 	expiresAt: null,
 	guessPosition: null,
 	hasGuessedThisRound: false,
@@ -66,13 +69,20 @@ function createMultiplayerStore() {
 		setPhase(phase: MultiplayerPhase) {
 			update((s) => ({ ...s, phase }));
 		},
-		startRound(round: number, totalRounds: number, imageUrl: string, expiresAt: string) {
+		startRound(
+			round: number,
+			totalRounds: number,
+			imageUrl: string,
+			expiresAt: string,
+			imageTiles: RoundTiles | null = null,
+		) {
 			update((s) => ({
 				...s,
 				phase: "playing",
 				currentRound: round,
 				totalRounds,
 				imageUrl,
+				imageTiles,
 				expiresAt,
 				guessPosition: null,
 				hasGuessedThisRound: false,
@@ -133,7 +143,12 @@ function createMultiplayerStore() {
 			status: MultiplayerGameStatus;
 			currentRound: number;
 			totalRounds: number;
-			round: { round: number; imageUrl: string; expiresAt: string | null } | null;
+			round: {
+				round: number;
+				imageUrl: string;
+				imageTiles?: RoundTiles | null;
+				expiresAt: string | null;
+			} | null;
 			playersGuessed: string[];
 			hasGuessedThisRound: boolean;
 			previousRounds: PreviousRound[];
@@ -170,6 +185,7 @@ function createMultiplayerStore() {
 				currentRound: payload.currentRound,
 				totalRounds: payload.totalRounds,
 				imageUrl: payload.round?.imageUrl ?? null,
+				imageTiles: payload.round?.imageTiles ?? null,
 				expiresAt: payload.round?.expiresAt ?? null,
 				playersGuessed: payload.playersGuessed,
 				hasGuessedThisRound: payload.hasGuessedThisRound,

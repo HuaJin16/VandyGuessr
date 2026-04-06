@@ -1,6 +1,7 @@
 <script lang="ts">
 import MapAssembly from "$lib/domains/games/components/MapAssembly.svelte";
 import PanoramaViewer from "$lib/domains/games/components/PanoramaViewer.svelte";
+import type { RoundTiles } from "$lib/domains/games/types";
 import MultiplayerHud from "$lib/domains/multiplayer/components/MultiplayerHud.svelte";
 import MultiplayerResultsView from "$lib/domains/multiplayer/components/MultiplayerResultsView.svelte";
 import MultiplayerSummary from "$lib/domains/multiplayer/components/MultiplayerSummary.svelte";
@@ -38,6 +39,7 @@ $: if ($gameQuery.data && !hydratedFromQuery) {
 $: phase = $multiplayerStore.phase;
 $: currentRound = $multiplayerStore.currentRound;
 $: imageUrl = $multiplayerStore.imageUrl;
+$: imageTiles = $multiplayerStore.imageTiles;
 $: hasGuessed = $multiplayerStore.hasGuessedThisRound;
 $: guessPosition = $multiplayerStore.guessPosition;
 $: roundResult = $multiplayerStore.roundResult;
@@ -56,6 +58,7 @@ let pendingRoundStart: {
 	round: number;
 	totalRounds: number;
 	imageUrl: string;
+	imageTiles: RoundTiles | null;
 	expiresAt: string;
 } | null = null;
 
@@ -70,10 +73,17 @@ function applyRoundStart(data: {
 	round: number;
 	totalRounds: number;
 	imageUrl: string;
+	imageTiles: RoundTiles | null;
 	expiresAt: string;
 }) {
 	readySent = false;
-	multiplayerStore.startRound(data.round, data.totalRounds, data.imageUrl, data.expiresAt);
+	multiplayerStore.startRound(
+		data.round,
+		data.totalRounds,
+		data.imageUrl,
+		data.expiresAt,
+		data.imageTiles,
+	);
 	startTimerTick();
 }
 
@@ -106,15 +116,23 @@ function handleMessage(msg: ServerMessage) {
 				round: number;
 				totalRounds: number;
 				imageUrl: string;
+				imageTiles?: RoundTiles | null;
 				expiresAt: string;
+			};
+			const roundStartData = {
+				round: data.round,
+				totalRounds: data.totalRounds,
+				imageUrl: data.imageUrl,
+				imageTiles: data.imageTiles ?? null,
+				expiresAt: data.expiresAt,
 			};
 			if ($multiplayerStore.phase === "results") {
 				if (!readySent) {
-					pendingRoundStart = data;
+					pendingRoundStart = roundStartData;
 					break;
 				}
 			}
-			applyRoundStart(data);
+			applyRoundStart(roundStartData);
 			break;
 		}
 		case ServerEvent.GuessAccepted: {
@@ -207,7 +225,12 @@ function handleMessage(msg: ServerMessage) {
 				status: "waiting" | "active" | "completed" | "cancelled" | "abandoned";
 				currentRound: number;
 				totalRounds: number;
-				round: { round: number; imageUrl: string; expiresAt: string | null } | null;
+				round: {
+					round: number;
+					imageUrl: string;
+					imageTiles?: RoundTiles | null;
+					expiresAt: string | null;
+				} | null;
 				playersGuessed: string[];
 				hasGuessedThisRound: boolean;
 				previousRounds: PreviousRound[];
@@ -416,7 +439,7 @@ onDestroy(() => {
 	<MultiplayerResultsView result={roundResult} {currentUserId} {readySent} on:readyNext={sendReadyNext} />
 {:else if phase === "playing" && imageUrl}
 	<div class="scene">
-		<PanoramaViewer imageUrl={imageUrl} />
+		<PanoramaViewer imageUrl={imageUrl} {imageTiles} />
 	</div>
 
 	<!-- Disconnect toasts -->

@@ -7,6 +7,7 @@ from app.domains.multiplayer.game_manager_shared import (
     RATE_LIMIT_MAX,
     RATE_LIMIT_WINDOW,
     iso_utc,
+    round_tiles_payload,
 )
 
 
@@ -94,6 +95,7 @@ class GameManagerStateMixin:
                 round_data = {
                     "round": current_round,
                     "imageUrl": rd["image_url"],
+                    "imageTiles": round_tiles_payload(rd.get("image_tiles")),
                     "expiresAt": iso_utc(rd["expires_at"])
                     if rd.get("expires_at")
                     else None,
