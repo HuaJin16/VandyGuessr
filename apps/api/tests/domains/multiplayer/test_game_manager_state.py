@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -5,6 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.domains.multiplayer.game_manager import GameManager
+from app.domains.multiplayer.game_manager_rounds import GameManagerRoundsMixin
 from app.domains.multiplayer.game_manager_shared import (
     READY_ADVANCE_LOCK_TTL_SECONDS,
     READY_BARRIER_TTL_SECONDS,
@@ -20,6 +22,53 @@ class _Harness(GameManagerStateMixin):
         self._rate_limits: dict[str, list[float]] = {}
         self._start_round = AsyncMock()
         self.repo = SimpleNamespace(find_by_id=AsyncMock())
+
+
+class _RoundsHarness(GameManagerRoundsMixin):
+    def __init__(self, doc: dict) -> None:
+        self.repo = SimpleNamespace(update_round=AsyncMock(), update_game=AsyncMock())
+        self.cm = SimpleNamespace(broadcast=AsyncMock())
+        self._timer_tasks: dict[str, asyncio.Task] = {}
+        self._doc = doc
+
+    async def _load(self, _game_id: str) -> dict | None:
+        return self._doc
+
+    async def _complete_game(self, _game_id: str) -> None:
+        return
+
+    async def _round_timer(
+        self, _game_id: str, _round_index: int, _seconds: float
+    ) -> None:
+        return
+
+
+def _tiles_payload() -> dict:
+    return {
+        "version": 1,
+        "base_url": "https://cdn.test/images/base.jpg",
+        "tile_url_template": "https://cdn.test/images/l{level}/{col}_{row}.jpg",
+        "original_width": 4000,
+        "original_height": 2000,
+        "aspect_ratio": 2.0,
+        "base_pano_data": {
+            "full_width": 4000,
+            "full_height": 2000,
+            "cropped_width": 4000,
+            "cropped_height": 2000,
+            "cropped_x": 0,
+            "cropped_y": 0,
+        },
+        "levels": [
+            {
+                "level": 0,
+                "width": 1024,
+                "height": 512,
+                "cols": 2,
+                "rows": 1,
+            }
+        ],
+    }
 
 
 def _sample_doc() -> dict:
@@ -47,6 +96,7 @@ def _sample_doc() -> dict:
                 "actual_lat": 36.0,
                 "actual_lng": -86.8,
                 "image_url": "https://img.test/1.jpg",
+                "image_tiles": _tiles_payload(),
                 "location_name": "Commons",
                 "expires_at": now,
                 "guesses": {
@@ -93,8 +143,22 @@ async def test_send_game_state_includes_round_snapshot_and_ready_players() -> No
     message = harness.cm.send_to_player.await_args.args[2]
     assert message["currentRound"] == 1
     assert message["round"]["imageUrl"] == "https://img.test/1.jpg"
+    assert (
+        message["round"]["imageTiles"]["baseUrl"] == "https://cdn.test/images/base.jpg"
+    )
     assert message["hasGuessedThisRound"] is True
     assert message["readyPlayers"] == ["u1"]
+
+
+@pytest.mark.asyncio
+async def test_start_round_includes_image_tiles_in_round_start_payload() -> None:
+    harness = _RoundsHarness(_sample_doc())
+
+    await harness._start_round("game-1", 0)
+
+    payload = harness.cm.broadcast.await_args.args[1]
+    assert payload["imageUrl"] == "https://img.test/1.jpg"
+    assert payload["imageTiles"]["baseUrl"] == "https://cdn.test/images/base.jpg"
 
 
 @pytest.mark.asyncio

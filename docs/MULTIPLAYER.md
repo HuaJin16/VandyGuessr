@@ -206,6 +206,7 @@ class MultiplayerRoundEntity(BaseModel):
     round_id: int                         # 1-5
     image_id: str
     image_url: str
+    image_tiles: dict | None              # tiled panorama metadata (same contract as solo imageTiles)
     actual_lat: float
     actual_lng: float
     location_name: str | None
@@ -220,8 +221,8 @@ All 5 round images are selected at game creation time (`POST /v1/multiplayer/cre
 
 1. Query the `images` collection filtered by `mode.environment` (or all images if `"any"`).
 2. Randomly select 5 distinct images.
-3. Store each image's `image_id`, `image_url`, `actual_lat`, `actual_lng`, and `location_name` on the corresponding `MultiplayerRoundEntity`.
-4. The `imageUrl` is only sent to clients at `round_start` time — never exposed in REST responses or lobby state.
+3. Store each image's `image_id`, `image_url`, `image_tiles` (if present/valid), `actual_lat`, `actual_lng`, and `location_name` on the corresponding `MultiplayerRoundEntity`.
+4. The `imageUrl` and optional `imageTiles` are sent to clients at `round_start` time (and via `game_state` hydration for reconnect) — never exposed in REST responses or lobby state.
 
 **Edge case — image deleted mid-game:** If an image is deleted from the `images` collection while a game is active, the server detects this when preparing the `round_start` payload (the URL would 404). The server selects a replacement image matching the same environment filter, updates the round entity, and proceeds. If no replacement is available, the round is skipped and all players receive 5000 for that round.
 
@@ -424,6 +425,7 @@ enum ServerEvent {
   "type": "round_start",
   "round": 1,
   "imageUrl": "https://spaces.example.com/images/abc.jpg",
+  "imageTiles": null,
   "expiresAt": "2026-02-16T20:02:00Z"
 }
 
@@ -489,6 +491,7 @@ enum ServerEvent {
   "round": {
     "round": 3,
     "imageUrl": "https://spaces.example.com/images/xyz.jpg",
+    "imageTiles": null,
     "expiresAt": "2026-02-16T20:04:00Z"
   },
   "playersGuessed": ["user_id_1", "user_id_2"],

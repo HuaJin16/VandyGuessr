@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.domains.games.entities import RoundTilesEntity
+
 
 class MultiplayerModeEntity(BaseModel):
     environment: Literal["indoor", "outdoor", "any"]
@@ -32,6 +34,7 @@ class MultiplayerRoundEntity(BaseModel):
     round_id: int
     image_id: str
     image_url: str
+    image_tiles: RoundTilesEntity | None = None
     actual_lat: float
     actual_lng: float
     location_name: str | None = None

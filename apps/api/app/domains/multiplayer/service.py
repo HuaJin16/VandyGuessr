@@ -7,7 +7,9 @@ from typing import Literal, cast
 
 import redis.asyncio as redis
 import structlog
+from pydantic import ValidationError
 
+from app.domains.games.entities import RoundTilesEntity
 from app.domains.images.repository import IImageRepository
 from app.domains.locations.service import LocationService
 from app.domains.multiplayer.entities import (
@@ -48,6 +50,16 @@ class MultiplayerService:
         self.location_service = location_service
         self.redis = redis_client
 
+    @staticmethod
+    def _round_tiles(image_doc: dict) -> RoundTilesEntity | None:
+        tiles = image_doc.get("tiles")
+        if not isinstance(tiles, dict):
+            return None
+        try:
+            return RoundTilesEntity.model_validate(tiles)
+        except (ValidationError, KeyError, TypeError, ValueError):
+            return None
+
     async def create_game(
         self,
         host_id: str,
@@ -74,6 +86,7 @@ class MultiplayerService:
                 round_id=i + 1,
                 image_id=str(img["_id"]),
                 image_url=img["url"],
+                image_tiles=self._round_tiles(img),
                 actual_lat=img["latitude"],
                 actual_lng=img["longitude"],
                 location_name=img.get("location_name"),

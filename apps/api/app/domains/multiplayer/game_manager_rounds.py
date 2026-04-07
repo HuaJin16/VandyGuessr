@@ -5,7 +5,11 @@ from datetime import UTC, datetime, timedelta
 
 from app.domains.leaderboard.cache import invalidate_leaderboard_cache
 from app.domains.multiplayer.events import ServerEvent
-from app.domains.multiplayer.game_manager_shared import ROUND_DURATION_SECONDS, iso_utc
+from app.domains.multiplayer.game_manager_shared import (
+    ROUND_DURATION_SECONDS,
+    iso_utc,
+    round_tiles_payload,
+)
 
 
 class GameManagerRoundsMixin:
@@ -46,6 +50,7 @@ class GameManagerRoundsMixin:
                 "round": round_index + 1,
                 "totalRounds": len(doc["rounds"]),
                 "imageUrl": rd["image_url"],
+                "imageTiles": round_tiles_payload(rd.get("image_tiles")),
                 "expiresAt": iso_utc(expires_at),
             },
         )
