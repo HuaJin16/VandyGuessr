@@ -118,7 +118,7 @@ function handleMessage(msg: ServerMessage) {
 			break;
 		}
 		case ServerEvent.GuessAccepted: {
-			multiplayerStore.markGuessAccepted();
+			multiplayerStore.markGuessAccepted(currentUserId);
 			break;
 		}
 		case ServerEvent.PlayerGuessed: {
