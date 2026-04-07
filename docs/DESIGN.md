@@ -80,11 +80,11 @@ The background is a vibrant, sunny photograph of the "Peabody Lawn" at Vanderbil
 
 Floating in the dead center is a "Glassmorphism" login modal. Translucent white, frosted glass effect, 24px rounded corners. It casts a "Hard Shadow" (no blur, dark grey) to the bottom-right, looking like a sticker or cutout.
 
-Inside: "Welcome Back!" in bold Rubik font (Charcoal #18181B). Below it, a massive pill-shaped button in "Jungle Green" (#2E933C). The button mimics a physical plastic token with a subtle top highlight and a darker bottom lip (3D effect). Text: "Log in with Vanderbilt" with a small Microsoft logo.
+Inside: a Vanderbilt-first sign-in card with the Microsoft CTA always present. When Vanderbilt restriction is disabled, a second Google CTA appears beneath it with matching weight and spacing. Supporting copy explains the campus-competition premise and keeps the entry flow focused on a single decision: which provider to use.
 
-#### 2. Start Game Menu (The Field Kit)
+#### 2. Home / Start Game Menu (The Field Kit)
 **Role:** Expert Game UI Designer.
-**Subject:** High-fidelity "Start Game" screen mockup.
+**Subject:** High-fidelity home screen mockup.
 
 **ASCII Structure:**
 ```text
@@ -114,11 +114,11 @@ Inside: "Welcome Back!" in bold Rubik font (Charcoal #18181B). Below it, a massi
 **Visual Description:**
 Set against a solid "Warm Beige" (#F5F2E9) background.
 
-**Left Panel:** A vertical white "Identity Card" or passport. Contains User Avatar, Name "Player One", and stats (Rank, Score) listed cleanly like a manifest.
+**Left Panel:** A vertical white "Identity Card" or passport. Contains User Avatar, Name "Player One", quick rank/stats, and active game resume cards for solo or multiplayer.
 
-**Right Panel:** Instead of a grid of cards, this is a vertical stack of "Interactive Menu Rows" or "Planks".
-*   **Top Row (Hero):** "DAILY CHALLENGE". A large, wide, rectangular interactive element. It has a Gold (#F4C430) border and a large Calendar icon on the right. It looks like a premium ticket.
-*   **Other Rows:** "Random Drop", "Indoor", "Timed". These are wide, white, pill-shaped rows with hard shadows. They look like physical buttons or signposts stacked vertically. Each has a simple green icon and a "Start" arrow on the right.
+**Center Panel:** Solo game setup with a strong Daily Challenge hero action, then configurable Random Drop controls for timing, environment, and difficulty.
+
+**Right Panel:** Multiplayer tools. One card creates a lobby, another joins by invite code, and both visually feel like sturdy expedition equipment rather than admin forms. Recent completed games can sit below the setup panels as compact logbook entries.
 
 #### 3. Gameplay (The Explorer's View)
 **Role:** Expert UI Designer for immersive web games.

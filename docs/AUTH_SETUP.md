@@ -68,17 +68,31 @@ Note: These permissions do not require admin consent for basic profile access.
 If you deploy to multiple environments, add all frontend URLs here. Microsoft
 only allows redirects to registered URIs.
 
-## 6) Backend Vanderbilt-Only Validation (Microsoft Path)
+## 6) Vanderbilt Restriction Feature Flag
 
-Because this is a multi-tenant app, **any Microsoft account** can log in.
-The backend enforces Vanderbilt-only access on the Microsoft sign-in path:
+Because this is a multi-tenant app, **any Microsoft account** can authenticate with Microsoft. Whether those accounts are allowed into VandyGuessr is controlled by a feature flag.
+
+Default behavior:
+
+- `FEATURE_VANDERBILT_RESTRICTED_LOGINS=true`
+- `VITE_FEATURE_VANDERBILT_RESTRICTED_LOGINS=true`
+- The frontend only shows the Microsoft button.
+- The backend enforces Vanderbilt-only access on the Microsoft path.
+
+When both flags are set to `false`:
+
+- The frontend also shows Google sign-in.
+- The backend still validates Google tokens and requires `email_verified = true`.
+- The Microsoft path remains available, but Vanderbilt-only enforcement is relaxed.
+
+The Microsoft-path Vanderbilt check is:
 
 ```python
 def is_vanderbilt_email(email: str) -> bool:
     return email.lower().endswith("@vanderbilt.edu")
 ```
 
-If the email does not match, reject the login and do not create a user.
+If the email does not match while the restriction flag is enabled, reject the login and do not create a user.
 
 ## 7) Environment Variables
 
@@ -90,6 +104,7 @@ Add these variables to your environment:
 MICROSOFT_CLIENT_ID=your-azure-client-id
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
+FEATURE_VANDERBILT_RESTRICTED_LOGINS=true
 ```
 
 ### Frontend
@@ -98,12 +113,14 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 VITE_MICROSOFT_CLIENT_ID=your-azure-client-id
 VITE_MICROSOFT_REDIRECT_URI=http://localhost:5173/
 VITE_GOOGLE_CLIENT_ID=your-google-client-id
+VITE_FEATURE_VANDERBILT_RESTRICTED_LOGINS=true
 ```
 
-Note: The tenant ID (`common`) is hardcoded in the application since we always
-use multi-tenant authentication with email validation.
+Note: The tenant ID (`common`) is hardcoded in the application because the app always uses multi-tenant Microsoft authentication.
 
 `GOOGLE_CLIENT_SECRET` is backend-only and must never be exposed to the frontend.
+
+When Vanderbilt restriction is enabled, the frontend still accepts `VITE_GOOGLE_CLIENT_ID`, but the Google button stays hidden.
 
 ## 8) Google OAuth Setup
 
@@ -122,6 +139,7 @@ Use Google Identity Services (GIS) for the frontend and backend JWT verification
 
 - Token must be a valid Google ID token.
 - `email_verified` must be true.
+- Google sign-in should only be exposed in the frontend when `VITE_FEATURE_VANDERBILT_RESTRICTED_LOGINS=false`.
 
 ## 9) Fetching Profile Data and Photos
 
