@@ -31,6 +31,10 @@ class ConnectionManager:
         self._last_pong_at: dict[str, float] = {}
         self._subscription_lock = asyncio.Lock()
 
+    @property
+    def worker_id(self) -> str:
+        return self._worker_id
+
     async def start(self) -> None:
         if self._pubsub is None:
             self._pubsub = self.redis.pubsub()

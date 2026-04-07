@@ -2,13 +2,19 @@
 
 import time
 
+import structlog
+
 from app.domains.multiplayer.events import ServerEvent
 from app.domains.multiplayer.game_manager_shared import (
     RATE_LIMIT_MAX,
     RATE_LIMIT_WINDOW,
+    READY_ADVANCE_LOCK_TTL_SECONDS,
+    READY_BARRIER_TTL_SECONDS,
     iso_utc,
     round_tiles_payload,
 )
+
+logger = structlog.get_logger()
 
 
 class GameManagerStateMixin:
@@ -146,28 +152,150 @@ class GameManagerStateMixin:
             },
         )
 
-    async def _maybe_release_ready_event(
+    def _ready_barrier_key(self, game_id: str, round_number: int) -> str:
+        return f"mp:ready:{game_id}:{round_number}"
+
+    def _ready_barrier_lock_key(self, game_id: str, round_number: int) -> str:
+        return f"mp:ready-lock:{game_id}:{round_number}"
+
+    async def _mark_player_ready_for_next_round(
+        self,
+        game_id: str,
+        round_number: int,
+        user_id: str,
+    ) -> None:
+        ready_key = self._ready_barrier_key(game_id, round_number)
+        await self.redis.sadd(ready_key, user_id)
+        await self.redis.expire(ready_key, READY_BARRIER_TTL_SECONDS)
+
+    async def _clear_ready_barrier_for_round(
+        self,
+        game_id: str,
+        round_number: int,
+    ) -> None:
+        await self.redis.delete(
+            self._ready_barrier_key(game_id, round_number),
+            self._ready_barrier_lock_key(game_id, round_number),
+        )
+
+    async def _clear_all_ready_barriers(self, game_id: str) -> None:
+        keys: list[str] = []
+        async for key in self.redis.scan_iter(match=f"mp:ready:{game_id}:*"):
+            keys.append(key)
+        async for key in self.redis.scan_iter(match=f"mp:ready-lock:{game_id}:*"):
+            keys.append(key)
+        if keys:
+            await self.redis.delete(*keys)
+
+    async def _maybe_advance_ready_barrier(
         self,
         game_id: str,
         doc: dict | None,
     ) -> None:
-        ready_event = self._ready_events.get(game_id)
-        if ready_event is None:
-            return
-
         if not doc:
             doc = await self._load(game_id)
 
         if not doc or doc["status"] != "active":
             return
 
+        round_number = doc.get("current_round", 0)
+        round_index = round_number - 1
+        if round_index < 0 or round_index >= len(doc["rounds"]):
+            return
+
+        round_data = doc["rounds"][round_index]
+        if not round_data.get("_resolved"):
+            return
+
+        next_round_index = round_index + 1
+        if next_round_index >= len(doc["rounds"]):
+            return
+
         required_ready_players = {
             p["user_id"] for p in doc["players"] if p["status"] == "connected"
         }
-        ready_players = self._ready_players.setdefault(game_id, set())
+        if not required_ready_players:
+            return
 
-        if required_ready_players and ready_players >= required_ready_players:
-            ready_event.set()
+        ready_key = self._ready_barrier_key(game_id, round_number)
+        ready_players = set(await self.redis.smembers(ready_key))
+        ready_count = len(ready_players & required_ready_players)
+
+        logger.info(
+            "ready_barrier_evaluated",
+            game_id=game_id,
+            round=round_number,
+            required_count=len(required_ready_players),
+            ready_count=ready_count,
+            worker_id=self.cm.worker_id,
+        )
+
+        if not ready_players >= required_ready_players:
+            return
+
+        lock_key = self._ready_barrier_lock_key(game_id, round_number)
+        acquired = await self.redis.set(
+            lock_key,
+            self.cm.worker_id,
+            ex=READY_ADVANCE_LOCK_TTL_SECONDS,
+            nx=True,
+        )
+        if not acquired:
+            logger.info(
+                "ready_barrier_lock_not_acquired",
+                game_id=game_id,
+                round=round_number,
+                worker_id=self.cm.worker_id,
+            )
+            return
+
+        logger.info(
+            "ready_barrier_lock_acquired",
+            game_id=game_id,
+            round=round_number,
+            worker_id=self.cm.worker_id,
+        )
+
+        fresh = await self._load(game_id)
+        if not fresh or fresh["status"] != "active":
+            await self._clear_ready_barrier_for_round(game_id, round_number)
+            return
+
+        fresh_round_number = fresh.get("current_round", 0)
+        fresh_round_index = fresh_round_number - 1
+        if fresh_round_number != round_number:
+            await self._clear_ready_barrier_for_round(game_id, round_number)
+            return
+
+        if (
+            fresh_round_index < 0
+            or fresh_round_index >= len(fresh["rounds"])
+            or not fresh["rounds"][fresh_round_index].get("_resolved")
+        ):
+            await self.redis.delete(lock_key)
+            return
+
+        fresh_required_ready_players = {
+            p["user_id"] for p in fresh["players"] if p["status"] == "connected"
+        }
+        fresh_ready_players = set(await self.redis.smembers(ready_key))
+        if (
+            not fresh_required_ready_players
+            or not fresh_ready_players >= fresh_required_ready_players
+        ):
+            await self.redis.delete(lock_key)
+            return
+
+        await self._start_round(game_id, next_round_index)
+        await self._clear_ready_barrier_for_round(game_id, round_number)
+
+        logger.info(
+            "ready_barrier_round_advanced",
+            game_id=game_id,
+            round=round_number,
+            next_round=next_round_index + 1,
+            worker_id=self.cm.worker_id,
+        )
 
     async def _load(self, game_id: str) -> dict | None:
         doc = await self.repo.find_by_id(game_id)

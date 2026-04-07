@@ -278,13 +278,22 @@ class ClientEvent(StrEnum):
     REFRESH_TOKEN = "refresh_token"
     EXTEND_LOBBY = "extend_lobby"
     LEAVE_LOBBY = "leave_lobby"
+    READY_NEXT = "ready_next"
+    PONG = "pong"
+    READY_UP = "ready_up"
+    UNREADY = "unready"
+    KICK = "kick"
+    REQUEST_REMATCH = "request_rematch"
 
 class ServerEvent(StrEnum):
     # Lobby
     PLAYER_JOINED = "player_joined"
     PLAYER_LEFT = "player_left"
+    PLAYER_READY = "player_ready"
+    PLAYER_UNREADY = "player_unready"
     GAME_STARTING = "game_starting"
     GAME_CANCELLED = "game_cancelled"
+    KICKED = "kicked"
     LOBBY_EXPIRING = "lobby_expiring"
     # Gameplay
     ROUND_START = "round_start"
@@ -292,12 +301,14 @@ class ServerEvent(StrEnum):
     GUESS_ACCEPTED = "guess_accepted"
     ROUND_RESULT = "round_result"
     GAME_OVER = "game_over"
+    REMATCH_STARTING = "rematch_starting"
     # Connection
     PLAYER_DISCONNECTED = "player_disconnected"
     PLAYER_RECONNECTED = "player_reconnected"
     PLAYER_FORFEITED = "player_forfeited"
     GAME_STATE = "game_state"
     TOKEN_EXPIRING = "token_expiring"
+    PING = "ping"
     ERROR = "error"
 ```
 
@@ -311,14 +322,23 @@ enum ClientEvent {
   RefreshToken = "refresh_token",
   ExtendLobby = "extend_lobby",
   LeaveLobby = "leave_lobby",
+  ReadyNext = "ready_next",
+  Pong = "pong",
+  ReadyUp = "ready_up",
+  Unready = "unready",
+  Kick = "kick",
+  RequestRematch = "request_rematch",
 }
 
 enum ServerEvent {
   // Lobby
   PlayerJoined = "player_joined",
   PlayerLeft = "player_left",
+  PlayerReady = "player_ready",
+  PlayerUnready = "player_unready",
   GameStarting = "game_starting",
   GameCancelled = "game_cancelled",
+  Kicked = "kicked",
   LobbyExpiring = "lobby_expiring",
   // Gameplay
   RoundStart = "round_start",
@@ -326,12 +346,14 @@ enum ServerEvent {
   GuessAccepted = "guess_accepted",
   RoundResult = "round_result",
   GameOver = "game_over",
+  RematchStarting = "rematch_starting",
   // Connection
   PlayerDisconnected = "player_disconnected",
   PlayerReconnected = "player_reconnected",
   PlayerForfeited = "player_forfeited",
   GameState = "game_state",
   TokenExpiring = "token_expiring",
+  Ping = "ping",
   Error = "error",
 }
 ```
@@ -356,6 +378,24 @@ enum ServerEvent {
 
 // Non-host player leaves the lobby intentionally
 {"type": "leave_lobby"}
+
+// Player confirms they are ready to proceed from round results
+{"type": "ready_next"}
+
+// Heartbeat response to server ping
+{"type": "pong"}
+
+// Player marks themselves ready in lobby
+{"type": "ready_up"}
+
+// Player clears lobby ready state
+{"type": "unready"}
+
+// Host removes a player from lobby
+{"type": "kick", "userId": "<target_user_id>"}
+
+// Host starts rematch after game over
+{"type": "request_rematch"}
 ```
 
 ### Server to Client (Lobby Phase)
@@ -498,9 +538,20 @@ A round can be resolved by two concurrent triggers: the last player submitting a
 
 1. Both the "last guess received" path and the "timer expired" path acquire the lock before resolving the round.
 2. Inside the lock, the handler checks if the round has already been resolved (i.e., `round_result` already broadcast). If so, it releases the lock and returns.
-3. The round is resolved exactly once: scores are calculated, the `round_result` message is broadcast, and the next round (or `game_over`) is initiated.
+3. The round is resolved exactly once: scores are calculated and the `round_result` message is broadcast.
 
 This lock is in-memory per worker. In a multi-worker deployment, only one worker runs the timer for a given game (the worker that created the timer task). The lock prevents races between an incoming guess on that same worker and the timer callback.
+
+### Round Ready Barrier (`ready_next`)
+
+For rounds 1-4, advancing from results to the next round is coordinated with a Redis-backed barrier keyed by game and round.
+
+1. Each `ready_next` message adds the player to `mp:ready:{game_id}:{round}` using `SADD` (idempotent).
+2. Required ready players are computed from authoritative game state: all players with `status == "connected"`.
+3. When all required players are present in the ready set, workers compete for `mp:ready-lock:{game_id}:{round}` using `SET NX`.
+4. The lock holder re-validates game/round state from MongoDB, starts the next round exactly once, and clears barrier keys.
+
+This makes round advancement safe when players in the same game are connected to different workers.
 
 ### Countdown Behavior
 
@@ -935,6 +986,8 @@ Short-lived data that does not need MongoDB persistence:
 | `mp:reconnect:{game_id}:{user_id}` | 30s | Tracks reconnect deadline for disconnected players |
 | `mp:abandon:{game_id}` | 60s | Tracks all-disconnect abandon timer |
 | `mp:lobby:{invite_code}` | 10m | Fast code-to-game-id lookup (avoids MongoDB query on join) |
+| `mp:ready:{game_id}:{round}` | 1h | Distributed round-ready barrier (`ready_next`) |
+| `mp:ready-lock:{game_id}:{round}` | 30s | Exactly-once lock for starting the next round |
 
 ### Failure Mode
 

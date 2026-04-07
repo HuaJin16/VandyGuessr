@@ -94,8 +94,16 @@ function createMultiplayerStore() {
 		setGuessPosition(pos: { lat: number; lng: number } | null) {
 			update((s) => ({ ...s, guessPosition: pos }));
 		},
-		markGuessAccepted() {
-			update((s) => ({ ...s, hasGuessedThisRound: true, submitting: false }));
+		markGuessAccepted(userId: string | null = null) {
+			update((s) => ({
+				...s,
+				hasGuessedThisRound: true,
+				submitting: false,
+				playersGuessed:
+					userId && !s.playersGuessed.includes(userId)
+						? [...s.playersGuessed, userId]
+						: s.playersGuessed,
+			}));
 		},
 		addPlayerGuessed(userId: string) {
 			update((s) => ({
@@ -175,39 +183,45 @@ function createMultiplayerStore() {
 					rank: index + 1,
 				}));
 
-			update((s) => ({
-				...s,
-				phase: shouldShowResults
-					? "results"
-					: payload.round
-						? "playing"
-						: statusToPhase(payload.status),
-				currentRound: payload.currentRound,
-				totalRounds: payload.totalRounds,
-				imageUrl: payload.round?.imageUrl ?? null,
-				imageTiles: payload.round?.imageTiles ?? null,
-				expiresAt: payload.round?.expiresAt ?? null,
-				playersGuessed: payload.playersGuessed,
-				hasGuessedThisRound: payload.hasGuessedThisRound,
-				roundResult: shouldShowResults ? latestResolvedRound : s.roundResult,
-				standings,
-				game: s.game
-					? {
-							...s.game,
-							status: payload.status,
-							currentRound: payload.currentRound,
-							players: s.game.players.map((player) => {
-								const next = payload.players.find((p) => p.userId === player.userId);
-								if (!next) return player;
-								return {
-									...player,
-									status: next.status,
-									totalScore: next.totalScore,
-								};
-							}),
-						}
-					: s.game,
-			}));
+			update((s) => {
+				const players = payload.players.map((player) => {
+					const existing = s.game?.players.find((candidate) => candidate.userId === player.userId);
+					return {
+						userId: player.userId,
+						name: player.name,
+						avatarUrl: existing?.avatarUrl ?? null,
+						totalScore: player.totalScore,
+						status: player.status,
+						joinedAt: existing?.joinedAt ?? new Date().toISOString(),
+					};
+				});
+
+				return {
+					...s,
+					phase: shouldShowResults
+						? "results"
+						: payload.round
+							? "playing"
+							: statusToPhase(payload.status),
+					currentRound: payload.currentRound,
+					totalRounds: payload.totalRounds,
+					imageUrl: payload.round?.imageUrl ?? null,
+					imageTiles: payload.round?.imageTiles ?? null,
+					expiresAt: payload.round?.expiresAt ?? null,
+					playersGuessed: payload.playersGuessed,
+					hasGuessedThisRound: payload.hasGuessedThisRound,
+					roundResult: shouldShowResults ? latestResolvedRound : s.roundResult,
+					standings,
+					game: s.game
+						? {
+								...s.game,
+								status: payload.status,
+								currentRound: payload.currentRound,
+								players,
+							}
+						: s.game,
+				};
+			});
 		},
 		reset() {
 			set(initial);

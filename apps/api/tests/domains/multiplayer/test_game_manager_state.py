@@ -5,17 +5,22 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.domains.multiplayer.game_manager import GameManager
 from app.domains.multiplayer.game_manager_rounds import GameManagerRoundsMixin
+from app.domains.multiplayer.game_manager_shared import (
+    READY_ADVANCE_LOCK_TTL_SECONDS,
+    READY_BARRIER_TTL_SECONDS,
+)
 from app.domains.multiplayer.game_manager_state import GameManagerStateMixin
 
 
 class _Harness(GameManagerStateMixin):
     def __init__(self) -> None:
-        self.cm = AsyncMock()
+        self.cm = SimpleNamespace(send_to_player=AsyncMock(), worker_id="worker-1")
+        self.redis = AsyncMock()
         self._lobby_ready: dict[str, set[str]] = {}
-        self._ready_events: dict[str, asyncio.Event] = {}
-        self._ready_players: dict[str, set[str]] = {}
         self._rate_limits: dict[str, list[float]] = {}
+        self._start_round = AsyncMock()
         self.repo = SimpleNamespace(find_by_id=AsyncMock())
 
 
@@ -24,8 +29,6 @@ class _RoundsHarness(GameManagerRoundsMixin):
         self.repo = SimpleNamespace(update_round=AsyncMock(), update_game=AsyncMock())
         self.cm = SimpleNamespace(broadcast=AsyncMock())
         self._timer_tasks: dict[str, asyncio.Task] = {}
-        self._ready_events: dict[str, asyncio.Event] = {}
-        self._ready_players: dict[str, set[str]] = {}
         self._doc = doc
 
     async def _load(self, _game_id: str) -> dict | None:
@@ -159,22 +162,132 @@ async def test_start_round_includes_image_tiles_in_round_start_payload() -> None
 
 
 @pytest.mark.asyncio
-async def test_maybe_release_ready_event_sets_event_when_all_connected_ready() -> None:
+async def test_mark_player_ready_for_next_round_writes_to_redis_set() -> None:
     harness = _Harness()
-    event = asyncio.Event()
-    harness._ready_events["game-1"] = event
-    harness._ready_players["game-1"] = {"u1"}
+
+    await harness._mark_player_ready_for_next_round("game-1", 2, "u1")
+
+    harness.redis.sadd.assert_awaited_once_with("mp:ready:game-1:2", "u1")
+    harness.redis.expire.assert_awaited_once_with(
+        "mp:ready:game-1:2",
+        READY_BARRIER_TTL_SECONDS,
+    )
+
+
+@pytest.mark.asyncio
+async def test_maybe_advance_ready_barrier_starts_next_round_once_barrier_is_met() -> (
+    None
+):
+    harness = _Harness()
 
     doc = {
+        "_id": "game-1",
         "status": "active",
+        "current_round": 1,
         "players": [
             {"user_id": "u1", "status": "connected"},
-            {"user_id": "u2", "status": "forfeited"},
+            {"user_id": "u2", "status": "connected"},
+            {"user_id": "u3", "status": "forfeited"},
         ],
+        "rounds": [{"_resolved": True}, {"_resolved": False}],
     }
-    await harness._maybe_release_ready_event("game-1", doc)
+    harness.redis.smembers = AsyncMock(side_effect=[{"u1", "u2"}, {"u1", "u2"}])
+    harness.redis.set = AsyncMock(return_value=True)
+    harness.repo.find_by_id = AsyncMock(return_value=doc)
 
-    assert event.is_set() is True
+    await harness._maybe_advance_ready_barrier("game-1", doc)
+
+    harness.redis.set.assert_awaited_once_with(
+        "mp:ready-lock:game-1:1",
+        "worker-1",
+        ex=READY_ADVANCE_LOCK_TTL_SECONDS,
+        nx=True,
+    )
+    harness._start_round.assert_awaited_once_with("game-1", 1)
+    harness.redis.delete.assert_awaited_once_with(
+        "mp:ready:game-1:1",
+        "mp:ready-lock:game-1:1",
+    )
+
+
+@pytest.mark.asyncio
+async def test_maybe_advance_ready_barrier_rechecks_connected_players_after_lock() -> (
+    None
+):
+    harness = _Harness()
+
+    stale_doc = {
+        "_id": "game-1",
+        "status": "active",
+        "current_round": 1,
+        "players": [{"user_id": "u1", "status": "connected"}],
+        "rounds": [{"_resolved": True}, {"_resolved": False}],
+    }
+    fresh_doc = {
+        "_id": "game-1",
+        "status": "active",
+        "current_round": 1,
+        "players": [
+            {"user_id": "u1", "status": "connected"},
+            {"user_id": "u2", "status": "connected"},
+        ],
+        "rounds": [{"_resolved": True}, {"_resolved": False}],
+    }
+    harness.redis.smembers = AsyncMock(side_effect=[{"u1"}, {"u1"}])
+    harness.redis.set = AsyncMock(return_value=True)
+    harness.repo.find_by_id = AsyncMock(return_value=fresh_doc)
+
+    await harness._maybe_advance_ready_barrier("game-1", stale_doc)
+
+    harness._start_round.assert_not_awaited()
+    harness.redis.delete.assert_awaited_once_with("mp:ready-lock:game-1:1")
+
+
+@pytest.mark.asyncio
+async def test_maybe_advance_ready_barrier_does_not_start_round_before_all_ready() -> (
+    None
+):
+    harness = _Harness()
+
+    doc = {
+        "_id": "game-1",
+        "status": "active",
+        "current_round": 1,
+        "players": [
+            {"user_id": "u1", "status": "connected"},
+            {"user_id": "u2", "status": "connected"},
+        ],
+        "rounds": [{"_resolved": True}, {"_resolved": False}],
+    }
+    harness.redis.smembers = AsyncMock(return_value={"u1"})
+    harness.redis.set = AsyncMock(return_value=True)
+
+    await harness._maybe_advance_ready_barrier("game-1", doc)
+
+    harness.redis.set.assert_not_awaited()
+    harness._start_round.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_maybe_advance_ready_barrier_skips_when_lock_not_acquired() -> None:
+    harness = _Harness()
+
+    doc = {
+        "_id": "game-1",
+        "status": "active",
+        "current_round": 1,
+        "players": [
+            {"user_id": "u1", "status": "connected"},
+            {"user_id": "u2", "status": "connected"},
+        ],
+        "rounds": [{"_resolved": True}, {"_resolved": False}],
+    }
+    harness.redis.smembers = AsyncMock(return_value={"u1", "u2"})
+    harness.redis.set = AsyncMock(return_value=False)
+
+    await harness._maybe_advance_ready_barrier("game-1", doc)
+
+    harness._start_round.assert_not_awaited()
 
 
 def test_check_rate_limit_blocks_after_window_threshold() -> None:
@@ -186,3 +299,88 @@ def test_check_rate_limit_blocks_after_window_threshold() -> None:
 
     assert all(allowed)
     assert blocked is False
+
+
+def _build_game_manager(doc: dict) -> GameManager:
+    repo = AsyncMock()
+    repo.find_by_id = AsyncMock(return_value=doc)
+
+    manager = GameManager(
+        repository=repo,
+        connection_manager=SimpleNamespace(worker_id="worker-1"),
+        location_service=AsyncMock(),
+        multiplayer_service=AsyncMock(),
+        redis_client=AsyncMock(),
+    )
+    manager._mark_player_ready_for_next_round = AsyncMock()
+    manager._maybe_advance_ready_barrier = AsyncMock()
+    return manager
+
+
+@pytest.mark.asyncio
+async def test_handle_ready_next_marks_player_and_checks_barrier_when_round_resolved() -> (
+    None
+):
+    doc = {
+        "_id": "game-1",
+        "status": "active",
+        "current_round": 1,
+        "players": [{"user_id": "u1", "status": "connected"}],
+        "rounds": [{"_resolved": True}, {"_resolved": False}],
+    }
+    manager = _build_game_manager(doc)
+
+    await manager._handle_ready_next("game-1", "u1")
+
+    manager._mark_player_ready_for_next_round.assert_awaited_once_with(
+        "game-1",
+        1,
+        "u1",
+    )
+    manager._maybe_advance_ready_barrier.assert_awaited_once_with("game-1", doc)
+
+
+@pytest.mark.asyncio
+async def test_handle_ready_next_ignores_unresolved_round() -> None:
+    doc = {
+        "_id": "game-1",
+        "status": "active",
+        "current_round": 1,
+        "players": [{"user_id": "u1", "status": "connected"}],
+        "rounds": [{"_resolved": False}, {"_resolved": False}],
+    }
+    manager = _build_game_manager(doc)
+
+    await manager._handle_ready_next("game-1", "u1")
+
+    manager._mark_player_ready_for_next_round.assert_not_awaited()
+    manager._maybe_advance_ready_barrier.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_handle_ready_next_ignores_disconnected_or_final_round_cases() -> None:
+    disconnected_doc = {
+        "_id": "game-1",
+        "status": "active",
+        "current_round": 1,
+        "players": [{"user_id": "u1", "status": "disconnected"}],
+        "rounds": [{"_resolved": True}, {"_resolved": False}],
+    }
+    disconnected_manager = _build_game_manager(disconnected_doc)
+
+    await disconnected_manager._handle_ready_next("game-1", "u1")
+
+    disconnected_manager._mark_player_ready_for_next_round.assert_not_awaited()
+
+    final_round_doc = {
+        "_id": "game-1",
+        "status": "active",
+        "current_round": 1,
+        "players": [{"user_id": "u1", "status": "connected"}],
+        "rounds": [{"_resolved": True}],
+    }
+    final_round_manager = _build_game_manager(final_round_doc)
+
+    await final_round_manager._handle_ready_next("game-1", "u1")
+
+    final_round_manager._mark_player_ready_for_next_round.assert_not_awaited()

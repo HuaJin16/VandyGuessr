@@ -58,8 +58,6 @@ class GameManager(
         self._abandon_tasks: dict[str, asyncio.Task] = {}
         self._lobby_tasks: dict[str, asyncio.Task] = {}
         self._rate_limits: dict[str, list[float]] = {}
-        self._ready_events: dict[str, asyncio.Event] = {}
-        self._ready_players: dict[str, set[str]] = {}
         self._lobby_ready: dict[str, set[str]] = {}
 
     def _get_lock(self, game_id: str) -> asyncio.Lock:
@@ -270,9 +268,6 @@ class GameManager(
     async def _handle_forfeit(self, game_id: str, user_id: str) -> None:
         await self.repo.update_player(game_id, user_id, {"status": "forfeited"})
 
-        refreshed = await self._load(game_id)
-        await self._maybe_release_ready_event(game_id, refreshed)
-
         await self.cm.broadcast(
             game_id,
             {
@@ -281,9 +276,13 @@ class GameManager(
             },
         )
 
-        doc = refreshed
-        if doc:
-            await self._check_last_player_standing(game_id, doc)
+        doc = await self._load(game_id)
+        if not doc:
+            return
+
+        await self._check_last_player_standing(game_id, doc)
+        updated = await self._load(game_id)
+        await self._maybe_advance_ready_barrier(game_id, updated)
 
     async def _handle_extend_lobby(self, game_id: str, user_id: str) -> None:
         doc = await self._load(game_id)
@@ -373,14 +372,36 @@ class GameManager(
         )
 
     async def _handle_ready_next(self, game_id: str, user_id: str) -> None:
-        if game_id not in self._ready_events:
+        doc = await self._load(game_id)
+        if not doc or doc["status"] != "active":
             return
 
-        ready = self._ready_players.setdefault(game_id, set())
-        ready.add(user_id)
+        round_number = doc.get("current_round", 0)
+        round_index = round_number - 1
+        if round_index < 0 or round_index >= len(doc["rounds"]):
+            return
 
-        doc = await self._load(game_id)
-        await self._maybe_release_ready_event(game_id, doc)
+        round_data = doc["rounds"][round_index]
+        if not round_data.get("_resolved"):
+            return
+
+        if round_index + 1 >= len(doc["rounds"]):
+            return
+
+        player = next((p for p in doc["players"] if p["user_id"] == user_id), None)
+        if not player or player["status"] != "connected":
+            return
+
+        await self._mark_player_ready_for_next_round(game_id, round_number, user_id)
+        logger.info(
+            "ready_next_marked",
+            game_id=game_id,
+            round=round_number,
+            user_id=user_id,
+            worker_id=self.cm.worker_id,
+        )
+
+        await self._maybe_advance_ready_barrier(game_id, doc)
 
     async def _handle_ready_up(self, game_id: str, user_id: str) -> None:
         doc = await self._load(game_id)
