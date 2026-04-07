@@ -273,6 +273,17 @@ class GameManagerStateMixin:
             await self.redis.delete(lock_key)
             return
 
+        fresh_required_ready_players = {
+            p["user_id"] for p in fresh["players"] if p["status"] == "connected"
+        }
+        fresh_ready_players = set(await self.redis.smembers(ready_key))
+        if (
+            not fresh_required_ready_players
+            or not fresh_ready_players >= fresh_required_ready_players
+        ):
+            await self.redis.delete(lock_key)
+            return
+
         await self._start_round(game_id, next_round_index)
         await self._clear_ready_barrier_for_round(game_id, round_number)
 

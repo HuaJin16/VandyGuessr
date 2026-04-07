@@ -127,7 +127,7 @@ async def test_maybe_advance_ready_barrier_starts_next_round_once_barrier_is_met
         ],
         "rounds": [{"_resolved": True}, {"_resolved": False}],
     }
-    harness.redis.smembers = AsyncMock(return_value={"u1", "u2"})
+    harness.redis.smembers = AsyncMock(side_effect=[{"u1", "u2"}, {"u1", "u2"}])
     harness.redis.set = AsyncMock(return_value=True)
     harness.repo.find_by_id = AsyncMock(return_value=doc)
 
@@ -144,6 +144,39 @@ async def test_maybe_advance_ready_barrier_starts_next_round_once_barrier_is_met
         "mp:ready:game-1:1",
         "mp:ready-lock:game-1:1",
     )
+
+
+@pytest.mark.asyncio
+async def test_maybe_advance_ready_barrier_rechecks_connected_players_after_lock() -> (
+    None
+):
+    harness = _Harness()
+
+    stale_doc = {
+        "_id": "game-1",
+        "status": "active",
+        "current_round": 1,
+        "players": [{"user_id": "u1", "status": "connected"}],
+        "rounds": [{"_resolved": True}, {"_resolved": False}],
+    }
+    fresh_doc = {
+        "_id": "game-1",
+        "status": "active",
+        "current_round": 1,
+        "players": [
+            {"user_id": "u1", "status": "connected"},
+            {"user_id": "u2", "status": "connected"},
+        ],
+        "rounds": [{"_resolved": True}, {"_resolved": False}],
+    }
+    harness.redis.smembers = AsyncMock(side_effect=[{"u1"}, {"u1"}])
+    harness.redis.set = AsyncMock(return_value=True)
+    harness.repo.find_by_id = AsyncMock(return_value=fresh_doc)
+
+    await harness._maybe_advance_ready_barrier("game-1", stale_doc)
+
+    harness._start_round.assert_not_awaited()
+    harness.redis.delete.assert_awaited_once_with("mp:ready-lock:game-1:1")
 
 
 @pytest.mark.asyncio
