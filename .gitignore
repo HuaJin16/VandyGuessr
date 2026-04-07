@@ -71,25 +71,8 @@ logs/
 coverage/
 .nyc_output/
 
-# Local tooling and scratch artifacts
+# Local tooling
 /.opencode/
-/presentation/
-/poster.md
-/generate_poster.js
-/docs/mockups/round1/
-/docs/mockups/round2/
-/apps/web/src/lib/domains/tour/
-/apps/web/src/lib/pages/CampusTour.svelte
-/apps/api/app/domains/games/tiles_payload.py
-/02-home-screenshot.png
-/VandyGuessr-Poster.pdf
-/VandyGuessr-Poster.pptx
-/VandyGuessr_Poster.pdf
-/VandyGuessr_Poster.pptx
-/foundation-buttons-closeup.png
-/foundation-focus-ring.png
-/foundation-full.png
-/foundation-v2-full.png
-/foundation-v3-full.png
-/home-with-multiplayer.png
-/poster-slide-1.jpg
+
+# Local scratch artifacts
+/scratch/
