@@ -55,17 +55,25 @@ apps/api/app/
 │   │   ├── models.py                # API request/response schemas
 │   │   └── exceptions.py            # Domain-specific errors
 │   ├── images/
-│   │   └── ...
+│   │   ├── router.py                # Secret-code HTML upload flow
+│   │   ├── json_router.py           # Crowd uploads + moderation APIs
+│   │   ├── service.py               # Upload orchestration
+│   │   ├── moderation_service.py    # Approve/reject pending submissions
+│   │   └── submission_job_service.py # Queue-backed background processing
 │   ├── locations/
 │   │   ├── __init__.py
 │   │   ├── repository.py            # Geospatial queries (2dsphere index)
 │   │   ├── entities.py              # LocationEntity document schema
 │   │   └── service.py               # Location resolution (no router — internal only)
-│   └── games/
+│   ├── games/
+│   │   └── ...
+│   └── multiplayer/
 │       └── ...
-└── shared/                          # Cross-cutting utilities
-    ├── exif.py                      # EXIF metadata extraction
-    └── s3.py                        # S3/Spaces upload utilities
+├── shared/                          # Cross-cutting utilities
+│   ├── exif.py                      # EXIF metadata extraction
+│   └── s3.py                        # S3/Spaces upload utilities
+└── workers/
+    └── image_submission_worker.py   # Queue consumer for image processing
 ```
 
 ### Request Flow
@@ -232,66 +240,46 @@ docker build \
 
 ### Domain-Driven Design (DDD) Structure
 
-The frontend follows a DDD-inspired architecture with domain ownership:
+The frontend follows a DDD-inspired architecture with route orchestration in `App.svelte` and most product code under `lib/`:
 
 ```
 apps/web/src/
 ├── main.ts                          # Application entry
-├── App.svelte                       # Root component
-├── routes.ts                        # Route definitions
+├── App.svelte                       # Root component + route wiring
 ├── app.css                          # Global styles (Tailwind)
-├── shared/                          # Cross-domain infrastructure
-│   ├── api/
-│   │   ├── client.ts                # Axios instance + interceptors
-│   │   ├── types.ts                 # ApiResponse<T>, ApiError
-│   │   └── interceptors/
-│   │       ├── auth.interceptor.ts  # Attaches Bearer token
-│   │       └── error.interceptor.ts # Transforms API errors
-│   ├── auth/
-│   │   ├── msalConfig.ts            # MSAL configuration
-│   │   ├── msalInstance.ts          # MSAL singleton
-│   │   ├── googleIdentity.ts        # GIS loader + Google ID token helpers
-│   │   └── token.ts                 # Provider-aware token accessor
-│   ├── components/                  # Shared UI components
-│   │   ├── Button.svelte
-│   │   ├── Modal.svelte
-│   │   ├── Skeleton.svelte
-│   │   └── ErrorBoundary.svelte
-│   └── utils/
-├── domains/                         # Business domains
-│   ├── users/
+├── lib/
+│   ├── shared/                      # Cross-domain infrastructure
 │   │   ├── api/
-│   │   │   └── users.service.ts     # HTTP methods
-│   │   ├── queries/
-│   │   │   └── users.queries.ts     # Svelte Query definitions
-│   │   ├── components/
-│   │   │   ├── UserProfile.svelte
-│   │   │   └── UserAvatar.svelte
-│   │   ├── stores/
-│   │   │   └── user.store.ts        # Client-only state (if needed)
-│   │   └── types.ts                 # TypeScript types
-│   ├── games/
-│   │   ├── api/
-│   │   │   └── games.service.ts
-│   │   ├── queries/
-│   │   │   └── games.queries.ts
-│   │   ├── components/
-│   │   │   ├── GameBoard.svelte
-│   │   │   └── ScoreCard.svelte
-│   │   └── types.ts
-│   └── images/
-│       └── ...
-├── pages/                           # Route pages (thin orchestrators)
-│   ├── Home.svelte
-│   ├── Login.svelte
-│   ├── Game.svelte
-│   └── Profile.svelte
-└── types/                           # Global TypeScript types
+│   │   │   ├── client.ts            # Axios instance + interceptors
+│   │   │   ├── queryClient.ts       # TanStack Query client
+│   │   │   ├── types.ts             # ApiResponse<T>, ApiError
+│   │   │   └── interceptors/
+│   │   ├── auth/
+│   │   │   ├── auth.store.ts        # MSAL/Google auth state
+│   │   │   ├── msalConfig.ts        # MSAL configuration
+│   │   │   ├── googleIdentity.ts    # GIS loader + Google ID token helpers
+│   │   │   └── token.ts             # Provider-aware token accessor
+│   │   ├── components/              # Shared UI components
+│   │   └── utils/
+│   ├── domains/                     # Business domains
+│   │   ├── games/
+│   │   ├── leaderboard/
+│   │   ├── multiplayer/
+│   │   ├── images/
+│   │   └── users/
+│   └── pages/                       # Route pages (thin orchestrators)
+│       ├── Home.svelte
+│       ├── Login.svelte
+│       ├── Game.svelte
+│       ├── Upload.svelte
+│       ├── ReviewSubmissions.svelte
+│       ├── MultiplayerLobby.svelte
+│       └── MultiplayerGame.svelte
 ```
 
 ### HTTP Service Pattern
 
-**Shared Axios Client (`shared/api/client.ts`):**
+**Shared Axios Client (`lib/shared/api/client.ts`):**
 
 ```typescript
 import axios from "axios";
@@ -310,7 +298,7 @@ apiClient.interceptors.request.use(authInterceptor);
 apiClient.interceptors.response.use((response) => response, errorInterceptor);
 ```
 
-**Auth Interceptor (`shared/api/interceptors/auth.interceptor.ts`):**
+**Auth Interceptor (`lib/shared/api/interceptors/auth.interceptor.ts`):**
 
 ```typescript
 import type { InternalAxiosRequestConfig } from "axios";
@@ -327,7 +315,7 @@ export async function authInterceptor(
 }
 ```
 
-**Domain HTTP Service (`domains/users/api/users.service.ts`):**
+**Domain HTTP Service (`lib/domains/users/api/users.service.ts`):**
 
 ```typescript
 import { apiClient } from "$lib/shared/api/client";
@@ -346,7 +334,7 @@ export const usersService = {
 
 ### Svelte Query Integration
 
-**Query Definitions (`domains/users/queries/users.queries.ts`):**
+**Query Definitions (`lib/domains/users/queries/users.queries.ts`):**
 
 ```typescript
 import { usersService } from "../api/users.service";
@@ -388,133 +376,20 @@ export const userQueries = {
 
 ### Optimistic Updates
 
-For mutations that benefit from instant UI feedback:
+Mutations currently live close to the page or domain flow that owns them, and they update TanStack Query state directly with `queryClient.setQueryData()` or `invalidateQueries()`.
 
-```typescript
-// domains/users/queries/useUpdateProfile.ts
-import { createMutation, useQueryClient } from "@tanstack/svelte-query";
-import { usersService } from "../api/users.service";
-import type { UpdateProfileDto, User } from "../types";
+Current examples:
 
-export function createUpdateProfileMutation() {
-  const queryClient = useQueryClient();
-
-  return createMutation({
-    mutationFn: (data: UpdateProfileDto) => usersService.updateProfile(data),
-
-    // Optimistic update - instant UI feedback
-    onMutate: async (newData) => {
-      // Cancel outgoing refetches to avoid overwriting optimistic update
-      await queryClient.cancelQueries({ queryKey: ["users", "me"] });
-
-      // Snapshot previous value for rollback
-      const previousUser = queryClient.getQueryData<User>(["users", "me"]);
-
-      // Optimistically update cache
-      queryClient.setQueryData<User>(["users", "me"], (old) => ({
-        ...old!,
-        ...newData,
-      }));
-
-      return { previousUser };
-    },
-
-    // Rollback on error
-    onError: (err, newData, context) => {
-      if (context?.previousUser) {
-        queryClient.setQueryData(["users", "me"], context.previousUser);
-      }
-    },
-
-    // Refetch to ensure consistency
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["users", "me"] });
-    },
-  });
-}
-```
-
-**Usage:**
-
-```svelte
-<script lang="ts">
-  import { createUpdateProfileMutation } from '$lib/domains/users/queries/useUpdateProfile';
-
-  const updateProfile = createUpdateProfileMutation();
-
-  async function handleSubmit() {
-    $updateProfile.mutate({ username: newUsername });
-  }
-</script>
-
-<button on:click={handleSubmit} disabled={$updateProfile.isPending}>
-  {$updateProfile.isPending ? 'Saving...' : 'Save'}
-</button>
-```
+- `apps/web/src/lib/pages/Game.svelte` updates the active game query immediately after guess submission and end-game actions.
+- `apps/web/src/lib/pages/ReviewSubmissions.svelte` invalidates the pending moderation list after approve/reject actions.
 
 ### Error Boundaries
 
-Error boundaries catch unexpected runtime errors and display a fallback UI:
-
-```svelte
-<!-- shared/components/ErrorBoundary.svelte -->
-<script lang="ts">
-  import { onMount } from 'svelte';
-
-  let hasError = false;
-  let error: Error | null = null;
-
-  function handleError(e: Error) {
-    hasError = true;
-    error = e;
-    console.error('ErrorBoundary caught:', e);
-  }
-
-  function reset() {
-    hasError = false;
-    error = null;
-  }
-</script>
-
-<svelte:boundary onError={handleError}>
-  {#if hasError}
-    <div class="error-fallback">
-      <h2>Something went wrong</h2>
-      <p>{error?.message}</p>
-      <button on:click={reset}>Try again</button>
-    </div>
-  {:else}
-    <slot />
-  {/if}
-</svelte:boundary>
-```
-
-**Usage:**
-
-```svelte
-<ErrorBoundary>
-  <GameBoard />
-</ErrorBoundary>
-```
-
-**Note:** Svelte Query handles API errors gracefully via `isError` state. Error boundaries catch unexpected runtime errors (render crashes, etc.).
+The app primarily relies on explicit query-state rendering (`isLoading`, `isError`) plus toast messaging rather than a dedicated shared `ErrorBoundary` component. Pages such as `Game.svelte`, `ReviewSubmissions.svelte`, and multiplayer screens surface failure states inline and recover by refetching or redirecting as needed.
 
 ### Routing with svelte-routing
 
-```typescript
-// routes.ts
-import Home from "./pages/Home.svelte";
-import Login from "./pages/Login.svelte";
-import Game from "./pages/Game.svelte";
-import Profile from "./pages/Profile.svelte";
-
-export const routes = {
-  "/": Home,
-  "/login": Login,
-  "/game/:id": Game,
-  "/profile": Profile,
-};
-```
+Routes are assembled directly in `App.svelte` rather than a separate `routes.ts` file.
 
 ```svelte
 <!-- App.svelte -->
@@ -522,19 +397,18 @@ export const routes = {
   import { Router, Route } from 'svelte-routing';
   import { QueryClientProvider } from '@tanstack/svelte-query';
   import { queryClient } from '$lib/shared/api/queryClient';
-  import ErrorBoundary from '$lib/shared/components/ErrorBoundary.svelte';
   import Home from '$lib/pages/Home.svelte';
   import Login from '$lib/pages/Login.svelte';
+  import Upload from '$lib/pages/Upload.svelte';
 </script>
 
-<ErrorBoundary>
-  <QueryClientProvider client={queryClient}>
-    <Router>
-      <Route path="/" component={Home} />
-      <Route path="/login" component={Login} />
-    </Router>
-  </QueryClientProvider>
-</ErrorBoundary>
+<QueryClientProvider client={queryClient}>
+  <Router>
+    <Route path="/" component={Home} />
+    <Route path="/login" component={Login} />
+    <Route path="/upload" component={Upload} />
+  </Router>
+</QueryClientProvider>
 ```
 
 ### Frontend Guidelines
@@ -567,7 +441,7 @@ apps/web/src/lib/shared/
 └── utils.ts               # cn() utility for class merging
 ```
 
-**Class merging utility (`shared/utils.ts`):**
+**Class merging utility (`lib/shared/utils.ts`):**
 
 ```typescript
 import { clsx, type ClassValue } from "clsx";
@@ -578,7 +452,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 ```
 
-**Button with variants (`shared/ui/Button.svelte`):**
+**Button with variants (`lib/shared/ui/Button.svelte`):**
 
 ```svelte
 <script lang="ts">

@@ -1,43 +1,46 @@
 # VandyGuessr — Product Requirements Document (PRD)
 
 ## 1) Summary
-VandyGuessr is a GeoGuessr-style game for Vanderbilt students using 360-degree (equirectangular) campus imagery. Players guess locations on a campus map, earn scores based on accuracy, and compete on leaderboards. The product ships in a single, full-scope Phase 1 this semester, with optional extensions if time remains.
+VandyGuessr is a campus-specific location guessing game built around 360-degree Vanderbilt imagery. Players can play solo rounds, compete in real-time multiplayer matches, upload new panoramas, and climb leaderboards based on accuracy and consistency.
 
 ## 2) Goals
 - Deliver a polished, campus-specific guessing game with 360-degree imagery.
+- Support both solo and real-time multiplayer play without splitting the core gameplay model.
 - Support thousands of students with low operating cost.
-- Provide competitive elements: stats, scores, and leaderboards.
-- Keep content ingestion simple via EXIF-based uploads.
+- Provide competitive elements: stats, scores, leaderboards, and multiplayer standings.
+- Keep content ingestion simple via EXIF-based uploads, queued processing, and lightweight moderation.
 
 ## 3) Non-Goals (Phase 1)
 - Global scale or world map coverage
 - Advanced social features (friends, clubs)
-- Content moderation workflows
-- Role-based admin system
+- Full admin backoffice or granular role system
+- Campus tour mode or non-game exploration mode
 - Light/dark mode, reporting, or advanced settings (deferred)
 
 ## 4) Target Users
-- Vanderbilt students with campus familiarity
+- Primary audience: Vanderbilt students with campus familiarity
+- Secondary audience: collaborators or testers using Google sign-in when Vanderbilt restriction is disabled
 
 ## 5) Core User Experience
 ### 5.1 Welcome/Login
 - Centered card with guided dual-provider options:
   - “Continue with Vanderbilt” (students)
-  - “Continue with Google” (any Google account)
-- Microsoft OAuth for Vanderbilt students
-- Google OAuth ID token path for any Google account
-- Vanderbilt-only student policy remains enforced on Microsoft path
+  - “Continue with Google” (shown when Vanderbilt restriction is disabled)
+- Microsoft OAuth is the default sign-in path.
+- Google OAuth ID token sign-in is available when Vanderbilt restriction is disabled in both backend and frontend config.
+- Vanderbilt-only policy on the Microsoft path is feature-flagged and defaults to enabled.
 - On success: redirect to Home; on failure: simple error
 - User profile loaded (name, email, avatar)
 
 ### 5.2 Home (Logged In)
-- Centered card, two-column layout:
-  - Left: short product description + quick stats (rank, locations discovered, games played, points)
-  - Right: mode selection cards (Daily Challenge, Random Drop, Indoor, Outdoor, Timed, Untimed)
-- Primary CTA: “Start Guessing”
+- Active game resume for solo and multiplayer sessions
+- Solo game setup with Daily Challenge, Random Drop, environment filters, timing, and difficulty
+- Multiplayer controls to create a lobby or join by invite code when the feature flag is enabled
+- Quick stats plus recent completed games
+- Primary CTAs: Resume, Start Guessing, Create Match, Join Match
 
 ### 5.3 Game Play
-- Full-screen 360-degree viewer (equirectangular)
+- Full-screen 360-degree viewer with progressive tile support when panorama metadata is available
 - Top bar: round number, current score, timer (if timed)
 - Bottom controls: settings, mini-map, "Guess"
 - Top-left corner: "End Game" button (subtle/ghost style); hidden on round 5
@@ -48,7 +51,7 @@ VandyGuessr is a GeoGuessr-style game for Vanderbilt students using 360-degree (
 ### 5.4 Round Results
 - Round number
 - Location name (building/landmark); shows "Unknown location" if unavailable
-- Score, max score, optional multiplier (future)
+- Score and distance from the correct answer
 - Map with guessed vs actual location + distance line
 - “Next Round” button
 - After Round 5, button becomes “See Results”
@@ -62,17 +65,31 @@ VandyGuessr is a GeoGuessr-style game for Vanderbilt students using 360-degree (
 - CTAs: Play Again, Home, Leaderboard
 
 ### 5.6 Leaderboard
-- Filters: game mode + daily / weekly / all-time
-- Table: rank, name, avg score, games played, points
+- Filters: environment + daily / weekly / all-time
+- Table: rank, name, avg score, games played, rounds played, total points
 - Current user highlighted
 - Pagination for larger lists
 
-## 6) Game Modes
-- Timed (120 seconds per round)
-- Untimed
-- Indoor / Outdoor (mutually exclusive)
-- Daily Challenge (fixed set of images for that day)
-- Random Drop (randomized images)
+### 5.7 Upload & Review
+- Logged-in users can submit indoor or outdoor campus panoramas from the Upload page.
+- Uploads run client-side EXIF preflight, then queue into background processing on the API.
+- Crowd uploads land as `pending` and appear in the reviewer queue.
+- Reviewers configured through `REVIEWER_EMAIL_ALLOWLIST` can approve or reject submissions from the Review UI.
+- Trusted operators can also use the secret-code HTML upload flow, which queues submissions directly as approved.
+
+### 5.8 Multiplayer
+- Host creates a lobby and shares a 6-character invite code.
+- Two to five players join, wait in the lobby, and the host starts the match.
+- Multiplayer is always timed at 120 seconds per round.
+- Players see live guessed indicators, reconnect state, round standings, and final standings.
+- Round advancement from results is synchronized across workers so mixed-worker games do not deadlock.
+
+## 6) Solo Modes & Settings
+- Daily Challenge: fixed daily set, untimed, campus-wide image pool
+- Random Drop: randomized image selection, timed or untimed
+- Environment filter: `any`, `indoor`, `outdoor`
+- Difficulty: `easy`, `medium`, `hard`
+- Multiplayer exists alongside solo play but uses its own lobby/match flow
 
 ## 7) Scoring
 Primary formula (from PM notes):
@@ -100,12 +117,13 @@ Score = 5000 * e ^ (-5 * distance / size)
 - Svelte integration
 
 ## 10) Authentication & Profiles
-- Microsoft OAuth for Vanderbilt student sign-in (`@vanderbilt.edu` only)
-- Google OAuth for any Google account
+- Microsoft OAuth for Vanderbilt-first sign-in
+- Google OAuth for any Google account when Vanderbilt restriction is disabled
+- Microsoft Vanderbilt-only enforcement is controlled by `FEATURE_VANDERBILT_RESTRICTED_LOGINS` and defaults to enabled
 - Google sign-in requires: valid ID token and `email_verified = true`
 - User fields stored: `email`, `username`, `name`
 - `username`: auto-generated from email local part, normalized, unique
-- `name`: editable display name (default from Microsoft profile)
+- `name`: editable display name (default from OAuth profile)
 - Avatar (PFP): pulled from Microsoft Graph; shown in top bar with menu (Edit Profile, Logout)
 
 ## 11) Daily Challenge (No CRON)
@@ -128,7 +146,7 @@ Score = 5000 * e ^ (-5 * distance / size)
 ```
 {
   _id,
-  microsoftOid,
+  microsoftOid,                 // auth identity key; Google users are stored as google:{sub}
   email,
   username,
   name,
@@ -143,9 +161,24 @@ Score = 5000 * e ^ (-5 * distance / size)
 {
   _id,
   url,
-  exif: { lat, lng, altitude, timestamp, width, height, format },
+  latitude,
+  longitude,
+  altitude,
+  timestamp,
+  width,
+  height,
+  format,
   environment: "indoor" | "outdoor",
+  original_filename,
+  file_size,
   location_name,                 // auto-tagged via geospatial lookup; null if no match
+  tiles,                         // panorama tile pyramid metadata for progressive viewer loading
+  compression,                   // stored-original compression metadata
+  moderation_status,             // pending | approved | rejected
+  submitted_by_user_id,
+  submitted_at,
+  reviewed_by_user_id,
+  reviewed_at,
   createdAt
 }
 ```
@@ -155,12 +188,13 @@ Score = 5000 * e ^ (-5 * distance / size)
 {
   _id,
   userId,
-  mode: { timed: boolean, environment: "indoor" | "outdoor" | "any", daily: boolean },
+  mode: { timed: boolean, environment: "indoor" | "outdoor" | "any", daily: boolean, difficulty: "easy" | "medium" | "hard" },
   status: "active" | "completed" | "abandoned",
   rounds: [
     {
       roundId,
       imageId,
+      imageTiles,
       guess: { lat, lng },
       distanceMeters,
       score,
@@ -175,6 +209,9 @@ Score = 5000 * e ^ (-5 * distance / size)
   lastActivityAt  // updated on round start and guess submission; used for untimed timeout
 }
 ```
+
+### multiplayer_games
+See `docs/MULTIPLAYER.md` for the full contract. Multiplayer games keep separate lobby, player-status, round, and WebSocket state from solo games.
 
 ### daily_challenges
 ```
@@ -213,15 +250,29 @@ Score = 5000 * e ^ (-5 * distance / size)
 ```
 
 ## 13) API Surface (Phase 1)
-- `GET /api/v1/users/me`
-- `PATCH /api/v1/users/me` (update display name)
-- `GET /api/v1/games` (list user's games; supports `?status=active|completed|abandoned`, `?limit=N`, `?offset=N`)
-- `GET /api/v1/games/{id}` (get full game state including rounds, timing, status)
-- `POST /api/v1/games/start` (returns game + rounds)
-- `POST /api/v1/games/{id}/round/{n}/guess`
-- `POST /api/v1/games/{id}/end` (end game early; marks remaining rounds as skipped, returns game summary)
-- `GET /api/v1/leaderboard?mode=...&timeframe=...`
-- `POST /api/v1/images/upload?code=...&environment=indoor|outdoor`
+- `GET /v1/users/me`
+- `PATCH /v1/users/me`
+- `GET /v1/games/active`
+- `GET /v1/games`
+- `GET /v1/games/{id}`
+- `POST /v1/games/start`
+- `POST /v1/games/{id}/round/{n}/guess`
+- `POST /v1/games/{id}/end`
+- `GET /v1/games/images/{image_id}/score-distribution?score=...`
+- `GET /v1/leaderboard?mode=all|indoor|outdoor&timeframe=daily|weekly|alltime`
+- `GET /v1/images/upload?code=...&environment=indoor|outdoor`
+- `POST /v1/images/upload?code=...&environment=indoor|outdoor`
+- `GET /v1/images/upload/jobs/{job_id}?code=...`
+- `POST /v1/images/submissions?environment=indoor|outdoor`
+- `GET /v1/images/submissions/{job_id}`
+- `GET /v1/images/moderation/pending`
+- `POST /v1/images/moderation/{image_id}/approve`
+- `POST /v1/images/moderation/{image_id}/reject`
+- `POST /v1/multiplayer/create` when `FEATURE_MULTIPLAYER=true`
+- `POST /v1/multiplayer/join` when `FEATURE_MULTIPLAYER=true`
+- `GET /v1/multiplayer/active` when `FEATURE_MULTIPLAYER=true`
+- `GET /v1/multiplayer/{game_id}` when `FEATURE_MULTIPLAYER=true`
+- `WS /v1/multiplayer/{game_id}/ws` when `FEATURE_MULTIPLAYER=true`
 
 ## 14) User Stories
 
@@ -249,7 +300,7 @@ Score = 5000 * e ^ (-5 * distance / size)
 - Constraints:
   - Error is generic (no sensitive details).
 - Dependencies:
-  - Microsoft OAuth SDK error handling.
+  - OAuth provider SDK error handling.
 - Edge Cases:
   - Timeouts, canceled login, expired auth code.
 - Data Contracts:
@@ -260,23 +311,23 @@ Score = 5000 * e ^ (-5 * distance / size)
   - Users remain signed in between sessions when the token is valid.
   - Expired sessions return to login.
 - Constraints:
-  - Token refresh handled by Microsoft OAuth SDK.
+  - Token/session refresh is delegated to the active provider SDK.
 - Dependencies:
-  - Microsoft session/token storage.
+  - Provider session/token storage.
 - Edge Cases:
   - Clock skew; revoked tokens.
 - Data Contracts:
   - `UserProfile`
 
 ### Profile & Identity
-**B1 - Initialize profile from Microsoft OAuth**
+**B1 - Initialize profile from OAuth identity**
 - Acceptance Criteria:
-  - `name` defaults to Microsoft profile name on first login.
+  - `name` defaults to the provider profile on first login.
   - `email`, `username`, and `avatarUrl` are stored.
 - Constraints:
   - `name` is editable after creation.
 - Dependencies:
-  - Microsoft profile claims.
+  - Provider profile claims.
 - Edge Cases:
   - Missing first/last name; fallback to email local part.
 - Data Contracts:
@@ -302,7 +353,7 @@ Score = 5000 * e ^ (-5 * distance / size)
 - Constraints:
   - Non-empty string; length limit enforced.
 - Dependencies:
-  - `PATCH /api/v1/users/me`.
+  - `PATCH /v1/users/me`.
 - Edge Cases:
   - Whitespace-only input.
 - Data Contracts:
@@ -315,7 +366,7 @@ Score = 5000 * e ^ (-5 * distance / size)
 - Constraints:
   - Avatar fallback when missing.
 - Dependencies:
-  - Microsoft logout flow.
+  - Provider-aware logout flow.
 - Edge Cases:
   - Missing avatar claim.
 - Data Contracts:
@@ -355,7 +406,7 @@ Score = 5000 * e ^ (-5 * distance / size)
 - Constraints:
   - Game creation is idempotent for double-clicks.
 - Dependencies:
-  - `POST /api/v1/games/start`.
+  - `POST /v1/games/start`.
 - Edge Cases:
   - Insufficient images; return error.
 - Data Contracts:
@@ -395,7 +446,7 @@ Score = 5000 * e ^ (-5 * distance / size)
 - Constraints:
   - One submission per round.
 - Dependencies:
-  - `POST /api/v1/games/{id}/round/{n}/guess`.
+  - `POST /v1/games/{id}/round/{n}/guess`.
 - Edge Cases:
   - Double submit; server handles idempotently.
 - Data Contracts:
@@ -421,7 +472,7 @@ Score = 5000 * e ^ (-5 * distance / size)
 
 **D5 - Session recovery on return**
 - Acceptance Criteria:
-  - On page load, client checks for in-progress game via `GET /api/v1/games?status=active`.
+  - On page load, client checks for in-progress game via `GET /v1/games/active`.
   - **Timed mode, time expired for current round**:
     - Auto-submit current round (with placed pin, or 0 score if no pin).
     - If multiple rounds would have expired (user gone for extended time), mark all as 0 and jump directly to Game Summary.
@@ -433,8 +484,8 @@ Score = 5000 * e ^ (-5 * distance / size)
   - Client syncs remaining time from server on load to prevent clock drift issues.
   - `lastActivityAt` updated on each round start and guess submission.
 - Dependencies:
-  - `GET /api/v1/games?status=active` to retrieve in-progress game.
-  - `GET /api/v1/games/{id}` to get full game state including round timing.
+  - `GET /v1/games/active` to retrieve in-progress game.
+  - `GET /v1/games/{id}` to get full game state including round timing.
   - `Round.startedAt` and `Round.expiresAt` fields for timing.
   - `GameSession.lastActivityAt` for untimed timeout detection.
 - Edge Cases:
@@ -460,7 +511,7 @@ Score = 5000 * e ^ (-5 * distance / size)
   - Individual round skip is NOT supported (must end entire game to skip).
   - Button hidden or disabled on round 5 (game about to end anyway).
 - Dependencies:
-  - `POST /api/v1/games/{id}/end` endpoint.
+  - `POST /v1/games/{id}/end` endpoint.
   - Confirmation dialog component.
 - Edge Cases:
   - User on last round (button hidden).
@@ -761,11 +812,11 @@ Score = 5000 * e ^ (-5 * distance / size)
 - Image size -> compress and limit max upload size
 
 ## 17) Future Features (Out of Scope)
-- Multiplayer or AI mode
-- User-uploaded images
-- Gamemode variants beyond Phase 1
-- Virtual tour mode
-- Round multipliers and trivia facts
+- Map theme customization
+- Campus tour mode
+- AI or hint-assisted modes
+- Richer social features and friend systems
+- Trivia overlays, achievements, and deeper metagame systems
 
 ## 18) Content Requirements
 

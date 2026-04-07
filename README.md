@@ -57,10 +57,16 @@ docker-compose up
 cd apps/api
 uv run uvicorn app.main:app --reload --port 8000
 
-# Terminal 3: Start frontend
+# Terminal 3: Start image submission worker
+cd apps/api
+uv run python -m app.workers.image_submission_worker
+
+# Terminal 4: Start frontend
 cd apps/web
 pnpm dev
 ```
+
+If you are not testing uploads, the worker can be skipped. Both the authenticated upload flow and the secret-code upload flow enqueue background jobs.
 
 ### 4. Access the Application
 
@@ -75,31 +81,32 @@ VandyGuessr/
 ├── apps/
 │   ├── api/
 │   │   ├── app/
-│   │   │   ├── api/v1/          # Controllers (HTTP layer)
 │   │   │   ├── core/            # Auth, database, redis
-│   │   │   ├── entities/        # MongoDB document schemas
-│   │   │   ├── models/          # API request/response schemas
-│   │   │   ├── repositories/    # Database access layer
-│   │   │   ├── services/        # Business logic
+│   │   │   ├── domains/         # Routers, services, repositories, entities, models
+│   │   │   ├── shared/          # Cross-domain helpers (EXIF, S3, scoring)
+│   │   │   ├── workers/         # Background workers (queued image processing)
 │   │   │   ├── config.py        # Settings
+│   │   │   ├── container.py     # Lagom DI container
 │   │   │   └── main.py          # FastAPI app
 │   │   ├── pyproject.toml
 │   │   └── Dockerfile
 │   └── web/
 │       ├── src/
 │       │   ├── lib/
-│       │   │   ├── auth/        # MSAL configuration
-│       │   │   ├── components/  # Svelte components
-│       │   │   └── stores/      # Svelte stores
+│       │   │   ├── domains/     # Games, multiplayer, leaderboard, images, users
+│       │   │   ├── pages/       # Routed page components
+│       │   │   └── shared/      # Auth, API client, shared UI
 │       │   ├── App.svelte
 │       │   └── main.ts
 │       ├── package.json
 │       └── Dockerfile
 ├── docs/
 │   ├── ARCHITECTURE.md
-│   ├── AZURE_AUTH_SETUP.md
+│   ├── AUTH_SETUP.md
+│   ├── MULTIPLAYER.md
 │   └── PRD.md
 ├── docker-compose.yml
+├── AGENTS.md
 └── README.md
 ```
 
@@ -135,6 +142,8 @@ VandyGuessr requires 360-degree campus photos with GPS EXIF data.
 ### Logged-in contributors (reviewed)
 
 Students signed in through the web app can upload from **Upload** in the nav or the home page card. Submissions are stored as **pending** until someone on the `REVIEWER_EMAIL_ALLOWLIST` approves them in the **Review** UI. Set that env var to a comma-separated list of `@vanderbilt.edu` addresses (see `apps/api/.env.example`). The API also exposes `can_review_submissions` on `GET /v1/users/me` for the frontend.
+
+Uploads are queued and processed asynchronously. In local development, run `uv run python -m app.workers.image_submission_worker` from `apps/api/` if you want crowd uploads or operator uploads to complete.
 
 ### Operator upload URLs (secret code)
 
@@ -172,6 +181,6 @@ cd apps/api
 python -m scripts.backfill_image_compression --dry-run
 ```
 
-## Microsoft OAuth Setup
+## OAuth Setup
 
-See `docs/AZURE_AUTH_SETUP.md` for the full Azure app registration flow.
+See `docs/AUTH_SETUP.md` for Microsoft and Google OAuth configuration, including the Vanderbilt-restriction feature flag.

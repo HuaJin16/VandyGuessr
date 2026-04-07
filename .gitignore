@@ -70,3 +70,9 @@ logs/
 # Testing
 coverage/
 .nyc_output/
+
+# Local tooling
+/.opencode/
+
+# Local scratch artifacts
+/scratch/

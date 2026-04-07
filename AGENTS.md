@@ -8,7 +8,7 @@
 - **Product requirements**: See [docs/PRD.md](./docs/PRD.md)
 - **Technical architecture**: See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
 - **Design specs**: See [docs/DESIGN.md](./docs/DESIGN.md)
-- **Azure OAuth setup**: See [docs/AZURE_AUTH_SETUP.md](./docs/AZURE_AUTH_SETUP.md)
+- **OAuth setup**: See [docs/AUTH_SETUP.md](./docs/AUTH_SETUP.md)
 
 ---
 
@@ -23,7 +23,7 @@
 7. Ask when unsure - if the approach is unclear, ask the developer
 8. Note design issues - if problems are discovered, note them but continue
 9. Svelte 4 SPA - this is NOT SvelteKit; don't introduce SvelteKit patterns
-10. MongoDB is schema-less but entities define structure - follow existing entity patterns in `app/entities/`
+10. MongoDB is schema-less but entities define structure - follow the existing `app/domains/*/entities.py` patterns
 
 ---
 
@@ -87,7 +87,7 @@ When requirements are ambiguous or incomplete:
 | Commit secrets | Check for `.env`, API keys, `UPLOAD_SECRET_CODE` before every commit |
 | `sudo pnpm/pip install` | Permission issues, security risk |
 | Install without version check | Always verify latest stable |
-| Use SvelteKit APIs | This is a Svelte 4 SPA with `svelte-spa-router`, not SvelteKit |
+| Use SvelteKit APIs | This is a Svelte 4 SPA with `svelte-routing` wired in `App.svelte`, not SvelteKit |
 
 ---
 
@@ -139,6 +139,7 @@ docker-compose up
 # Backend (in apps/api/)
 uv sync                                            # Install dependencies
 uv run uvicorn app.main:app --reload --port 8000   # Run API with hot reload
+uv run python -m app.workers.image_submission_worker # Run upload worker when testing submissions
 
 # Frontend (in apps/web/)
 pnpm install                                       # Install dependencies
@@ -165,12 +166,14 @@ pnpm build                                         # Build for production
 
 | Layer | Location | Purpose |
 |-------|----------|---------|
-| Controllers | `api/v1/` | HTTP endpoints (thin, delegate to services) |
-| Services | `services/` | Business logic |
-| Repositories | `repositories/` | Database access layer |
-| Entities | `entities/` | MongoDB document schemas |
-| Models | `models/` | API request/response schemas |
+| Controllers | `domains/*/router.py` | HTTP endpoints (thin, delegate to services) |
+| Services | `domains/*/service.py` | Business logic |
+| Repositories | `domains/*/repository.py` | Database access layer |
+| Entities | `domains/*/entities.py` | MongoDB document schemas |
+| Models | `domains/*/models.py` | API request/response schemas |
 | Core | `core/` | Auth, database connections, Redis, HTTP utilities |
+| Shared | `shared/` | Cross-domain helpers like EXIF, S3, scoring |
+| Workers | `workers/` | Background workers for queued jobs |
 | Config | `config.py` | Application settings (pydantic-settings) |
 | Container | `container.py` | Dependency injection (lagom) |
 
@@ -178,21 +181,21 @@ pnpm build                                         # Build for production
 
 | Layer | Location | Purpose |
 |-------|----------|---------|
-| Pages | `lib/pages/` | Top-level page components |
-| Components | `lib/components/` | Reusable Svelte components |
-| Stores | `lib/stores/` | Svelte stores (state management) |
-| Auth | `lib/auth/` | MSAL configuration and auth utilities |
-| Routes | `routes.ts` | SPA route definitions (svelte-spa-router) |
+| Pages | `lib/pages/` | Top-level routed page components |
+| Domains | `lib/domains/` | Vertical slices for games, multiplayer, images, users, leaderboard |
+| Shared | `lib/shared/` | Auth, API client, shared UI, utilities |
+| Routes | `App.svelte` | SPA route wiring via `svelte-routing` |
 | Entry | `App.svelte`, `main.ts` | Application entry point |
 
 ### CI Pipeline
 
-The CI runs on push to `main` and on PRs targeting `main`. All five jobs must pass:
+The CI runs on push to `main` and on PRs targeting `main`. All six jobs must pass:
 
 | Job | What it checks |
 |-----|---------------|
 | `api-lint` | Ruff lint + format check |
 | `api-check` | API imports correctly |
+| `api-test` | Backend pytest suite |
 | `web-lint` | Biome lint |
 | `web-check` | Svelte type checking |
 | `web-build` | Frontend builds successfully |
