@@ -1,4 +1,5 @@
 <script lang="ts">
+import { CAMPUS_BOUNDS, addCampusBaseLayer } from "$lib/shared/maps/leafletTheme";
 import L from "leaflet";
 import { onDestroy, onMount } from "svelte";
 import "leaflet/dist/leaflet.css";
@@ -69,15 +70,13 @@ onMount(() => {
 		dragging: true,
 		scrollWheelZoom: true,
 		minZoom: 13,
-		maxBounds: L.latLngBounds([36.05, -86.92], [36.25, -86.7]),
+		maxBounds: CAMPUS_BOUNDS,
 		maxBoundsViscosity: 1.0,
 	});
 
 	map.fitBounds(bounds.pad(0.6));
 
-	L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-		maxZoom: 19,
-	}).addTo(map);
+	addCampusBaseLayer(map);
 
 	// Player lines (draw first so they're behind markers)
 	for (const r of result.results) {
@@ -152,7 +151,7 @@ onDestroy(() => {
 </script>
 
 <div class="map-container">
-	<div bind:this={mapContainer} class="mp-results-map" />
+	<div bind:this={mapContainer} class="mp-results-map leaflet-theme" />
 </div>
 
 <style>
@@ -171,10 +170,6 @@ onDestroy(() => {
 		height: 100%;
 		position: absolute;
 		inset: 0;
-	}
-
-	.mp-results-map :global(.leaflet-tile-pane) {
-		filter: saturate(0.2) sepia(20%) brightness(1.06) contrast(0.95);
 	}
 
 	:global(.mp-pin) {

@@ -12,7 +12,7 @@ export type ToggleOption = {
 </script>
 
 <script lang="ts">
-	import { createEventDispatcher } from "svelte";
+	import { createEventDispatcher, tick } from "svelte";
 
 	export let options: ToggleOption[] = [];
 	export let selected: string;
@@ -21,18 +21,37 @@ export type ToggleOption = {
 
 	const dispatch = createEventDispatcher<{ change: string }>();
 
+	$: selectedIndex = options.findIndex((o) => o.value === selected);
+
 	function handleClick(value: string) {
 		dispatch("change", value);
 	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+		e.preventDefault();
+		const dir = e.key === "ArrowRight" ? 1 : -1;
+		const next = (selectedIndex + dir + options.length) % options.length;
+		dispatch("change", options[next].value);
+		tick().then(() => {
+			const group = (e.currentTarget as HTMLElement)?.closest("[role='radiogroup']");
+			const radios = group?.querySelectorAll<HTMLButtonElement>("[role='radio']");
+			radios?.[next]?.focus();
+		});
+	}
 </script>
 
-<div class="toggle-group" role="group" aria-label={ariaLabel}>
+<div class="toggle-group" role="radiogroup" aria-label={ariaLabel}>
 	{#each options as option (option.value)}
 		<button
 			type="button"
-			class="toggle-button {selected === option.value ? 'toggle-active' : 'toggle-inactive'}"
-			aria-pressed={selected === option.value}
+			class="toggle-btn"
+			class:toggle-btn--active={selected === option.value}
+			role="radio"
+			aria-checked={selected === option.value}
+			tabindex={selected === option.value ? 0 : -1}
 			on:click={() => handleClick(option.value)}
+			on:keydown={handleKeydown}
 		>
 			{#if option.icon}
 				<span aria-hidden="true">
@@ -46,69 +65,45 @@ export type ToggleOption = {
 
 <style>
 	.toggle-group {
-		display: flex;
-		border-radius: var(--radius-pill);
-		padding: 3px;
-		gap: 3px;
-		border: 1px solid var(--line);
-		background: var(--surface);
-		box-shadow: var(--shadow-sm);
-	}
-
-	@media (min-width: 640px) {
-		.toggle-group {
-			display: inline-flex;
-		}
-	}
-
-	.toggle-button {
 		display: inline-flex;
-		flex: 1;
+		border-radius: var(--radius-sm);
+		padding: 3px;
+		border: 1px solid var(--line);
+		background: var(--surface-strong);
+	}
+
+	.toggle-btn {
+		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		gap: 5px;
-		border-radius: var(--radius-pill);
-		padding: 7px 13px;
+		border-radius: 6px;
+		padding: 6px 12px;
 		font-size: 13px;
-		font-weight: 600;
+		font-weight: 500;
 		cursor: pointer;
 		border: none;
 		outline: none;
 		background: transparent;
 		color: var(--muted);
 		appearance: none;
-		transition: all var(--duration-fast) var(--ease);
-		text-align: center;
+		white-space: nowrap;
+		transition: color var(--duration-fast) var(--ease),
+			background var(--duration-fast) var(--ease);
 	}
 
-	@media (min-width: 640px) {
-		.toggle-button {
-			flex: none;
-		}
-	}
-
-	.toggle-button:hover {
+	.toggle-btn:hover:not(.toggle-btn--active) {
 		color: var(--ink);
-		background: rgba(0, 0, 0, 0.05);
 	}
 
-	.toggle-button:focus-visible {
+	.toggle-btn:focus-visible {
 		outline: none;
 		box-shadow: var(--ring);
 	}
 
-	.toggle-active {
+	.toggle-btn--active {
 		background: var(--brand);
 		color: #fff;
-		box-shadow: 0 2px 0 var(--brand-dark);
-	}
-
-	.toggle-active:hover {
-		background: var(--brand);
-		color: #fff;
-	}
-
-	.toggle-active:focus-visible {
-		box-shadow: 0 2px 0 var(--brand-dark), var(--ring);
+		font-weight: 600;
 	}
 </style>

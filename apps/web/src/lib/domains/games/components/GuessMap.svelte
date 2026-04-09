@@ -1,4 +1,10 @@
 <script lang="ts">
+import {
+	CAMPUS_BOUNDS,
+	CAMPUS_CENTER,
+	CAMPUS_ZOOM,
+	addCampusBaseLayer,
+} from "$lib/shared/maps/leafletTheme";
 import L from "leaflet";
 import { createEventDispatcher, onDestroy, onMount } from "svelte";
 import "leaflet/dist/leaflet.css";
@@ -6,9 +12,6 @@ import "leaflet/dist/leaflet.css";
 export let position: { lat: number; lng: number } | null = null;
 
 const dispatch = createEventDispatcher<{ click: { lat: number; lng: number } }>();
-
-const CAMPUS_CENTER: L.LatLngExpression = [36.1453, -86.802];
-const CAMPUS_ZOOM = 16;
 
 let mapContainer: HTMLDivElement;
 let map: L.Map | null = null;
@@ -29,13 +32,11 @@ onMount(() => {
 		zoomControl: false,
 		attributionControl: false,
 		minZoom: 13,
-		maxBounds: L.latLngBounds([36.05, -86.92], [36.25, -86.7]),
+		maxBounds: CAMPUS_BOUNDS,
 		maxBoundsViscosity: 1.0,
 	});
 
-	L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-		maxZoom: 19,
-	}).addTo(map);
+	addCampusBaseLayer(map);
 
 	map.on("click", (e: L.LeafletMouseEvent) => {
 		const pos = { lat: e.latlng.lat, lng: e.latlng.lng };
@@ -71,7 +72,7 @@ onDestroy(() => {
 });
 </script>
 
-<div bind:this={mapContainer} class="guess-map" />
+<div bind:this={mapContainer} class="guess-map leaflet-theme" />
 
 <style>
 	.guess-map {
@@ -79,10 +80,6 @@ onDestroy(() => {
 		height: 100%;
 		border-radius: var(--radius-md);
 		overflow: hidden;
-	}
-
-	.guess-map :global(.leaflet-tile-pane) {
-		filter: saturate(0.2) sepia(20%) brightness(1.06) contrast(0.95);
 	}
 
 	:global(.guess-pin) {

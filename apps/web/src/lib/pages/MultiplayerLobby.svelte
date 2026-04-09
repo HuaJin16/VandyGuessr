@@ -12,11 +12,16 @@ import {
 } from "$lib/domains/multiplayer/types";
 import { createMultiplayerWs } from "$lib/domains/multiplayer/ws/multiplayer.ws";
 import { auth } from "$lib/shared/auth/auth.store";
+import Navbar from "$lib/shared/components/Navbar.svelte";
+import Button from "$lib/shared/ui/Button.svelte";
+import Card from "$lib/shared/ui/Card.svelte";
+import PageHeader from "$lib/shared/ui/PageHeader.svelte";
+import PageShell from "$lib/shared/ui/PageShell.svelte";
+import Spinner from "$lib/shared/ui/Spinner.svelte";
 import { createQuery } from "@tanstack/svelte-query";
 import { onDestroy } from "svelte";
 import { navigate } from "svelte-routing";
 import { toast } from "svelte-sonner";
-import logo from "../../assets/logo.webp";
 
 export let id: string;
 
@@ -130,7 +135,7 @@ function handleMessage(msg: ServerMessage) {
 
 			lobbyStore.setPlayers(
 				data.players.map((player) => {
-					const existing = players.find((p) => p.userId === player.userId);
+					const existing = players.find((candidate) => candidate.userId === player.userId);
 					return {
 						userId: player.userId,
 						name: player.name,
@@ -202,7 +207,7 @@ function runCountdown(from: number) {
 			countdownValue = null;
 			return;
 		}
-		countdownValue--;
+		countdownValue -= 1;
 	}, 1000);
 }
 
@@ -250,36 +255,6 @@ $: allConnectedReady =
 	connectedPlayers.length >= 2 &&
 	connectedPlayers.every((player) => readyPlayers.includes(player.userId));
 
-function getInitials(name: string): string {
-	return name
-		.split(" ")
-		.map((w) => w[0])
-		.join("")
-		.toUpperCase()
-		.slice(0, 2);
-}
-
-const PLAYER_COLORS = [
-	"var(--p-you)",
-	"var(--p-blue)",
-	"var(--p-purple)",
-	"var(--p-orange)",
-	"var(--p-cyan)",
-	"var(--p-pink)",
-];
-
-function getPlayerColor(player: MultiplayerPlayer, index: number): string {
-	if (player.userId === currentUserId) return PLAYER_COLORS[0];
-	let opponentIdx = 0;
-	for (let i = 0; i < players.length; i++) {
-		if (players[i].userId === currentUserId) continue;
-		if (players[i].userId === player.userId)
-			return PLAYER_COLORS[opponentIdx + 1] ?? PLAYER_COLORS[1];
-		opponentIdx++;
-	}
-	return PLAYER_COLORS[(index + 1) % PLAYER_COLORS.length];
-}
-
 onDestroy(() => {
 	if (countdownInterval) {
 		clearInterval(countdownInterval);
@@ -292,7 +267,6 @@ onDestroy(() => {
 </script>
 
 {#if countdownValue !== null}
-	<!-- Countdown Overlay -->
 	<div class="countdown-backdrop" />
 	<div class="countdown-center">
 		<div class="count-wrap">
@@ -303,170 +277,128 @@ onDestroy(() => {
 		</div>
 
 		<div class="countdown-text">
-			<h2 class="text-2xl font-extrabold text-white">Game Starting</h2>
-			<p class="mt-1.5 text-sm text-white/55">Get ready to guess!</p>
-		</div>
-
-		<div class="player-bar">
-			<div class="avatar-stack">
-				{#each players as player, i (player.userId)}
-					<div class="av" style="background: {getPlayerColor(player, i)};">
-						{getInitials(player.name)}
-					</div>
-				{/each}
-			</div>
-			<span class="font-mono text-[13px] font-semibold text-[var(--ink)]">
-				{players.length} player{players.length !== 1 ? "s" : ""}
-			</span>
+			<h2>Match starting</h2>
+			<p>Get ready to place your pin.</p>
 		</div>
 	</div>
-{:else}
-	<!-- Normal Lobby -->
-	{#if $gameQuery.isLoading}
-		<div class="flex h-screen items-center justify-center bg-canvas">
-			<div class="loading-spinner" />
-		</div>
-	{:else if $gameQuery.isError || lobbyStatus === "cancelled"}
-		<div class="flex h-screen flex-col items-center justify-center gap-4 bg-canvas">
-			<p class="text-base font-medium text-[var(--muted)]">
-				{lobbyStatus === "cancelled" ? "This game was cancelled" : "Failed to load game"}
-			</p>
-			<button class="btn-3d" on:click={() => navigate("/", { replace: true })}>Go Home</button>
-		</div>
-	{:else if game}
-		<header class="sticky top-0 z-50 border-b border-line bg-surface">
-			<div
-				class="mx-auto flex min-h-[56px] items-center justify-between gap-3"
-				style="width: min(600px, calc(100% - 32px));"
+{:else if $gameQuery.isLoading}
+	<div class="state-screen">
+		<Spinner />
+	</div>
+{:else if $gameQuery.isError || lobbyStatus === "cancelled"}
+	<div class="state-screen state-screen--stacked">
+		<p class="state-copy">{lobbyStatus === "cancelled" ? "This lobby was cancelled" : "Failed to load lobby"}</p>
+		<Button on:click={() => navigate("/", { replace: true })}>Go Home</Button>
+	</div>
+{:else if game}
+	<div class="min-h-screen bg-canvas font-sans text-ink">
+		<Navbar />
+
+		<PageShell size="content">
+			<PageHeader
+				eyebrow="Multiplayer"
+				title="Match lobby"
+				copy="Get everyone into the room, ready the roster, and start the match once the connected players are set."
+				split
 			>
-				<a href="/" class="flex items-center gap-2.5">
-					<img src={logo} alt="VandyGuessr" class="h-[34px] w-[34px] rounded-md" />
-					<span class="text-lg font-extrabold text-ink">VandyGuessr</span>
-				</a>
-				<div class="status-indicator">
-					<div
-						class="status-dot"
-						class:connected={connectionState === "connected"}
-						class:disconnected={connectionState === "disconnected"}
-					/>
-					<span class="text-[13px] font-medium text-[var(--muted)]">
-						{connectionState === "connected" ? "Connected" : connectionState === "disconnected" ? "Disconnected" : "Connecting..."}
-					</span>
-				</div>
-			</div>
-		</header>
-
-		<main
-			class="mx-auto my-4 grid gap-3.5 sm:mb-6"
-			style="width: min(600px, calc(100% - 32px));"
-		>
-			<InviteCodeCard code={game.inviteCode} />
-
-			{#if isHost}
-				<div class="host-banner">
-					<svg class="host-crown" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z" />
-						<path d="M3 20h18" />
-					</svg>
-					<span>You are the host</span>
-				</div>
-			{:else}
-				{@const hostPlayer = players.find(p => p.userId === game.hostId)}
-				{#if hostPlayer}
-					<div class="host-banner guest">
-						<svg class="host-crown" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z" />
-							<path d="M3 20h18" />
-						</svg>
-						<span>Hosted by <strong>{hostPlayer.name}</strong></span>
+				<div slot="actions" class="lobby-actions-top">
+					<div class="status-indicator">
+						<div class="status-dot" class:connected={connectionState === "connected"} class:disconnected={connectionState === "disconnected"} />
+						<span>
+							{connectionState === "connected" ? "Connected" : connectionState === "disconnected" ? "Disconnected" : "Connecting..."}
+						</span>
 					</div>
-				{/if}
-			{/if}
-
-			<LobbyPlayerList
-				{players}
-				hostId={game.hostId}
-				{currentUserId}
-				{readyPlayers}
-				showReadyToggle={connectionState !== "disconnected"}
-				on:toggleReady={toggleReady}
-				on:kick={(event) => kickPlayer(event.detail.userId)}
-			/>
-
-			<!-- Settings -->
-			<section class="card">
-				<p class="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
-					Game Settings
-				</p>
-				<div class="flex flex-wrap gap-2">
-					<span class="settings-pill">
-						<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-						</svg>
-						120s per round
-					</span>
-					<span class="settings-pill">
-						<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
-						</svg>
-						5 rounds
-					</span>
-					<span class="settings-pill" class:settings-pill-any={game.mode?.environment === "any"}>
-						<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z" />
-							<path d="M2 12h20" />
-							<path d="M12 2a15.3 15.3 0 0 1 0 20" />
-							<path d="M12 2a15.3 15.3 0 0 0 0 20" />
-						</svg>
-						{game.mode?.environment === "indoor"
-							? "Indoor only"
-							: game.mode?.environment === "outdoor"
-								? "Outdoor only"
-								: "All environments"}
-					</span>
 				</div>
-			</section>
+			</PageHeader>
 
-			<!-- Actions -->
-			<div class="grid gap-1.5">
-				{#if connectionState === "disconnected"}
-					<button class="btn-3d w-full text-center" on:click={reconnect}>Reconnect</button>
-				{:else if isHost}
-					<button
-						class="btn-3d w-full text-center"
-						disabled={!allConnectedReady}
-						on:click={startGame}
-					>
-						{#if connectedPlayers.length < 2}
-							Waiting for players...
-						{:else if !allConnectedReady}
-							Waiting for ready checks...
-						{:else}
-							Start Game
-						{/if}
-					</button>
-					{#if connectedPlayers.length >= 2 && !allConnectedReady}
-						<p class="py-1 text-center text-xs font-medium text-[var(--muted)]">
-							{connectedPlayers.filter((player) => readyPlayers.includes(player.userId)).length}/{connectedPlayers.length} ready
+			<div class="lobby-grid">
+				<Card class="lobby-left">
+					<InviteCodeCard code={game.inviteCode} />
+
+					<Card tone="subtle" class="host-card">
+						<p class="section-label">Host status</p>
+						<p class="host-card__copy">
+							{#if isHost}
+								You are the host for this lobby.
+							{:else}
+								{@const hostPlayer = players.find((player) => player.userId === game.hostId)}
+								Hosted by <strong>{hostPlayer?.name ?? "the lobby host"}</strong>.
+							{/if}
 						</p>
-					{/if}
-					{#if lobbyExpiring}
-						<button class="leave-btn" on:click={extendLobby}>Extend Lobby</button>
-					{/if}
-				{:else}
-					<p class="py-2 text-center text-sm text-[var(--muted)]">Waiting for host to start...</p>
-				{/if}
-				<button class="leave-btn" on:click={leaveLobby}>Leave Lobby</button>
+
+						<div class="settings-pills">
+							<span class="settings-pill">120s per round</span>
+							<span class="settings-pill">5 rounds</span>
+							<span class="settings-pill">
+								{game.mode?.environment === "indoor"
+									? "Indoor only"
+									: game.mode?.environment === "outdoor"
+										? "Outdoor only"
+										: "All environments"}
+							</span>
+						</div>
+					</Card>
+
+					<div class="action-stack">
+						{#if connectionState === "disconnected"}
+							<Button size="lg" on:click={reconnect}>Reconnect</Button>
+						{:else if isHost}
+							<Button size="lg" disabled={!allConnectedReady} on:click={startGame}>
+								{#if connectedPlayers.length < 2}
+									Waiting for players...
+								{:else if !allConnectedReady}
+									Waiting for ready checks...
+								{:else}
+									Start Match
+								{/if}
+							</Button>
+							{#if connectedPlayers.length >= 2 && !allConnectedReady}
+								<p class="lobby-helper">{connectedPlayers.filter((player) => readyPlayers.includes(player.userId)).length}/{connectedPlayers.length} connected players ready</p>
+							{/if}
+							{#if lobbyExpiring}
+								<Button variant="secondary" size="lg" on:click={extendLobby}>Extend Lobby</Button>
+							{/if}
+						{:else}
+							<p class="lobby-helper">Waiting for the host to start the match.</p>
+						{/if}
+
+						<Button variant="outline" size="lg" on:click={leaveLobby}>Leave Lobby</Button>
+					</div>
+				</Card>
+
+				<Card class="lobby-right">
+					<LobbyPlayerList
+						{players}
+						hostId={game.hostId}
+						{currentUserId}
+						{readyPlayers}
+						showReadyToggle={connectionState !== "disconnected"}
+						on:toggleReady={toggleReady}
+						on:kick={(event) => kickPlayer(event.detail.userId)}
+					/>
+				</Card>
 			</div>
-		</main>
-	{/if}
+		</PageShell>
+	</div>
 {/if}
 
 <style>
-	.status-indicator {
+	.lobby-actions-top {
 		display: flex;
+		justify-content: flex-end;
+	}
+
+	.status-indicator {
+		display: inline-flex;
 		align-items: center;
-		gap: 6px;
+		gap: 8px;
+		padding: 10px 12px;
+		border-radius: var(--radius-pill);
+		border: 1px solid var(--line);
+		background: var(--surface);
+		font-size: 13px;
+		font-weight: 700;
+		color: var(--muted);
 	}
 
 	.status-dot {
@@ -485,92 +417,75 @@ onDestroy(() => {
 		background: var(--danger);
 	}
 
-	.host-banner {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 8px;
-		padding: 10px 16px;
-		border-radius: var(--radius-md);
-		background: var(--gold-light);
-		border: 1px solid var(--gold);
-		color: var(--gold-ink);
-		font-size: 13px;
-		font-weight: 600;
+	.lobby-grid {
+		display: grid;
+		gap: 20px;
 	}
 
-	.host-banner.guest {
-		background: var(--surface);
-		border-color: var(--line);
+	:global(.lobby-left),
+	:global(.lobby-right),
+	:global(.host-card),
+	.action-stack {
+		display: grid;
+		gap: 16px;
+	}
+
+	.section-label,
+	.host-card__copy,
+	.lobby-helper,
+	.state-copy {
+		margin: 0;
+	}
+
+	.section-label {
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 		color: var(--muted);
 	}
 
-	.host-crown {
-		width: 16px;
-		height: 16px;
-		flex-shrink: 0;
+	.host-card__copy,
+	.lobby-helper,
+	.state-copy {
+		font-size: 14px;
+		line-height: 1.55;
+		color: var(--muted);
+	}
+
+	.settings-pills {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
 	}
 
 	.settings-pill {
 		display: inline-flex;
 		align-items: center;
-		gap: 5px;
-		font-size: 12px;
-		font-weight: 600;
-		padding: 6px 12px;
+		padding: 6px 10px;
 		border-radius: var(--radius-pill);
-		background: #f0ede6;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		font-size: 12px;
+		font-weight: 700;
 		color: var(--muted);
 	}
 
-	.settings-pill-any {
-		background: color-mix(in srgb, var(--brand-light) 55%, #f0ede6);
-		color: color-mix(in srgb, var(--brand-dark) 75%, var(--muted));
+	.state-screen {
+		min-height: 100vh;
+		display: grid;
+		place-items: center;
+		background: var(--canvas);
 	}
 
-	.leave-btn {
-		width: 100%;
-		border: none;
-		border-radius: var(--radius-md);
-		background: transparent;
-		color: var(--muted);
-		font-size: 14px;
-		font-weight: 600;
-		padding: 10px 14px;
-		cursor: pointer;
-		transition: all 120ms var(--ease);
+	.state-screen--stacked {
+		gap: 16px;
 	}
 
-	.leave-btn:hover {
-		color: var(--danger);
-		background: var(--danger-light);
-	}
-
-	.btn-3d:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-		transform: none;
-	}
-
-	.btn-3d:disabled:active {
-		transform: none;
-		box-shadow: 0 4px 0 var(--brand-dark);
-	}
-
-	.loading-spinner {
-		width: 40px;
-		height: 40px;
-		border: 4px solid rgba(24, 24, 27, 0.1);
-		border-top-color: var(--brand);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
-
-	/* Countdown overlay styles */
 	.countdown-backdrop {
 		position: fixed;
 		inset: 0;
-		background: rgba(26, 26, 26, 0.65);
+		background: rgba(28, 25, 23, 0.72);
 		z-index: 100;
 	}
 
@@ -582,7 +497,7 @@ onDestroy(() => {
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 24px;
+		gap: 22px;
 	}
 
 	.count-wrap {
@@ -609,57 +524,35 @@ onDestroy(() => {
 		box-shadow: var(--shadow-lg);
 		display: grid;
 		place-items: center;
-		animation: countPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 	}
 
 	.count-num {
 		font-family: "IBM Plex Mono", monospace;
 		font-size: 72px;
-		font-weight: 600;
+		font-weight: 700;
 		color: #fff;
 		line-height: 1;
 	}
 
 	.countdown-text {
 		text-align: center;
-		animation: fadeUp 0.4s ease-out 0.2s both;
 	}
 
-	.player-bar {
-		display: inline-flex;
-		align-items: center;
-		gap: 14px;
-		background: rgba(255, 255, 255, 0.93);
-		border: 1px solid var(--line);
-		border-radius: var(--radius-pill);
-		padding: 8px 16px 8px 8px;
-		box-shadow: var(--shadow-md);
-		animation: fadeUp 0.4s ease-out 0.35s both;
+	.countdown-text h2,
+	.countdown-text p {
+		margin: 0;
 	}
 
-	.avatar-stack {
-		display: flex;
-	}
-
-	.avatar-stack .av {
-		width: 32px;
-		height: 32px;
-		border-radius: 50%;
+	.countdown-text h2 {
+		font-size: 32px;
+		font-weight: 800;
 		color: #fff;
-		font-size: 11px;
-		font-weight: 700;
-		display: grid;
-		place-items: center;
-		border: 2px solid #fff;
-		margin-left: -8px;
 	}
 
-	.avatar-stack .av:first-child {
-		margin-left: 0;
-	}
-
-	@keyframes spin {
-		to { transform: rotate(360deg); }
+	.countdown-text p {
+		margin-top: 8px;
+		font-size: 14px;
+		color: rgba(255, 255, 255, 0.72);
 	}
 
 	@keyframes pulse {
@@ -672,14 +565,9 @@ onDestroy(() => {
 		100% { transform: scale(2.2); opacity: 0; }
 	}
 
-	@keyframes countPop {
-		0% { transform: scale(0.3); opacity: 0; }
-		60% { transform: scale(1.12); opacity: 1; }
-		100% { transform: scale(1); }
-	}
-
-	@keyframes fadeUp {
-		0% { transform: translateY(10px); opacity: 0; }
-		100% { transform: translateY(0); opacity: 1; }
+	@media (min-width: 960px) {
+		.lobby-grid {
+			grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+		}
 	}
 </style>

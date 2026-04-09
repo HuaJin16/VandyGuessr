@@ -1,4 +1,5 @@
 <script lang="ts">
+import Button from "$lib/shared/ui/Button.svelte";
 import { toast } from "svelte-sonner";
 
 export let code: string;
@@ -27,10 +28,10 @@ async function copyText(value: string) {
 	document.body.append(textArea);
 	textArea.select();
 
-	const copied = document.execCommand("copy");
+	const isCopied = document.execCommand("copy");
 	textArea.remove();
 
-	if (!copied) {
+	if (!isCopied) {
 		throw new Error("Clipboard is not available on this device");
 	}
 }
@@ -63,124 +64,98 @@ async function copyLink() {
 $: chars = code.split("");
 </script>
 
-<section class="card text-center">
-	<p class="section-label">Invite Code</p>
+<section class="invite-card">
+	<div class="invite-card__copy">
+		<p class="section-label">Invite code</p>
+		<h2>Bring in the rest of the lobby</h2>
+		<p>Share the code or copy the direct join link for a faster handoff.</p>
+	</div>
 
-	<div class="mt-3 flex justify-center gap-1.5 sm:gap-2">
+	<div class="invite-card__code" aria-label={`Invite code ${code}`}>
 		{#each chars as char}
 			<span class="code-char">{char}</span>
 		{/each}
 	</div>
 
-	<div class="actions mt-3.5">
-		<button class="copy-btn" type="button" on:click={copyCode}>
-			<svg
-				class="h-3.5 w-3.5"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<rect x="9" y="9" width="13" height="13" rx="2" />
-				<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-			</svg>
-			{copied ? "Copied!" : "Copy Code"}
-		</button>
-		<button class="copy-btn" type="button" on:click={copyLink}>
-			<svg
-				class="h-3.5 w-3.5"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07L11.7 5.24" />
-				<path d="M14 11a5 5 0 0 0-7.54-.54l-2.92 2.92a5 5 0 1 0 7.07 7.07l1.69-1.69" />
-			</svg>
-			{copiedLink ? "Copied!" : "Copy Link"}
-		</button>
+	<div class="invite-card__actions">
+		<Button variant="outline" type="button" on:click={copyCode}>
+			{copied ? "Copied code" : "Copy Code"}
+		</Button>
+		<Button variant="secondary" type="button" on:click={copyLink}>
+			{copiedLink ? "Copied link" : "Copy Link"}
+		</Button>
 	</div>
 </section>
 
 <style>
-	.section-label {
+	.invite-card {
+		display: grid;
+		gap: 18px;
+	}
+
+	.invite-card__copy {
+		display: grid;
+		gap: 8px;
+	}
+
+	.section-label,
+	h2,
+	.invite-card__copy p:last-child {
 		margin: 0;
-		color: var(--muted);
+	}
+
+	.section-label {
 		font-size: 11px;
-		font-weight: 600;
+		font-weight: 700;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
+		color: var(--muted);
 	}
 
-	.code-char {
-		width: 44px;
-		height: 52px;
-		border: 2px solid var(--mp);
-		border-radius: var(--radius-sm);
-		background: var(--surface);
-		box-shadow: var(--shadow-sm);
-		display: grid;
-		place-items: center;
-		font-family: "IBM Plex Mono", monospace;
+	h2 {
 		font-size: 24px;
-		font-weight: 600;
-		color: var(--ink);
-		transition: transform 100ms var(--ease);
+		font-weight: 800;
+		line-height: 1.1;
+		letter-spacing: -0.03em;
 	}
 
-	.code-char:hover {
-		transform: translateY(-2px);
+	.invite-card__copy p:last-child {
+		font-size: 14px;
+		line-height: 1.55;
+		color: var(--muted);
 	}
 
-	.actions {
+	.invite-card__code {
 		display: flex;
 		justify-content: center;
 		gap: 8px;
 		flex-wrap: wrap;
 	}
 
-	.copy-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		border: 1px solid var(--line);
-		border-radius: var(--radius-sm);
-		background: var(--surface);
-		padding: 7px 14px;
-		font-size: 13px;
-		font-weight: 600;
-		color: var(--muted);
-		cursor: pointer;
-		transition: all 120ms var(--ease);
+	.code-char {
+		width: 48px;
+		height: 56px;
+		display: grid;
+		place-items: center;
+		border: 1px solid color-mix(in srgb, var(--brand) 30%, var(--line));
+		border-radius: var(--radius-md);
+		background: var(--surface-subtle);
+		font-family: "IBM Plex Mono", monospace;
+		font-size: 24px;
+		font-weight: 700;
+		color: var(--ink);
 	}
 
-	.copy-btn:hover {
-		border-color: var(--brand);
-		color: var(--brand);
-		background: var(--brand-light);
+	.invite-card__actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
 	}
 
-	.copy-btn:focus-visible {
-		outline: none;
-		box-shadow: var(--ring);
-	}
-
-	@media (min-width: 700px) {
+	@media (max-width: 420px) {
 		.code-char {
-			width: 48px;
-			height: 56px;
-			font-size: 26px;
-		}
-	}
-
-	@media (max-width: 400px) {
-		.code-char {
-			width: 38px;
-			height: 46px;
+			width: 42px;
+			height: 50px;
 			font-size: 20px;
 		}
 	}

@@ -1,3 +1,5 @@
+import type { RoundTiles } from "$lib/domains/games/types";
+
 export type UploadEnvironment = "indoor" | "outdoor";
 export type TourEnvironment = UploadEnvironment | "any";
 
@@ -47,9 +49,11 @@ export interface PendingSubmissionItem {
 export interface TourImageItem {
 	id: string;
 	url: string;
+	thumbnail_url: string;
 	latitude: number;
 	longitude: number;
 	environment: UploadEnvironment;
 	location_name: string | null;
 	created_at: string | null;
+	tiles: RoundTiles | null;
 }

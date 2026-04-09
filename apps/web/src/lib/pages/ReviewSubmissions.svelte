@@ -5,7 +5,13 @@ import { imageQueries } from "$lib/domains/images/queries/images.queries";
 import { ApiRequestError } from "$lib/shared/api/types";
 import { auth } from "$lib/shared/auth/auth.store";
 import Navbar from "$lib/shared/components/Navbar.svelte";
+import Button from "$lib/shared/ui/Button.svelte";
+import Card from "$lib/shared/ui/Card.svelte";
+import PageHeader from "$lib/shared/ui/PageHeader.svelte";
+import PageShell from "$lib/shared/ui/PageShell.svelte";
+import StateBlock from "$lib/shared/ui/StateBlock.svelte";
 import { createQuery, useQueryClient } from "@tanstack/svelte-query";
+import { Eye, ShieldCheck } from "lucide-svelte";
 import { onDestroy } from "svelte";
 import { navigate } from "svelte-routing";
 import { toast } from "svelte-sonner";
@@ -14,6 +20,7 @@ const queryClient = useQueryClient();
 
 let previewOpen = false;
 let previewUrl = "";
+let actingId: string | null = null;
 
 function openPreview(url: string) {
 	previewUrl = url;
@@ -30,17 +37,15 @@ $: pending = createQuery({
 	enabled: $auth.currentUserOid !== null,
 });
 
-let actingId: string | null = null;
-
 async function approve(id: string) {
 	actingId = id;
 	try {
 		await imagesService.approveSubmission(id);
 		toast.success("Approved");
 		await queryClient.invalidateQueries({ queryKey: ["images", "moderation", "pending"] });
-	} catch (e: unknown) {
-		const msg = e instanceof ApiRequestError ? e.message : "Could not approve";
-		toast.error(msg);
+	} catch (error: unknown) {
+		const message = error instanceof ApiRequestError ? error.message : "Could not approve";
+		toast.error(message);
 	} finally {
 		actingId = null;
 	}
@@ -53,180 +58,125 @@ async function reject(id: string) {
 		await imagesService.rejectSubmission(id);
 		toast.warning("Rejected");
 		await queryClient.invalidateQueries({ queryKey: ["images", "moderation", "pending"] });
-	} catch (e: unknown) {
-		const msg = e instanceof ApiRequestError ? e.message : "Could not reject";
-		toast.error(msg);
+	} catch (error: unknown) {
+		const message = error instanceof ApiRequestError ? error.message : "Could not reject";
+		toast.error(message);
 	} finally {
 		actingId = null;
 	}
 }
 
-const unsub = auth.subscribe((a) => {
-	if (a.isInitialized && a.currentUserOid === null) navigate("/login", { replace: true });
+const unsub = auth.subscribe((state) => {
+	if (state.isInitialized && state.currentUserOid === null) navigate("/login", { replace: true });
 });
+
 onDestroy(unsub);
 </script>
 
 <div class="min-h-screen bg-canvas font-sans text-ink">
 	<Navbar activePage="review" />
-
 	<RoundPreviewOverlay open={previewOpen} imageUrl={previewUrl} onClose={closePreview} />
 
-	<main class="main">
-		<section class="card header-card">
-			<p class="section-label">Moderation</p>
-			<h1>Review submissions</h1>
-			<p class="desc">Approve photos to add them to random, daily, and multiplayer pools.</p>
-		</section>
+	<PageShell size="content">
+		<PageHeader
+			eyebrow="Moderation"
+			title="Review submissions"
+			copy="Approve or reject queued panoramas so the solo, daily, and multiplayer image pools stay strong."
+		>
+			<div slot="actions">
+				<div class="review-badge">
+					<ShieldCheck size={15} />
+					<span>Reviewer only</span>
+				</div>
+			</div>
+		</PageHeader>
 
 		{#if $pending.isPending}
-			<section class="card state-card">
-				<p class="muted state-msg">Loading submissions…</p>
-			</section>
+			<StateBlock title="Loading submissions" copy="Pulling the moderation queue now." />
 		{:else if $pending.isError}
-			<section class="card state-card state-card--error" role="alert">
-				<p class="err state-msg">
-					{$pending.error instanceof ApiRequestError && $pending.error.status === 403
-						? "You don't have access to this page."
-						: "Could not load submissions."}
-				</p>
-			</section>
+			<StateBlock
+				tone="error"
+				title={$pending.error instanceof ApiRequestError && $pending.error.status === 403
+					? "You don't have access to this page"
+					: "Could not load submissions"}
+				copy={$pending.error instanceof ApiRequestError && $pending.error.status === 403
+					? "Only reviewers on the allowlist can see the moderation queue."
+					: "Try the request again or head back home."}
+			>
+				{#if !($pending.error instanceof ApiRequestError && $pending.error.status === 403)}
+					<Button type="button" on:click={() => $pending.refetch()}>Retry</Button>
+				{/if}
+				<Button variant="outline" type="button" on:click={() => navigate("/")}>Go home</Button>
+			</StateBlock>
 		{:else if !$pending.data?.length}
-			<section class="card empty-card">
-				<p class="empty-title">No pending submissions</p>
-				<p class="muted">You're all caught up.</p>
-			</section>
+			<StateBlock tone="soft" title="No pending submissions" copy="You're all caught up. New uploads will appear here after they are queued and processed." />
 		{:else}
-			<ul class="list">
+			<ul class="review-list">
 				{#each $pending.data as item (item.id)}
-					<li class="card item-card">
-						<button
-							type="button"
-							class="thumb-wrap"
-							aria-label="Preview how this photo appears in a round"
-							on:click={() => openPreview(item.url)}
-						>
-							<img class="thumb" src={item.url} alt="" loading="lazy" />
-						</button>
-						<div class="meta">
-							<p class="env-pill" data-env={item.environment}>
-								{item.environment === "outdoor" ? "Outdoor" : "Indoor"}
-							</p>
-							{#if item.location_name}
-								<p class="loc">{item.location_name}</p>
-							{/if}
-							{#if item.submitter_name || item.submitter_email}
-								<p class="submitter">
-									{item.submitter_name || "Unknown"}
-									{#if item.submitter_email}
-										<span class="email"> · {item.submitter_email}</span>
+					<li>
+						<Card class="review-row">
+							<button
+								type="button"
+								class="review-thumb"
+								aria-label="Preview how this photo appears in a round"
+								on:click={() => openPreview(item.url)}
+							>
+								<img class="review-thumb__image" src={item.url} alt="" loading="lazy" />
+							</button>
+
+							<div class="review-row__content">
+								<div class="review-row__meta">
+									<p class={`env-pill env-pill--${item.environment}`}>
+										{item.environment === "outdoor" ? "Outdoor" : "Indoor"}
+									</p>
+									{#if item.location_name}
+										<p class="review-row__title">{item.location_name}</p>
 									{/if}
-								</p>
-							{/if}
-							<p class="date">
-								{new Date(item.created_at).toLocaleString()}
-							</p>
-							<div class="actions">
-								<button
-									type="button"
-									class="btn-ghost action-preview"
-									disabled={actingId !== null}
-									on:click={() => openPreview(item.url)}
-								>
-									Preview as round
-								</button>
-								<div class="actions-primary">
-									<button
-										type="button"
-										class="btn-3d btn-approve"
-										disabled={actingId !== null}
-										on:click={() => approve(item.id)}
-									>
-										{actingId === item.id ? "…" : "Approve"}
-									</button>
-									<button
-										type="button"
-										class="btn-3d btn-3d--danger btn-reject"
-										disabled={actingId !== null}
-										on:click={() => reject(item.id)}
-									>
+									<p class="review-row__copy">
+										{item.submitter_name || "Unknown"}
+										{#if item.submitter_email}
+											<span> · {item.submitter_email}</span>
+										{/if}
+									</p>
+									<p class="review-row__copy">{new Date(item.created_at).toLocaleString()}</p>
+								</div>
+
+								<div class="review-row__actions">
+									<Button variant="outline" type="button" disabled={actingId !== null} on:click={() => openPreview(item.url)}>
+										<Eye size={15} />
+										<span>Preview as round</span>
+									</Button>
+									<Button type="button" disabled={actingId !== null} on:click={() => approve(item.id)}>
+										{actingId === item.id ? "Approving..." : "Approve"}
+									</Button>
+									<Button variant="danger" type="button" disabled={actingId !== null} on:click={() => reject(item.id)}>
 										Reject
-									</button>
+									</Button>
 								</div>
 							</div>
-						</div>
+						</Card>
 					</li>
 				{/each}
 			</ul>
 		{/if}
-	</main>
+	</PageShell>
 </div>
 
 <style>
-	.main {
-		width: min(720px, calc(100% - 32px));
-		margin: 16px auto 32px;
-		display: grid;
-		gap: 14px;
-	}
-
-	.state-card {
-		margin: 0;
-	}
-
-	.state-msg {
-		margin: 0;
-		text-align: center;
-		padding: 8px 0;
-	}
-
-	.state-card--error {
-		border-color: color-mix(in srgb, var(--danger) 35%, var(--line));
-		background: color-mix(in srgb, var(--danger-light) 55%, var(--surface));
-	}
-
-	.section-label {
-		margin: 0;
-		color: var(--muted);
-		font-size: 11px;
-		font-weight: 600;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
-
-	h1 {
-		margin: 8px 0 0;
-		font-size: 26px;
-		font-weight: 800;
-		line-height: 1.15;
-	}
-
-	.desc {
-		margin: 8px 0 0;
-		color: var(--muted);
-		font-size: 15px;
-		line-height: 1.45;
-	}
-
-	.muted {
-		margin: 0;
-		color: var(--muted);
-		font-size: 15px;
-	}
-
-	.err {
-		margin: 0;
-		color: var(--danger-ink);
-		font-size: 15px;
-	}
-
-	.empty-title {
-		margin: 0;
+	.review-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 10px 12px;
+		border-radius: var(--radius-pill);
+		background: var(--surface-subtle);
+		border: 1px solid var(--line);
+		font-size: 13px;
 		font-weight: 700;
-		font-size: 16px;
+		color: var(--muted);
 	}
 
-	.list {
+	.review-list {
 		list-style: none;
 		margin: 0;
 		padding: 0;
@@ -234,22 +184,12 @@ onDestroy(unsub);
 		gap: 14px;
 	}
 
-	.item-card {
+	.review-row {
 		display: grid;
-		grid-template-columns: minmax(0, 140px) 1fr;
-		gap: 14px;
-		align-items: start;
+		gap: 18px;
 	}
 
-	@media (max-width: 520px) {
-		.item-card {
-			grid-template-columns: 1fr;
-		}
-	}
-
-	.thumb-wrap {
-		display: block;
-		width: 100%;
+	.review-thumb {
 		padding: 0;
 		margin: 0;
 		border: 1px solid var(--line);
@@ -258,112 +198,84 @@ onDestroy(unsub);
 		background: var(--surface);
 		aspect-ratio: 4 / 3;
 		cursor: pointer;
-		text-align: left;
-		font: inherit;
-		color: inherit;
 	}
 
-	.thumb-wrap:focus-visible {
+	.review-thumb:hover {
+		border-color: color-mix(in srgb, var(--brand) 35%, var(--line));
+	}
+
+	.review-thumb:focus-visible {
 		outline: none;
 		box-shadow: var(--ring);
 	}
 
-	.thumb-wrap:hover {
-		border-color: var(--brand);
-	}
-
-	.thumb {
+	.review-thumb__image {
 		width: 100%;
 		height: 100%;
-		object-fit: cover;
 		display: block;
+		object-fit: cover;
 	}
 
-	.meta {
-		min-width: 0;
+	.review-row__content {
+		display: grid;
+		gap: 16px;
+	}
+
+	.review-row__meta {
+		display: grid;
+		gap: 8px;
 	}
 
 	.env-pill {
 		margin: 0;
 		display: inline-flex;
-		align-items: center;
 		width: fit-content;
+		align-items: center;
 		padding: 4px 10px;
 		border-radius: var(--radius-pill);
-		font-size: 11px;
+		font-size: 10px;
 		font-weight: 800;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
 	}
 
-	.env-pill[data-env="outdoor"] {
+	.env-pill--outdoor {
 		background: var(--success-light);
 		color: var(--success-ink);
 	}
 
-	.env-pill[data-env="indoor"] {
+	.env-pill--indoor {
 		background: var(--brand-light);
 		color: var(--brand-dark);
 	}
 
-	.loc {
-		margin: 4px 0 0;
-		font-weight: 600;
-		font-size: 15px;
+	.review-row__title,
+	.review-row__copy {
+		margin: 0;
 	}
 
-	.submitter {
-		margin: 6px 0 0;
+	.review-row__title {
+		font-size: 18px;
+		font-weight: 800;
+		line-height: 1.2;
+	}
+
+	.review-row__copy {
 		font-size: 14px;
-	}
-
-	.email {
+		line-height: 1.55;
 		color: var(--muted);
 	}
 
-	.date {
-		margin: 4px 0 0;
-		font-size: 13px;
-		color: var(--muted);
-	}
-
-	.actions {
+	.review-row__actions {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: stretch;
 		gap: 10px;
-		margin-top: 14px;
 	}
 
-	.action-preview {
-		flex: 0 0 auto;
-		padding: 12px 18px;
-		font-size: 14px;
-		align-self: center;
-	}
-
-	.actions-primary {
-		display: flex;
-		flex: 1 1 200px;
-		gap: 10px;
-		min-width: 0;
-	}
-
-	.btn-approve,
-	.btn-reject {
-		flex: 1;
-		min-width: 0;
-		padding: 12px 16px;
-		font-size: 14px;
-	}
-
-	:global(.header-card),
-	:global(.empty-card),
-	:global(.item-card) {
-		padding: 18px;
-	}
-
-	:global(.header-card) {
-		border-color: color-mix(in srgb, var(--brand) 28%, var(--line));
+	@media (min-width: 760px) {
+		.review-row {
+			grid-template-columns: 220px minmax(0, 1fr);
+			align-items: start;
+		}
 	}
 </style>

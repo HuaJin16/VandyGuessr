@@ -1,4 +1,5 @@
 <script lang="ts">
+import CampusTour from "$lib/pages/CampusTour.svelte";
 import Game from "$lib/pages/Game.svelte";
 import GameHistory from "$lib/pages/GameHistory.svelte";
 import GameSummary from "$lib/pages/GameSummary.svelte";
@@ -9,6 +10,7 @@ import MultiplayerGame from "$lib/pages/MultiplayerGame.svelte";
 import MultiplayerJoin from "$lib/pages/MultiplayerJoin.svelte";
 import MultiplayerLobby from "$lib/pages/MultiplayerLobby.svelte";
 import ReviewSubmissions from "$lib/pages/ReviewSubmissions.svelte";
+import TourLocation from "$lib/pages/TourLocation.svelte";
 import Upload from "$lib/pages/Upload.svelte";
 import { queryClient } from "$lib/shared/api/queryClient";
 import { auth, isAuthenticated, isLoading } from "$lib/shared/auth/auth.store";
@@ -54,6 +56,8 @@ $: if (!$isLoading) {
 <QueryClientProvider client={queryClient}>
   <Router>
     <Route path="/" component={Home} />
+    <Route path="/tour/:locationName" component={TourLocation} />
+    <Route path="/tour" component={CampusTour} />
     <Route path="/history" component={GameHistory} />
     <Route path="/game/:id/summary" component={GameSummary} />
     <Route path="/game/:id" component={Game} />

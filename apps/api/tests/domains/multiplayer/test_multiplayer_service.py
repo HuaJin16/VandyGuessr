@@ -64,29 +64,40 @@ def _service(
 
 
 @pytest.mark.asyncio
-async def test_create_game_rejects_when_user_already_has_active_game() -> None:
+async def test_create_game_allows_user_with_existing_active_game() -> None:
     repo = AsyncMock()
-    repo.find_active_by_user = AsyncMock(return_value={"_id": "existing"})
+    repo.find_by_invite_code = AsyncMock(return_value=None)
+    repo.create = AsyncMock(return_value="game-2")
+    repo.find_by_id = AsyncMock(
+        return_value={
+            "_id": "game-2",
+            "status": "waiting",
+            "invite_code": "XYZ789",
+            "players": [],
+            "rounds": [],
+        }
+    )
     image_repo = AsyncMock()
-    service = _service(repo=repo, image_repo=image_repo)
+    image_repo.sample_random = AsyncMock(
+        return_value=[_image_doc(i) for i in range(ROUNDS_PER_GAME)]
+    )
+    redis_client = AsyncMock()
+    service = _service(repo=repo, image_repo=image_repo, redis_client=redis_client)
 
-    with pytest.raises(
-        MultiplayerError, match="already have an active multiplayer game"
-    ):
-        await service.create_game(
-            host_id="host-1",
-            host_name="Host",
-            avatar_url=None,
-            environment="any",
-        )
+    result = await service.create_game(
+        host_id="host-1",
+        host_name="Host",
+        avatar_url=None,
+        environment="any",
+    )
 
-    image_repo.sample_random.assert_not_called()
+    assert result["_id"] == "game-2"
+    repo.create.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_create_game_requires_enough_images() -> None:
     repo = AsyncMock()
-    repo.find_active_by_user = AsyncMock(return_value=None)
     image_repo = AsyncMock()
     image_repo.sample_random = AsyncMock(return_value=[{"_id": "img-1"}])
     service = _service(repo=repo, image_repo=image_repo)
@@ -103,7 +114,6 @@ async def test_create_game_requires_enough_images() -> None:
 @pytest.mark.asyncio
 async def test_create_game_carries_valid_image_tiles_into_rounds() -> None:
     repo = AsyncMock()
-    repo.find_active_by_user = AsyncMock(return_value=None)
     repo.find_by_invite_code = AsyncMock(return_value=None)
     repo.create = AsyncMock(return_value="game-1")
     repo.find_by_id = AsyncMock(
@@ -140,7 +150,6 @@ async def test_create_game_carries_valid_image_tiles_into_rounds() -> None:
 @pytest.mark.asyncio
 async def test_create_game_falls_back_when_image_tiles_invalid() -> None:
     repo = AsyncMock()
-    repo.find_active_by_user = AsyncMock(return_value=None)
     repo.find_by_invite_code = AsyncMock(return_value=None)
     repo.create = AsyncMock(return_value="game-1")
     repo.find_by_id = AsyncMock(

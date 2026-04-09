@@ -1,70 +1,107 @@
 <script lang="ts">
+import Button from "$lib/shared/ui/Button.svelte";
 import GuessMap from "./GuessMap.svelte";
 
 export let position: { lat: number; lng: number } | null = null;
 export let disabled = false;
-
 export let onMapClick: (pos: { lat: number; lng: number }) => void;
 export let onGuess: () => void;
 
 let expanded = false;
 
-function handleClick(e: CustomEvent<{ lat: number; lng: number }>) {
-	onMapClick(e.detail);
+function handleClick(event: CustomEvent<{ lat: number; lng: number }>) {
+	onMapClick(event.detail);
+}
+
+function toggleExpanded() {
+	expanded = !expanded;
 }
 </script>
 
-<!-- svelte-ignore a11y-no-static-element-interactions -->
-<section
-	class="dock"
-	class:expanded
-	aria-label="Map assembly"
-	on:mouseenter={() => { expanded = true; }}
-	on:mouseleave={() => { expanded = false; }}
->
-	<p class="dock-overline">Place Your Guess</p>
+<section class="dock" class:expanded aria-label="Guess map">
+	<div class="dock-header">
+		<div>
+			<p class="dock-overline">Guess map</p>
+			<p class="dock-title">{position ? "Pin placed" : "Place your pin"}</p>
+		</div>
+		<button class="dock-toggle" type="button" on:click={toggleExpanded}>
+			{expanded ? "Collapse" : "Expand"}
+		</button>
+	</div>
+
 	<div class="map-wrapper">
 		<GuessMap {position} on:click={handleClick} />
 	</div>
-	<button
-		class="guess-btn"
-		disabled={!position || disabled}
-		on:click={onGuess}
-	>
-		Lock Guess
-	</button>
-	{#if !position}
-		<p class="dock-note">Tap map to move marker. Pin position determines your distance score.</p>
-	{/if}
+
+	<div class="dock-footer">
+		<p class="dock-note">
+			{#if position}
+				Your latest pin is locked in for submission until you move it again.
+			{:else}
+				Tap the map to place a single pin. Accuracy determines your score.
+			{/if}
+		</p>
+		<Button class="w-full sm:w-auto" size="lg" disabled={!position || disabled} on:click={onGuess}>
+			Lock Guess
+		</Button>
+	</div>
 </section>
 
 <style>
 	.dock {
-		border: 1px solid rgba(255, 255, 255, 0.55);
-		border-radius: var(--radius-lg);
-		background: rgba(255, 255, 255, 0.96);
-		color: var(--ink);
-		box-shadow: var(--shadow-md);
-		padding: 10px;
-		backdrop-filter: blur(6px);
 		width: 100%;
-		transition: all 200ms var(--ease);
 		pointer-events: auto;
+		display: grid;
+		gap: 12px;
+		padding: 14px;
+		border: 1px solid rgba(255, 255, 255, 0.38);
+		border-radius: var(--radius-lg);
+		background: rgba(255, 255, 255, 0.92);
+		backdrop-filter: blur(18px);
+		-webkit-backdrop-filter: blur(18px);
+		box-shadow: var(--shadow-md);
+	}
+
+	.dock-header {
+		display: flex;
+		align-items: start;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.dock-overline,
+	.dock-title,
+	.dock-note {
+		margin: 0;
 	}
 
 	.dock-overline {
-		margin: 0;
-		color: var(--muted);
-		font-size: 11px;
-		font-weight: 600;
+		font-size: 10px;
+		font-weight: 700;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
+		color: var(--muted);
+	}
+
+	.dock-title {
+		margin-top: 4px;
+		font-size: 15px;
+		font-weight: 800;
+		line-height: 1.2;
+	}
+
+	.dock-toggle {
+		border: none;
+		background: transparent;
+		color: var(--muted);
+		font-size: 12px;
+		font-weight: 700;
+		cursor: pointer;
 	}
 
 	.map-wrapper {
 		position: relative;
-		margin-top: 8px;
-		height: 180px;
+		height: 190px;
 		border: 1px solid var(--line);
 		border-radius: var(--radius-md);
 		overflow: hidden;
@@ -72,71 +109,18 @@ function handleClick(e: CustomEvent<{ lat: number; lng: number }>) {
 	}
 
 	.dock.expanded .map-wrapper {
-		height: 260px;
+		height: 320px;
 	}
 
-	.guess-btn {
-		width: 100%;
-		margin-top: 10px;
-		border: none;
-		border-radius: var(--radius-md);
-		background: var(--brand);
-		color: #fff;
-		font-family: Inter, sans-serif;
-		font-size: 16px;
-		font-weight: 700;
-		padding: 13px 14px;
-		box-shadow: 0 4px 0 var(--brand-dark);
-		cursor: pointer;
-		transition: all 120ms var(--ease);
-	}
-
-	.guess-btn:hover:not(:disabled) {
-		background: #278234;
-	}
-
-	.guess-btn:active:not(:disabled) {
-		transform: translateY(4px);
-		box-shadow: 0 0 0 var(--brand-dark);
-	}
-
-	.guess-btn:focus-visible {
-		outline: none;
-		box-shadow: 0 4px 0 var(--brand-dark), var(--ring);
-	}
-
-	.guess-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
+	.dock-footer {
+		display: grid;
+		gap: 12px;
 	}
 
 	.dock-note {
-		margin: 8px 0 0;
+		font-size: 13px;
+		line-height: 1.45;
 		color: var(--muted);
-		font-size: 12px;
-		line-height: 1.35;
-	}
-
-	/* Mobile: dock is part of grid flow, takes full width */
-	@media (max-width: 879px) {
-		.dock {
-			align-self: end;
-		}
-	}
-
-	@media (max-width: 400px) {
-		.dock {
-			padding: 8px;
-		}
-
-		.guess-btn {
-			font-size: 14px;
-			padding: 11px 12px;
-		}
-
-		.dock-note {
-			font-size: 11px;
-		}
 	}
 
 	@media (min-width: 880px) {
@@ -148,10 +132,6 @@ function handleClick(e: CustomEvent<{ lat: number; lng: number }>) {
 
 		.map-wrapper {
 			height: 220px;
-		}
-
-		.dock.expanded .map-wrapper {
-			height: 300px;
 		}
 	}
 </style>

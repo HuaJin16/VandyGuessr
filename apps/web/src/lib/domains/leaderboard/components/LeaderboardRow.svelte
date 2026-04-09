@@ -19,16 +19,10 @@ function rankBgClass(rank: number): string {
 }
 </script>
 
-<div
-	bind:this={element}
-	aria-hidden={isSizer}
-	class="lb-row {highlightUser ? 'you' : ''} {isSizer ? 'row-sizer' : ''}"
->
-	<span class="rank-badge {rankBgClass(entry.rank)}">
-		{entry.rank}
-	</span>
+<div bind:this={element} aria-hidden={isSizer} class="lb-row {highlightUser ? 'you' : ''} {isSizer ? 'row-sizer' : ''}">
+	<span class="rank-badge {rankBgClass(entry.rank)}">{entry.rank}</span>
 
-	<div class="avatar" style:background={isCurrentUser ? 'var(--brand)' : undefined}>
+	<div class="avatar" style:background={isCurrentUser ? "var(--brand)" : undefined}>
 		{initialsFor(entry.name)}
 	</div>
 
@@ -39,6 +33,7 @@ function rankBgClass(rank: number): string {
 				<span class="you-badge">You</span>
 			{/if}
 		</p>
+		<p class="player-meta">{entry.roundsPlayed} rounds · {entry.totalPoints.toLocaleString()} pts</p>
 	</div>
 
 	<span class="player-score">{formatScore(entry.avgScore)}</span>
@@ -47,10 +42,11 @@ function rankBgClass(rank: number): string {
 
 <style>
 	.lb-row {
-		display: flex;
+		display: grid;
+		grid-template-columns: 36px 36px minmax(0, 1fr) auto auto;
 		align-items: center;
 		gap: 12px;
-		padding: 12px 16px;
+		padding: 14px 20px;
 		border-bottom: 1px solid var(--line);
 		transition: background 120ms var(--ease);
 	}
@@ -60,15 +56,15 @@ function rankBgClass(rank: number): string {
 	}
 
 	.lb-row:hover {
-		background: rgba(0, 0, 0, 0.02);
+		background: var(--surface-subtle);
 	}
 
 	.lb-row.you {
-		background: var(--brand-light);
+		background: color-mix(in srgb, var(--brand-quiet) 90%, var(--surface));
 	}
 
 	.lb-row.you:hover {
-		background: rgba(46, 147, 60, 0.14);
+		background: color-mix(in srgb, var(--brand-light) 65%, var(--surface));
 	}
 
 	.rank-badge {
@@ -98,7 +94,7 @@ function rankBgClass(rank: number): string {
 	}
 
 	.rank-n {
-		background: rgba(0, 0, 0, 0.05);
+		background: var(--surface-strong);
 		color: var(--muted);
 	}
 
@@ -116,17 +112,27 @@ function rankBgClass(rank: number): string {
 	}
 
 	.player-info {
-		flex: 1;
 		min-width: 0;
 	}
 
-	.player-name {
+	.player-name,
+	.player-meta {
 		margin: 0;
+	}
+
+	.player-name {
 		font-size: 15px;
-		font-weight: 600;
+		font-weight: 700;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	.player-meta {
+		margin-top: 4px;
+		font-size: 12px;
+		line-height: 1.4;
+		color: var(--muted);
 	}
 
 	.you-badge {
@@ -153,7 +159,7 @@ function rankBgClass(rank: number): string {
 		font-size: 12px;
 		color: var(--muted);
 		flex-shrink: 0;
-		min-width: 50px;
+		min-width: 64px;
 		text-align: right;
 	}
 
@@ -165,46 +171,19 @@ function rankBgClass(rank: number): string {
 		pointer-events: none;
 	}
 
-	@media (min-width: 700px) {
+	@media (max-width: 560px) {
 		.lb-row {
-			padding: 14px 20px;
-		}
-
-		.avatar {
-			width: 40px;
-			height: 40px;
-			font-size: 13px;
-		}
-	}
-
-	@media (max-width: 400px) {
-		.lb-row {
-			padding: 10px 10px;
-			gap: 8px;
+			grid-template-columns: 28px 32px minmax(0, 1fr) auto;
+			gap: 10px;
+			padding: 14px 14px;
 		}
 
 		.player-games {
 			display: none;
 		}
 
-		.player-score {
-			font-size: 13px;
-		}
-
-		.player-name {
-			font-size: 13px;
-		}
-
-		.rank-badge {
-			width: 24px;
-			height: 24px;
-			font-size: 11px;
-		}
-
-		.avatar {
-			width: 30px;
-			height: 30px;
-			font-size: 10px;
+		.player-meta {
+			display: none;
 		}
 	}
 </style>

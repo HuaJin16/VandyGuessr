@@ -1,11 +1,13 @@
 <script lang="ts">
+import Button from "$lib/shared/ui/Button.svelte";
+import Card from "$lib/shared/ui/Card.svelte";
+import Spinner from "$lib/shared/ui/Spinner.svelte";
 import { getInitials } from "$lib/shared/utils/initials";
 import type { QueryObserverResult } from "@tanstack/svelte-query";
 import { onMount, tick } from "svelte";
 import type { LeaderboardEntry, LeaderboardResponse } from "../types";
 import { observeResize } from "../utils/observeResize";
 import LeaderboardRow from "./LeaderboardRow.svelte";
-import LeaderboardStats from "./LeaderboardStats.svelte";
 
 export let leaderboard: QueryObserverResult<LeaderboardResponse, Error>;
 export let currentUserId: string | undefined;
@@ -16,17 +18,16 @@ export let onSetOffset: (offset: number) => void = () => {};
 
 let limit = 0;
 let maxRows = 8;
-let rowHeight = 64;
+let rowHeight = 72;
 let topCount = 0;
 let showEllipsis = false;
 
 let mainEl: HTMLElement | undefined;
 let tableContainerEl: HTMLElement | undefined;
-let statsEl: HTMLDivElement | undefined;
 let rowSizerEl: HTMLDivElement | undefined;
 let cleanupResize: (() => void) | null = null;
 
-const fallbackRowHeight = 64;
+const fallbackRowHeight = 72;
 
 $: entries = leaderboard.data?.entries ?? [];
 $: userEntry = leaderboard.data?.userEntry ?? null;
@@ -57,7 +58,6 @@ function updateMaxRows() {
 	const mainPaddingBottom = mainStyle ? Number.parseFloat(mainStyle.paddingBottom) || 0 : 0;
 	const rowSize = rowHeight || fallbackRowHeight;
 	const bottomBuffer = 8;
-
 	const available = viewportHeight - tableTop - mainPaddingBottom - bottomBuffer;
 	const rowsSpace = Math.max(0, available);
 	const nextMax = Math.max(1, Math.floor(rowsSpace / rowSize));
@@ -69,7 +69,7 @@ function updateMaxRows() {
 onMount(() => {
 	const handleResize = () => requestAnimationFrame(updateMaxRows);
 	window.addEventListener("resize", handleResize);
-	cleanupResize = observeResize([mainEl, tableContainerEl, statsEl], () =>
+	cleanupResize = observeResize([mainEl, tableContainerEl], () =>
 		requestAnimationFrame(updateMaxRows),
 	);
 	requestAnimationFrame(updateMaxRows);
@@ -131,35 +131,29 @@ $: visibleTopEntries = entries.slice(0, topCount);
 </script>
 
 <main class="lb-main" bind:this={mainEl}>
-	<slot name="filters" />
-
-	<LeaderboardStats
-		rank={userEntry ? userEntry.rank : null}
-		avgScore={userEntry ? userEntry.avgScore : 0}
-		gamesPlayed={userEntry ? userEntry.gamesPlayed : 0}
-		roundsPlayed={userEntry ? userEntry.roundsPlayed : 0}
-		formatScore={formatScore}
-		bind:element={statsEl}
-	/>
-
-	<section class="card lb-card" bind:this={tableContainerEl}>
+	<div bind:this={tableContainerEl}>
+		<Card class="lb-card">
 		{#if leaderboard.isLoading}
-			<div class="flex items-center justify-center px-6 py-10">
-				<div class="loading-spinner" />
+			<div class="table-state">
+				<Spinner size={36} />
 			</div>
 		{:else if leaderboard.isError}
-			<div class="flex flex-col items-center gap-3 px-6 py-10 text-center">
-				<p class="text-sm text-muted">Failed to load leaderboard.</p>
-				<button class="btn-3d px-4 py-2 text-sm" on:click={() => leaderboard.refetch()}>
-					Retry
-				</button>
+			<div class="table-state table-state--error">
+				<p class="table-state__copy">Failed to load leaderboard.</p>
+				<Button type="button" on:click={() => leaderboard.refetch()}>Retry</Button>
 			</div>
 		{:else if entries.length === 0}
-			<div class="flex flex-col items-center gap-2 px-6 py-10 text-center">
-				<p class="text-sm text-muted">No leaderboard results yet.</p>
-				<p class="text-xs text-muted opacity-60">Try another timeframe or mode.</p>
+			<div class="table-state table-state--empty">
+				<p class="table-state__copy">No leaderboard results yet. Try another timeframe or environment.</p>
 			</div>
 		{:else}
+			<div class="lb-columns" aria-hidden="true">
+				<span>Rank</span>
+				<span>Player</span>
+				<span>Avg score</span>
+				<span>Games</span>
+			</div>
+
 			<LeaderboardRow
 				entry={{
 					rank: 1,
@@ -191,7 +185,7 @@ $: visibleTopEntries = entries.slice(0, topCount);
 			{/if}
 
 			{#if showUserFooter}
-				<div class="separator">Your Ranking</div>
+				<div class="separator">Your ranking</div>
 			{:else if showEllipsis}
 				<div class="separator">&middot; &middot; &middot;</div>
 			{/if}
@@ -215,109 +209,84 @@ $: visibleTopEntries = entries.slice(0, topCount);
 					showMedal={false}
 				/>
 			{/if}
-		{/if}
-	</section>
+			{/if}
+		</Card>
+	</div>
 
 	{#if totalPages > 1}
 		<nav class="pagination" aria-label="Leaderboard pages">
-			<button
-				class="page-btn"
-				disabled={!hasPrev}
-				on:click={() => onSetOffset(Math.max(0, offset - pageStep))}
-			>
+			<Button variant="outline" size="sm" disabled={!hasPrev} on:click={() => onSetOffset(Math.max(0, offset - pageStep))}>
 				&larr; Previous
-			</button>
+			</Button>
 			<span class="page-info">Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong></span>
-			<button
-				class="page-btn"
-				disabled={!hasNext}
-				on:click={() => onSetOffset(offset + pageStep)}
-			>
+			<Button variant="outline" size="sm" disabled={!hasNext} on:click={() => onSetOffset(offset + pageStep)}>
 				Next &rarr;
-			</button>
+			</Button>
 		</nav>
 	{/if}
 </main>
 
 <style>
 	.lb-main {
-		width: min(640px, calc(100% - 32px));
-		margin: 16px auto 24px;
 		display: grid;
-		gap: 14px;
+		gap: 18px;
 	}
 
-	.lb-card {
+	:global(.lb-card) {
 		padding: 0;
 		overflow: hidden;
 	}
 
-	.separator {
-		padding: 8px 16px;
+	.lb-columns {
+		display: grid;
+		grid-template-columns: 36px 36px minmax(0, 1fr) auto auto;
+		gap: 12px;
+		padding: 10px 20px;
 		border-bottom: 1px solid var(--line);
-		background: #faf9f6;
 		font-size: 11px;
-		font-weight: 600;
+		font-weight: 700;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--muted);
 	}
 
-	.loading-spinner {
-		width: 36px;
-		height: 36px;
-		border: 3px solid rgba(0, 0, 0, 0.1);
-		border-top-color: var(--brand);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
+	.lb-columns span:nth-child(1) {
+		grid-column: 1 / span 2;
 	}
 
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
+	.separator {
+		padding: 8px 20px;
+		border-bottom: 1px solid var(--line);
+		background: var(--surface-subtle);
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--muted);
 	}
 
-	@media (min-width: 700px) {
-		.separator {
-			padding: 8px 20px;
-		}
+	.table-state {
+		display: grid;
+		justify-items: center;
+		gap: 12px;
+		padding: 32px 20px;
+		text-align: center;
+	}
+
+	.table-state__copy {
+		margin: 0;
+		font-size: 14px;
+		line-height: 1.5;
+		color: var(--muted);
 	}
 
 	.pagination {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 8px;
-		padding: 14px 0 0;
-	}
-
-	.page-btn {
-		border: 1px solid var(--line);
-		border-radius: var(--radius-sm);
-		background: var(--surface);
-		color: var(--ink);
-		font-family: Inter, sans-serif;
-		font-size: 13px;
-		font-weight: 600;
-		padding: 8px 14px;
-		cursor: pointer;
-		transition: all 120ms var(--ease);
-		box-shadow: var(--shadow-sm);
-	}
-
-	.page-btn:hover:not(:disabled) {
-		border-color: var(--brand);
-		color: var(--brand);
-		background: var(--brand-light);
-	}
-
-	.page-btn:focus-visible { outline: none; box-shadow: var(--ring); }
-
-	.page-btn:disabled {
-		opacity: 0.4;
-		cursor: default;
-		pointer-events: none;
+		gap: 10px;
+		padding: 4px 0 0;
+		flex-wrap: wrap;
 	}
 
 	.page-info {
@@ -329,5 +298,11 @@ $: visibleTopEntries = entries.slice(0, topCount);
 
 	.page-info :global(strong) {
 		color: var(--ink);
+	}
+
+	@media (max-width: 560px) {
+		.lb-columns {
+			display: none;
+		}
 	}
 </style>

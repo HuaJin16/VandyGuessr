@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     panorama_tile_quality: int = Field(default=80, ge=1, le=95)
     image_original_jpeg_quality: int = Field(default=84, ge=1, le=95)
     image_original_min_savings_ratio: float = Field(default=0.08, ge=0.0, le=1.0)
+    image_thumbnail_max_width: int = Field(default=640, ge=64, le=2048)
+    image_thumbnail_max_height: int = Field(default=360, ge=64, le=2048)
+    image_thumbnail_jpeg_quality: int = Field(default=72, ge=1, le=95)
 
     # Comma-separated @vanderbilt.edu emails allowed to approve/reject crowd submissions
     reviewer_email_allowlist: str = ""

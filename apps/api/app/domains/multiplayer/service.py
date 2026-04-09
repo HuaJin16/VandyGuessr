@@ -67,10 +67,6 @@ class MultiplayerService:
         avatar_url: str | None,
         environment: str,
     ) -> dict:
-        existing = await self.repo.find_active_by_user(host_id)
-        if existing:
-            raise MultiplayerError("You already have an active multiplayer game.")
-
         images = await self.image_repo.sample_random(ROUNDS_PER_GAME, environment)
         if len(images) < ROUNDS_PER_GAME:
             raise MultiplayerError(
@@ -158,10 +154,6 @@ class MultiplayerService:
         for p in doc["players"]:
             if p["user_id"] == user_id:
                 return doc, None
-
-        existing = await self.repo.find_active_by_user(user_id)
-        if existing and str(existing["_id"]) != game_id:
-            raise MultiplayerError("You already have an active multiplayer game.")
 
         player = MultiplayerPlayerEntity(
             user_id=user_id,

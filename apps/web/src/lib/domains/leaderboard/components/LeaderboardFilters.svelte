@@ -9,49 +9,70 @@ export let onModeChange: (value: LeaderboardMode) => void;
 </script>
 
 <div class="filters">
-	<TogglePills
-		ariaLabel="Leaderboard timeframe"
-		selected={timeframe}
-		options={[
-			{ value: "daily", label: "Daily" },
-			{ value: "weekly", label: "Weekly" },
-			{ value: "alltime", label: "All Time" },
-		]}
-		on:change={(event) => {
-			if (
-				event.detail === "daily" ||
-				event.detail === "weekly" ||
-				event.detail === "alltime"
-			) {
-				onTimeframeChange(event.detail);
-			}
-		}}
-	/>
+	<div class="filter-group">
+		<p class="filter-label">Timeframe</p>
+		<TogglePills
+			ariaLabel="Leaderboard timeframe"
+			selected={timeframe}
+			options={[
+				{ value: "daily", label: "Daily" },
+				{ value: "weekly", label: "Weekly" },
+				{ value: "alltime", label: "All Time" },
+			]}
+			on:change={(event) => {
+				if (
+					event.detail === "daily" ||
+					event.detail === "weekly" ||
+					event.detail === "alltime"
+				) {
+					onTimeframeChange(event.detail);
+				}
+			}}
+		/>
+	</div>
 
-	<TogglePills
-		ariaLabel="Leaderboard mode"
-		selected={mode}
-		options={[
-			{ value: "all", label: "All" },
-			{ value: "indoor", label: "Indoor" },
-			{ value: "outdoor", label: "Outdoor" },
-		]}
-		on:change={(event) => {
-			if (
-				event.detail === "all" ||
-				event.detail === "indoor" ||
-				event.detail === "outdoor"
-			) {
-				onModeChange(event.detail);
-			}
-		}}
-	/>
+	<div class="filter-group">
+		<p class="filter-label">Environment</p>
+		<TogglePills
+			ariaLabel="Leaderboard mode"
+			selected={mode}
+			options={[
+				{ value: "all", label: "All" },
+				{ value: "indoor", label: "Indoor" },
+				{ value: "outdoor", label: "Outdoor" },
+			]}
+			on:change={(event) => {
+				if (
+					event.detail === "all" ||
+					event.detail === "indoor" ||
+					event.detail === "outdoor"
+				) {
+					onModeChange(event.detail);
+				}
+			}}
+		/>
+	</div>
 </div>
 
 <style>
 	.filters {
 		display: flex;
-		gap: 10px;
 		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: 14px;
+	}
+
+	.filter-group {
+		display: grid;
+		gap: 8px;
+	}
+
+	.filter-label {
+		margin: 0;
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--muted);
 	}
 </style>

@@ -50,13 +50,13 @@ function stopTimer() {
 }
 
 function formatTimer(seconds: number): string {
-	const m = Math.floor(seconds / 60);
-	const s = seconds % 60;
-	return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+	const minutes = Math.floor(seconds / 60);
+	const secs = seconds % 60;
+	return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
-function handleMapClick(pos: { lat: number; lng: number }) {
-	gameStore.setGuessPosition(pos);
+function handleMapClick(position: { lat: number; lng: number }) {
+	gameStore.setGuessPosition(position);
 }
 
 onDestroy(() => {
@@ -72,17 +72,18 @@ onDestroy(() => {
 
 <main class="shell">
 	<div class="topbar">
-		{#if !isLastRound}
-			<button class="ghost" on:click={() => gameStore.toggleEndDialog()}>
-				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-					<line x1="18" y1="6" x2="6" y2="18" />
-					<line x1="6" y1="6" x2="18" y2="18" />
-				</svg>
-				End Game
-			</button>
-		{:else}
-			<div></div>
-		{/if}
+		<div class="topbar__slot">
+			{#if !isLastRound}
+				<button class="ghost" on:click={() => gameStore.toggleEndDialog()}>
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<line x1="18" y1="6" x2="6" y2="18" />
+						<line x1="6" y1="6" x2="18" y2="18" />
+					</svg>
+					End Game
+				</button>
+			{/if}
+		</div>
+
 		<div class="hud-center">
 			<HudPill
 				round={roundNumber}
@@ -92,20 +93,15 @@ onDestroy(() => {
 				timerDanger={isTimed && timerSeconds < 10}
 			/>
 		</div>
-		<button class="ghost" on:click={() => navigate("/", { replace: true })}>
-			<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-				<polyline points="15 18 9 12 15 6" />
-			</svg>
-			Home
-		</button>
+
+		<div class="topbar__slot topbar__slot--end">
+			<button class="ghost" on:click={() => navigate("/", { replace: true })}>
+				Home
+			</button>
+		</div>
 	</div>
 
-	<MapAssembly
-		position={$gameStore.guessPosition}
-		disabled={$gameStore.submitting}
-		onMapClick={handleMapClick}
-		{onGuess}
-	/>
+	<MapAssembly position={$gameStore.guessPosition} disabled={$gameStore.submitting} onMapClick={handleMapClick} {onGuess} />
 </main>
 
 {#if $gameStore.showEndDialog}
@@ -123,7 +119,7 @@ onDestroy(() => {
 	.scene {
 		position: fixed;
 		inset: 0;
-		background: #0f1712;
+		background: #1c1917;
 	}
 
 	.shell {
@@ -132,44 +128,54 @@ onDestroy(() => {
 		min-height: 100vh;
 		display: grid;
 		grid-template-rows: auto 1fr;
-		padding: 10px;
-		gap: 6px;
+		padding: 12px;
+		gap: 10px;
 		pointer-events: none;
 	}
 
 	.topbar {
-		display: flex;
-		align-items: center;
-		gap: 8px;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+		align-items: start;
+		gap: 12px;
 		pointer-events: auto;
 	}
 
+	.topbar__slot {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.topbar__slot--end {
+		justify-content: flex-end;
+	}
+
 	.hud-center {
-		flex: 1;
 		display: flex;
 		justify-content: center;
 		pointer-events: none;
 	}
 
 	.ghost {
-		border: 1px solid rgba(255, 255, 255, 0.55);
-		border-radius: var(--radius-md);
-		background: rgba(17, 25, 20, 0.4);
-		backdrop-filter: blur(4px);
+		border: 1px solid rgba(255, 255, 255, 0.42);
+		border-radius: var(--radius-pill);
+		background: rgba(16, 24, 20, 0.42);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
 		color: #fff;
-		font-family: Inter, sans-serif;
 		font-size: 13px;
-		font-weight: 600;
-		padding: 8px 11px;
+		font-weight: 700;
+		padding: 10px 14px;
 		display: inline-flex;
 		align-items: center;
-		gap: 6px;
+		gap: 8px;
 		cursor: pointer;
 		transition: background 120ms var(--ease);
 	}
 
 	.ghost:hover {
-		background: rgba(17, 25, 20, 0.55);
+		background: rgba(16, 24, 20, 0.58);
 	}
 
 	.ghost:focus-visible {
@@ -179,24 +185,28 @@ onDestroy(() => {
 
 	@media (min-width: 880px) {
 		.shell {
-			padding: 14px;
-			gap: 6px;
-			grid-template-rows: auto 1fr;
+			padding: 16px;
 			grid-template-columns: 1fr 360px;
+			grid-template-rows: auto 1fr;
 			align-items: end;
 		}
 
 		.topbar {
 			grid-column: 1 / -1;
 			grid-row: 1;
-			align-items: start;
 		}
 	}
 
-	@media (max-width: 400px) {
-		.ghost {
-			font-size: 12px;
-			padding: 7px 9px;
+	@media (max-width: 560px) {
+		.topbar {
+			grid-template-columns: 1fr;
+			justify-items: center;
+		}
+
+		.topbar__slot,
+		.topbar__slot--end {
+			width: 100%;
+			justify-content: space-between;
 		}
 	}
 </style>

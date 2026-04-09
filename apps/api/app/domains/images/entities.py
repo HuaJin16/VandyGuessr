@@ -71,6 +71,8 @@ class ImageEntity(BaseModel):
     original_filename: str | None = None
     file_size: int
     location_name: str | None = None
+    thumbnail_url: str | None = None
+    thumbnail_version: int | None = None
     tiles: ImageTilesEntity | None = None
     compression: ImageCompressionEntity | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

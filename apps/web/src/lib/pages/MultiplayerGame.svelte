@@ -17,6 +17,7 @@ import {
 } from "$lib/domains/multiplayer/types";
 import { createMultiplayerWs } from "$lib/domains/multiplayer/ws/multiplayer.ws";
 import { auth } from "$lib/shared/auth/auth.store";
+import Spinner from "$lib/shared/ui/Spinner.svelte";
 import { createQuery } from "@tanstack/svelte-query";
 import { onDestroy, onMount } from "svelte";
 import { navigate } from "svelte-routing";
@@ -419,7 +420,7 @@ onDestroy(() => {
 
 {#if $gameQuery.isLoading}
 	<div class="fixed inset-0 flex flex-col items-center justify-center gap-4 bg-canvas p-4">
-		<div class="loading-spinner" />
+		<Spinner />
 	</div>
 {:else if $gameQuery.isError}
 	<div class="fixed inset-0 flex flex-col items-center justify-center gap-4 bg-canvas p-4">
@@ -548,7 +549,7 @@ onDestroy(() => {
 	{/if}
 {:else}
 	<div class="fixed inset-0 flex flex-col items-center justify-center gap-4 bg-canvas p-4">
-		<div class="loading-spinner" />
+		<Spinner />
 		<p class="text-sm font-medium text-muted">Waiting for round to start…</p>
 		{#if $multiplayerStore.connection === "disconnected"}
 			<button class="btn-3d" on:click={reconnect}>Reconnect</button>
@@ -560,7 +561,7 @@ onDestroy(() => {
 	.scene {
 		position: fixed;
 		inset: 0;
-		background: #0f1712;
+		background: #1c1917;
 	}
 
 	.shell {
@@ -591,7 +592,7 @@ onDestroy(() => {
 	.ghost {
 		border: 1px solid rgba(255, 255, 255, 0.55);
 		border-radius: var(--radius-md);
-		background: rgba(17, 25, 20, 0.4);
+		background: rgba(28, 25, 23, 0.4);
 		backdrop-filter: blur(4px);
 		color: #fff;
 		font-family: Inter, sans-serif;
@@ -606,7 +607,7 @@ onDestroy(() => {
 		text-decoration: none;
 	}
 
-	.ghost:hover { background: rgba(17, 25, 20, 0.55); }
+	.ghost:hover { background: rgba(28, 25, 23, 0.55); }
 	.ghost:focus-visible { outline: none; box-shadow: var(--ring); }
 
 	.ghost-danger {
@@ -771,7 +772,7 @@ onDestroy(() => {
 		grid-template-columns: 1fr 1fr 1fr;
 		gap: 8px;
 		margin: 18px 0;
-		background: #faf9f6;
+		background: var(--surface-subtle);
 		border: 1px solid var(--line);
 		border-radius: var(--radius-md);
 		padding: 14px;
@@ -844,7 +845,7 @@ onDestroy(() => {
 		font-size: 14px;
 		font-weight: 700;
 		padding: 11px 14px;
-		box-shadow: 0 4px 0 var(--danger-dark);
+		box-shadow: var(--shadow-xs);
 		cursor: pointer;
 		transition: all 120ms var(--ease);
 		display: flex;
@@ -853,21 +854,8 @@ onDestroy(() => {
 		gap: 6px;
 	}
 
-	.btn-forfeit:hover { background: #c94031; }
-	.btn-forfeit:active { transform: translateY(4px); box-shadow: 0 0 0 var(--danger-dark); }
-
-	.loading-spinner {
-		width: 40px;
-		height: 40px;
-		border: 4px solid rgba(24, 24, 27, 0.1);
-		border-top-color: var(--brand);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
-
-	@keyframes spin {
-		to { transform: rotate(360deg); }
-	}
+	.btn-forfeit:hover { background: var(--danger-dark); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+	.btn-forfeit:active { transform: translateY(0); box-shadow: var(--shadow-xs); }
 
 	@keyframes pulse {
 		0%, 100% { opacity: 1; }

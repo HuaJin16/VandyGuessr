@@ -1,6 +1,7 @@
 <script lang="ts">
 import { multiplayerService } from "$lib/domains/multiplayer/api/multiplayer.service";
 import { auth } from "$lib/shared/auth/auth.store";
+import Spinner from "$lib/shared/ui/Spinner.svelte";
 import { onMount } from "svelte";
 import { navigate } from "svelte-routing";
 import { toast } from "svelte-sonner";
@@ -38,8 +39,8 @@ async function joinByLink() {
 		const game = await multiplayerService.join({ code: inviteCode });
 		navigate(`/multiplayer/${game.id}/lobby`, { replace: true });
 	} catch (err: unknown) {
-		const e = err as { response?: { data?: { detail?: string } }; message?: string };
-		toast.error(e?.response?.data?.detail || e?.message || "Failed to join game");
+		const error = err as { response?: { data?: { detail?: string } }; message?: string };
+		toast.error(error?.response?.data?.detail || error?.message || "Failed to join game");
 		navigate("/", { replace: true });
 	} finally {
 		isJoining = false;
@@ -48,41 +49,50 @@ async function joinByLink() {
 </script>
 
 <div class="join-screen">
-	<div class="loading-spinner" />
-	<p class="join-text">{isJoining ? "Joining game..." : "Redirecting..."}</p>
+	<div class="join-card">
+		<Spinner />
+		<p class="join-label">Multiplayer</p>
+		<p class="join-text">{isJoining ? "Joining match..." : "Redirecting..."}</p>
+	</div>
 </div>
 
 <style>
 	.join-screen {
 		position: fixed;
 		inset: 0;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 12px;
+		display: grid;
+		place-items: center;
+		padding: 24px;
 		background: var(--canvas);
 	}
 
-	.loading-spinner {
-		width: 40px;
-		height: 40px;
-		border: 4px solid rgba(24, 24, 27, 0.1);
-		border-top-color: var(--brand);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
+	.join-card {
+		display: grid;
+		justify-items: center;
+		gap: 12px;
+		padding: 28px 32px;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-lg);
+		background: var(--surface);
+		box-shadow: var(--shadow-sm);
 	}
 
+	.join-label,
 	.join-text {
 		margin: 0;
-		font-size: 14px;
-		font-weight: 600;
+	}
+
+	.join-label {
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
 		color: var(--muted);
 	}
 
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
+	.join-text {
+		font-size: 15px;
+		font-weight: 700;
+		color: var(--ink);
 	}
 </style>

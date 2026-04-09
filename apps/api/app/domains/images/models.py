@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.domains.games.models import RoundTilesResponse
+
 
 class ImageUploadResult(BaseModel):
     """Result for a single image upload."""
@@ -43,3 +45,19 @@ class PendingSubmissionItem(BaseModel):
 
 class PendingSubmissionsResponse(BaseModel):
     items: list[PendingSubmissionItem]
+
+
+class TourImageItem(BaseModel):
+    id: str
+    url: str
+    thumbnail_url: str
+    latitude: float
+    longitude: float
+    environment: Literal["indoor", "outdoor"]
+    location_name: str | None = None
+    created_at: datetime | None = None
+    tiles: RoundTilesResponse | None = None
+
+
+class TourImagesResponse(BaseModel):
+    items: list[TourImageItem]

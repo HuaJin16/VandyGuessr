@@ -5,6 +5,7 @@ import RoundResultsView from "$lib/domains/games/components/RoundResultsView.sve
 import { gameQueries } from "$lib/domains/games/queries/games.queries";
 import { currentRound, gameStore } from "$lib/domains/games/stores/game.store";
 import { auth } from "$lib/shared/auth/auth.store";
+import Spinner from "$lib/shared/ui/Spinner.svelte";
 import { createQuery, useQueryClient } from "@tanstack/svelte-query";
 import { onDestroy } from "svelte";
 import { navigate } from "svelte-routing";
@@ -113,7 +114,7 @@ onDestroy(() => {
 
 {#if $gameQuery.isLoading}
 	<div class="loading-screen">
-		<div class="loading-spinner" />
+		<Spinner />
 	</div>
 {:else if $gameQuery.isError}
 	<div class="error-screen">
@@ -149,21 +150,6 @@ onDestroy(() => {
 		align-items: center;
 		justify-content: center;
 		background: var(--canvas);
-	}
-
-	.loading-spinner {
-		width: 40px;
-		height: 40px;
-		border: 4px solid var(--line);
-		border-top-color: var(--brand);
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
 	}
 
 	.error-screen {

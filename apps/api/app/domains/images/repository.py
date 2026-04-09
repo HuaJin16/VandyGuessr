@@ -27,6 +27,8 @@ class IImageRepository(Protocol):
 
     async def find_pending_moderation(self, limit: int, skip: int) -> list[dict]: ...
 
+    async def list_tour(self, environment: str | None = None) -> list[dict]: ...
+
     async def find_by_id(self, image_id: str) -> dict | None: ...
 
     async def update_moderation(
@@ -106,6 +108,13 @@ class ImageRepository:
             .limit(limit)
         )
         return await cursor.to_list(length=limit)
+
+    async def list_tour(self, environment: str | None = None) -> list[dict]:
+        query: dict = dict(PLAYABLE_MATCH)
+        if environment and environment != "any":
+            query["environment"] = environment
+        cursor = self.collection.find(query).sort("created_at", -1)
+        return await cursor.to_list(length=None)
 
     async def find_by_id(self, image_id: str) -> dict | None:
         object_id = self._object_id(image_id)

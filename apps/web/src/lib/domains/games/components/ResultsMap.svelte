@@ -1,4 +1,5 @@
 <script lang="ts">
+import { CAMPUS_BOUNDS, addCampusBaseLayer } from "$lib/shared/maps/leafletTheme";
 import L from "leaflet";
 import { onDestroy, onMount } from "svelte";
 import "leaflet/dist/leaflet.css";
@@ -53,15 +54,13 @@ onMount(() => {
 		dragging: true,
 		scrollWheelZoom: true,
 		minZoom: 13,
-		maxBounds: L.latLngBounds([36.05, -86.92], [36.25, -86.7]),
+		maxBounds: CAMPUS_BOUNDS,
 		maxBoundsViscosity: 1.0,
 	});
 
 	map.fitBounds(bounds.pad(0.6));
 
-	L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-		maxZoom: 19,
-	}).addTo(map);
+	addCampusBaseLayer(map);
 
 	L.polyline(
 		[
@@ -103,7 +102,7 @@ onDestroy(() => {
 });
 </script>
 
-<div bind:this={mapContainer} class="results-map" />
+<div bind:this={mapContainer} class="results-map leaflet-theme" />
 
 <style>
 	.results-map {
@@ -111,10 +110,7 @@ onDestroy(() => {
 		height: 100%;
 		position: absolute;
 		inset: 0;
-	}
-
-	.results-map :global(.leaflet-tile-pane) {
-		filter: saturate(0.2) sepia(20%) brightness(1.06) contrast(0.95);
+		z-index: 0;
 	}
 
 	:global(.results-pin) {

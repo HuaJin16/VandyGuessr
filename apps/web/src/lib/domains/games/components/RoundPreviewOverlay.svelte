@@ -1,9 +1,11 @@
 <script lang="ts">
 import { onMount, tick } from "svelte";
+import type { RoundTiles } from "../types";
 import PanoramaViewer from "./PanoramaViewer.svelte";
 
 export let open = false;
 export let imageUrl = "";
+export let imageTiles: RoundTiles | null = null;
 export let title = "How players see this round";
 export let onClose: () => void;
 
@@ -48,7 +50,7 @@ onMount(() => {
 				</button>
 			</header>
 			<div class="viewer-wrap">
-				<PanoramaViewer imageUrl={imageUrl} />
+				<PanoramaViewer imageUrl={imageUrl} {imageTiles} />
 			</div>
 		</div>
 	</div>
@@ -63,7 +65,7 @@ onMount(() => {
 		align-items: stretch;
 		justify-content: center;
 		padding: 12px;
-		background: rgba(15, 23, 18, 0.78);
+		background: rgba(28, 25, 23, 0.78);
 		box-sizing: border-box;
 	}
 
@@ -77,7 +79,7 @@ onMount(() => {
 		width: 100%;
 		border-radius: var(--radius-lg);
 		overflow: hidden;
-		background: #0f1712;
+		background: #1c1917;
 		border: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
 		box-shadow: var(--shadow-md);
 	}

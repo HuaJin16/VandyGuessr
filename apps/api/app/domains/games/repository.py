@@ -1,5 +1,6 @@
 """Game repository for database operations."""
 
+from datetime import UTC, datetime
 from typing import Protocol
 
 from bson import ObjectId
@@ -17,6 +18,8 @@ class IGameRepository(Protocol):
     async def find_by_id(self, game_id: str) -> dict | None: ...
 
     async def find_active_by_user(self, user_id: str) -> dict | None: ...
+
+    async def abandon_active_games(self, user_id: str) -> int: ...
 
     async def find_by_user(
         self,
@@ -70,6 +73,14 @@ class GameRepository:
 
     async def find_active_by_user(self, user_id: str) -> dict | None:
         return await self.collection.find_one({"user_id": user_id, "status": "active"})
+
+    async def abandon_active_games(self, user_id: str) -> int:
+        now = datetime.now(UTC)
+        result = await self.collection.update_many(
+            {"user_id": user_id, "status": "active"},
+            {"$set": {"status": "abandoned", "last_activity_at": now}},
+        )
+        return result.modified_count
 
     async def find_by_user(
         self,

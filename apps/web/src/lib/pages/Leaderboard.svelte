@@ -6,6 +6,8 @@ import { createLeaderboardViewStore } from "$lib/domains/leaderboard/stores/lead
 import { userQueries } from "$lib/domains/users/queries/users.queries";
 import { auth } from "$lib/shared/auth/auth.store";
 import Navbar from "$lib/shared/components/Navbar.svelte";
+import PageHeader from "$lib/shared/ui/PageHeader.svelte";
+import PageShell from "$lib/shared/ui/PageShell.svelte";
 import { createQuery } from "@tanstack/svelte-query";
 
 const viewStore = createLeaderboardViewStore();
@@ -17,6 +19,7 @@ $: user = createQuery({
 	...userQueries.me($auth.currentUserOid),
 	enabled: isAuthenticated,
 });
+
 $: leaderboard = createQuery({
 	...leaderboardQueries.leaderboard(
 		{
@@ -36,21 +39,29 @@ $: currentUserName = $user.data?.name ?? "";
 
 <div class="min-h-screen bg-canvas font-sans text-ink">
 	<Navbar activePage="leaderboard" />
-	<LeaderboardBoard
-		leaderboard={$leaderboard}
-		{currentUserId}
-		{currentUserName}
-		onSetLimit={viewStore.setLimit}
-		offset={view.offset}
-		onSetOffset={viewStore.setOffset}
-	>
-		<div slot="filters">
-			<LeaderboardFilters
-				timeframe={view.timeframe}
-				mode={view.mode}
-				onTimeframeChange={viewStore.setTimeframe}
-				onModeChange={viewStore.setMode}
-			/>
-		</div>
-	</LeaderboardBoard>
+
+	<PageShell size="content">
+		<PageHeader
+			title="Leaderboard"
+			split
+		>
+			<div slot="actions">
+				<LeaderboardFilters
+					timeframe={view.timeframe}
+					mode={view.mode}
+					onTimeframeChange={viewStore.setTimeframe}
+					onModeChange={viewStore.setMode}
+				/>
+			</div>
+		</PageHeader>
+
+		<LeaderboardBoard
+			leaderboard={$leaderboard}
+			{currentUserId}
+			{currentUserName}
+			onSetLimit={viewStore.setLimit}
+			offset={view.offset}
+			onSetOffset={viewStore.setOffset}
+		/>
+	</PageShell>
 </div>

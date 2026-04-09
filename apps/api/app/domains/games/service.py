@@ -33,7 +33,7 @@ def _ensure_utc(dt: datetime | None) -> datetime | None:
 
 TIMED_ROUND_SECONDS = 120
 TIMED_GRACE_SECONDS = 2  # network latency buffer for timed round expiry
-UNTIMED_TIMEOUT_SECONDS = 3600  # 1 hour inactivity timeout
+UNTIMED_TIMEOUT_SECONDS = 1800  # 30 minute inactivity timeout
 
 
 class GameError(Exception):
@@ -77,10 +77,7 @@ class GameService:
         difficulty: Difficulty = DEFAULT_DIFFICULTY,
     ) -> dict:
         """Create a new game with 5 rounds of randomly selected images."""
-        # Check for existing active game
-        existing = await self.game_repo.find_active_by_user(user_id)
-        if existing:
-            raise GameError("You already have an active game. Finish or end it first.")
+        await self.game_repo.abandon_active_games(user_id)
 
         images = await self._select_images(environment, daily)
         if len(images) < ROUNDS_PER_GAME:

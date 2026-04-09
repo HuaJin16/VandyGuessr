@@ -14,16 +14,18 @@ export let showCheck = false;
 	</div>
 	<div class="hud-cell">
 		<span class="hud-label">Score</span>
-		<span class="hud-value score">{score.toLocaleString()}</span>
+		<span class="hud-value hud-value--score">{score.toLocaleString()}</span>
 	</div>
 	{#if timer !== null}
 		<div class="hud-cell">
 			{#if showCheck}
-				<span class="hud-label" style="color: var(--brand);">&#10003;</span>
+				<span class="hud-label hud-label--check">Done</span>
 			{:else}
 				<span class="hud-label">Time</span>
 			{/if}
-			<span class="hud-value" class:timer={timerDanger} class:score={showCheck && !timerDanger}>{timer}</span>
+			<span class="hud-value" class:hud-value--timer={timerDanger} class:hud-value--ok={showCheck && !timerDanger}>
+				{timer}
+			</span>
 		</div>
 	{/if}
 </section>
@@ -34,33 +36,37 @@ export let showCheck = false;
 		display: inline-flex;
 		align-items: center;
 		gap: 0;
-		border: 1px solid var(--line);
 		border-radius: var(--radius-pill);
-		background: rgba(255, 255, 255, 0.95);
-		color: var(--ink);
+		background: rgba(255, 255, 255, 0.92);
+		backdrop-filter: blur(18px);
+		-webkit-backdrop-filter: blur(18px);
+		border: 1px solid rgba(255, 255, 255, 0.6);
 		box-shadow: var(--shadow-md);
 		padding: 6px 4px;
-		width: min(100%, 540px);
-		justify-content: center;
+		max-width: min(100%, 560px);
 	}
 
 	.hud-cell {
-		padding: 4px 12px;
-		display: flex;
+		display: inline-flex;
 		align-items: center;
-		gap: 6px;
+		gap: 8px;
+		padding: 5px 14px;
 	}
 
 	.hud-cell + .hud-cell {
-		border-left: 1px solid var(--line);
+		border-left: 1px solid rgba(28, 25, 23, 0.08);
 	}
 
 	.hud-label {
-		font-size: 11px;
-		font-weight: 600;
+		font-size: 10px;
+		font-weight: 700;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--muted);
+	}
+
+	.hud-label--check {
+		color: var(--brand-dark);
 	}
 
 	.hud-value {
@@ -70,26 +76,30 @@ export let showCheck = false;
 		color: var(--ink);
 	}
 
-	.hud-value.score {
+	.hud-value--score {
 		color: var(--gold-dark);
 	}
 
-	.hud-value.timer {
+	.hud-value--timer {
 		color: var(--danger);
 	}
 
-	@media (max-width: 400px) {
+	.hud-value--ok {
+		color: var(--brand-dark);
+	}
+
+	@media (max-width: 480px) {
 		.hud {
 			padding: 4px 2px;
 		}
 
 		.hud-cell {
-			padding: 3px 8px;
-			gap: 4px;
+			padding: 4px 10px;
+			gap: 6px;
 		}
 
 		.hud-label {
-			font-size: 10px;
+			font-size: 9px;
 		}
 
 		.hud-value {
