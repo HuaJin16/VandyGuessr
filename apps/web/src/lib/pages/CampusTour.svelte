@@ -28,6 +28,14 @@ interface LocationGroup {
 	environments: Set<string>;
 }
 
+interface TourMarker {
+	name: string;
+	slug: string;
+	lat: number;
+	lng: number;
+	count: number;
+}
+
 const environmentOptions = [
 	{ value: "any", label: "All" },
 	{ value: "indoor", label: "Indoor" },
@@ -47,7 +55,8 @@ $: tourQuery = createQuery({
 
 $: tourItems = $tourQuery.data ?? [];
 $: locations = groupByLocation(tourItems);
-$: if (map && markerLayer) renderMarkers(locations);
+$: markers = buildMarkers(locations);
+$: if (map && markerLayer) renderMarkers(markers);
 
 function groupByLocation(items: TourImageItem[]): LocationGroup[] {
 	const groups = new Map<string, TourImageItem[]>();
@@ -81,30 +90,58 @@ function groupByLocation(items: TourImageItem[]): LocationGroup[] {
 	return result;
 }
 
-function goToLocation(group: LocationGroup) {
-	navigate(`/tour/${group.slug}`);
+function buildMarkers(groups: LocationGroup[]): TourMarker[] {
+	const markers: TourMarker[] = [];
+
+	for (const group of groups) {
+		if (group.slug === "other") {
+			for (const image of group.images) {
+				markers.push({
+					name: group.name,
+					slug: group.slug,
+					lat: image.latitude,
+					lng: image.longitude,
+					count: 1,
+				});
+			}
+			continue;
+		}
+
+		markers.push({
+			name: group.name,
+			slug: group.slug,
+			lat: group.lat,
+			lng: group.lng,
+			count: group.images.length,
+		});
+	}
+
+	return markers;
 }
 
-function renderMarkers(groups: LocationGroup[]) {
+function goToLocation(slug: string) {
+	navigate(`/tour/${slug}`);
+}
+
+function renderMarkers(markers: TourMarker[]) {
 	if (!map || !markerLayer) return;
 	markerLayer.clearLayers();
 
-	for (const group of groups) {
-		const count = group.images.length;
+	for (const markerData of markers) {
 		const icon = L.divIcon({
 			className: "tour-pin",
-			html: `<div class="tour-pin-body">${count}</div>`,
+			html: `<div class="tour-pin-body">${markerData.count}</div>`,
 			iconSize: [32, 32],
 			iconAnchor: [16, 16],
 		});
 
-		const marker = L.marker([group.lat, group.lng], { icon });
-		marker.bindTooltip(group.name, {
+		const marker = L.marker([markerData.lat, markerData.lng], { icon });
+		marker.bindTooltip(markerData.name, {
 			direction: "top",
 			offset: [0, -18],
 			className: "tour-tooltip",
 		});
-		marker.on("click", () => goToLocation(group));
+		marker.on("click", () => goToLocation(markerData.slug));
 		marker.addTo(markerLayer);
 	}
 }
@@ -134,7 +171,7 @@ onMount(() => {
 	});
 	resizeObserver.observe(mapContainer);
 
-	if (locations.length > 0) renderMarkers(locations);
+	if (markers.length > 0) renderMarkers(markers);
 });
 
 onDestroy(() => {
@@ -199,7 +236,7 @@ onDestroy(() => {
 							<button
 								type="button"
 								class="location-row"
-								on:click={() => goToLocation(group)}
+								on:click={() => goToLocation(group.slug)}
 							>
 								<div class="location-thumb">
 									<img
