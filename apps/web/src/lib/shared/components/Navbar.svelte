@@ -28,7 +28,7 @@ $: me = createQuery({
 
 $: stats = createQuery({
 	...leaderboardQueries.leaderboard(
-		{ timeframe: "alltime", mode: "all", limit: 1, offset: 0 },
+		{ timeframe: "alltime", mode: "all", gameType: "all", limit: 1, offset: 0 },
 		$auth.currentUserOid,
 	),
 	enabled: $auth.currentUserOid !== null,

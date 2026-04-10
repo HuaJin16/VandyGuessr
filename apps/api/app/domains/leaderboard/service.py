@@ -40,16 +40,18 @@ class LeaderboardService:
         user_id: str,
         timeframe: str,
         mode: str,
+        game_type: str,
         limit: int,
         offset: int,
     ) -> dict:
         start, end = self._timeframe_bounds(timeframe)
-        cache_key = f"lb:v3:{timeframe}:{mode}:{offset}:{limit}"
+        cache_key = f"lb:v4:{timeframe}:{mode}:{game_type}:{offset}:{limit}"
         cached = await self._read_cache(cache_key)
 
         if cached is None:
             raw_entries, total_count = await self.leaderboard_repo.get_leaderboard_page(
                 mode=mode,
+                game_type=game_type,
                 start=start,
                 end=end,
                 limit=limit,
@@ -68,11 +70,12 @@ class LeaderboardService:
             entries = cached["entries"]
             total_count = cached["total_count"]
 
-        user_entry = await self._build_user_entry(user_id, mode, start, end)
+        user_entry = await self._build_user_entry(user_id, mode, game_type, start, end)
         context_entries = await self._build_context_entries(
             user_entry,
             entries,
             mode,
+            game_type,
             start,
             end,
         )
@@ -123,12 +126,14 @@ class LeaderboardService:
         self,
         user_id: str,
         mode: str,
+        game_type: str,
         start: datetime | None,
         end: datetime | None,
     ) -> dict | None:
         raw = await self.leaderboard_repo.get_user_entry(
             user_id=user_id,
             mode=mode,
+            game_type=game_type,
             start=start,
             end=end,
         )
@@ -141,6 +146,7 @@ class LeaderboardService:
             total_points=int(raw["total_points"]),
             games_played=int(raw["games_played"]),
             mode=mode,
+            game_type=game_type,
             start=start,
             end=end,
         )
@@ -151,6 +157,7 @@ class LeaderboardService:
         user_entry: dict | None,
         entries: list[dict],
         mode: str,
+        game_type: str,
         start: datetime | None,
         end: datetime | None,
     ) -> list[dict]:
@@ -165,6 +172,7 @@ class LeaderboardService:
         start_offset = max(user_rank - 2, 0)
         raw_entries = await self.leaderboard_repo.get_entries_by_offset(
             mode=mode,
+            game_type=game_type,
             start=start,
             end=end,
             offset=start_offset,

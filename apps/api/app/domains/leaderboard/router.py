@@ -30,6 +30,7 @@ async def get_leaderboard(
     current_user: CurrentUser,
     timeframe: Literal["daily", "weekly", "alltime"] = Query(default="alltime"),
     mode: Literal["all", "indoor", "outdoor"] = Query(default="all"),
+    game_type: Literal["all", "daily", "random"] = Query(default="all"),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     service: LeaderboardService = deps(LeaderboardService),
@@ -39,6 +40,7 @@ async def get_leaderboard(
             user_id=current_user["oid"],
             timeframe=timeframe,
             mode=mode,
+            game_type=game_type,
             limit=limit,
             offset=offset,
         )
