@@ -35,6 +35,7 @@ const environmentOptions = [
 ] satisfies ToggleOption[];
 
 let environment: "any" | "indoor" | "outdoor" = "any";
+let searchTerm = "";
 let mapContainer: HTMLDivElement;
 let map: L.Map | null = null;
 let markerLayer: L.LayerGroup | null = null;
@@ -46,8 +47,10 @@ $: tourQuery = createQuery({
 });
 
 $: tourItems = $tourQuery.data ?? [];
-$: locations = groupByLocation(tourItems);
-$: if (map && markerLayer) renderMarkers(locations);
+$: allLocations = groupByLocation(tourItems);
+$: visibleLocations = filterLocations(allLocations, searchTerm);
+$: visibleImageCount = visibleLocations.reduce((sum, group) => sum + group.images.length, 0);
+$: if (map && markerLayer) renderMarkers(visibleLocations);
 
 function groupByLocation(items: TourImageItem[]): LocationGroup[] {
 	const groups = new Map<string, TourImageItem[]>();
@@ -79,6 +82,12 @@ function groupByLocation(items: TourImageItem[]): LocationGroup[] {
 	});
 
 	return result;
+}
+
+function filterLocations(groups: LocationGroup[], search: string): LocationGroup[] {
+	const query = search.trim().toLocaleLowerCase();
+	if (!query) return groups;
+	return groups.filter((group) => group.name.toLocaleLowerCase().includes(query));
 }
 
 function goToLocation(group: LocationGroup) {
@@ -134,7 +143,7 @@ onMount(() => {
 	});
 	resizeObserver.observe(mapContainer);
 
-	if (locations.length > 0) renderMarkers(locations);
+	if (visibleLocations.length > 0) renderMarkers(visibleLocations);
 });
 
 onDestroy(() => {
@@ -181,6 +190,16 @@ onDestroy(() => {
 						}}
 					/>
 				</div>
+				<div class="sidebar-search">
+					<label class="control-lbl" for="tour-search">Search locations</label>
+					<input
+						id="tour-search"
+						type="search"
+						class="search-input"
+						placeholder="Search by location name"
+						bind:value={searchTerm}
+					/>
+				</div>
 			</header>
 
 			<div class="sidebar-body">
@@ -190,12 +209,22 @@ onDestroy(() => {
 					</StateBlock>
 				{:else if $tourQuery.isError}
 					<StateBlock tone="error" title="Couldn't load the tour" copy="Something went wrong fetching images." />
-				{:else if locations.length === 0}
+				{:else if allLocations.length === 0}
 					<StateBlock tone="soft" title="No locations found" copy="Try a different environment filter, or upload some panoramas first." />
+				{:else if visibleLocations.length === 0}
+					<StateBlock tone="soft" title="No matches" copy="No locations match that search with the current environment filter.">
+						<button type="button" class="clear-search-btn" on:click={() => (searchTerm = "")}>Clear search</button>
+					</StateBlock>
 				{:else}
-					<p class="sidebar-count">{locations.length} locations &middot; {tourItems.length} images</p>
+					<p class="sidebar-count">
+						{#if searchTerm.trim()}
+							Showing {visibleLocations.length} of {allLocations.length} locations &middot; {visibleImageCount} images
+						{:else}
+							{visibleLocations.length} locations &middot; {visibleImageCount} images
+						{/if}
+					</p>
 					<div class="location-list">
-						{#each locations as group (group.slug)}
+						{#each visibleLocations as group (group.slug)}
 							<button
 								type="button"
 								class="location-row"
@@ -234,6 +263,8 @@ onDestroy(() => {
 		display: flex;
 		flex-direction: column;
 		min-height: 100vh;
+		height: 100dvh;
+		overflow: hidden;
 		background: var(--canvas);
 		color: var(--ink);
 	}
@@ -242,23 +273,25 @@ onDestroy(() => {
 		flex: 1;
 		display: grid;
 		grid-template-columns: 1fr;
+		grid-template-rows: minmax(240px, 42%) minmax(0, 1fr);
 		min-height: 0;
 	}
 
 	.map-panel {
 		position: relative;
-		min-height: 280px;
+		min-height: 0;
 	}
 
 	.tour-map {
 		width: 100%;
 		height: 100%;
-		min-height: 280px;
+		min-height: 0;
 	}
 
 	.sidebar {
 		display: flex;
 		flex-direction: column;
+		min-height: 0;
 		border-top: 1px solid var(--line);
 		background: var(--surface);
 		overflow: hidden;
@@ -304,6 +337,31 @@ onDestroy(() => {
 		gap: 6px;
 	}
 
+	.sidebar-search {
+		display: grid;
+		gap: 6px;
+	}
+
+	.search-input {
+		width: 100%;
+		height: 44px;
+		padding: 0 12px;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-sm);
+		background: var(--surface);
+		font-size: 14px;
+		color: var(--ink);
+	}
+
+	.search-input::placeholder {
+		color: var(--muted);
+	}
+
+	.search-input:focus-visible {
+		outline: none;
+		box-shadow: var(--ring);
+	}
+
 	.control-lbl {
 		font-size: 12px;
 		font-weight: 600;
@@ -314,7 +372,9 @@ onDestroy(() => {
 
 	.sidebar-body {
 		flex: 1;
+		min-height: 0;
 		overflow-y: auto;
+		overscroll-behavior: contain;
 		padding: 12px;
 	}
 
@@ -406,6 +466,34 @@ onDestroy(() => {
 		flex-shrink: 0;
 	}
 
+	.clear-search-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		height: 36px;
+		padding: 0 14px;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-sm);
+		background: var(--surface);
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--ink);
+		cursor: pointer;
+		transition:
+			background var(--duration-fast) var(--ease),
+			border-color var(--duration-fast) var(--ease);
+	}
+
+	.clear-search-btn:hover {
+		background: var(--surface-subtle);
+		border-color: var(--line-strong);
+	}
+
+	.clear-search-btn:focus-visible {
+		outline: none;
+		box-shadow: var(--ring);
+	}
+
 	/* Leaflet pin styles */
 	:global(.tour-pin) {
 		background: none !important;
@@ -451,7 +539,8 @@ onDestroy(() => {
 
 	@media (min-width: 768px) {
 		.tour-layout {
-			grid-template-columns: 1fr 380px;
+			grid-template-columns: minmax(0, 1fr) 380px;
+			grid-template-rows: minmax(0, 1fr);
 		}
 
 		.map-panel {
