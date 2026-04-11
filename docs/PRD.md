@@ -65,7 +65,7 @@ VandyGuessr is a campus-specific location guessing game built around 360-degree 
 - CTAs: Play Again, Home, Leaderboard
 
 ### 5.6 Leaderboard
-- Filters: environment + daily / weekly / all-time
+- Filters: timeframe (today / weekly / all-time), environment, and game type (all / daily challenge / random drop)
 - Table: rank, name, avg score, games played, rounds played, total points
 - Current user highlighted
 - Pagination for larger lists
@@ -259,7 +259,7 @@ See `docs/MULTIPLAYER.md` for the full contract. Multiplayer games keep separate
 - `POST /v1/games/{id}/round/{n}/guess`
 - `POST /v1/games/{id}/end`
 - `GET /v1/games/images/{image_id}/score-distribution?score=...`
-- `GET /v1/leaderboard?mode=all|indoor|outdoor&timeframe=daily|weekly|alltime`
+- `GET /v1/leaderboard?mode=all|indoor|outdoor&timeframe=daily|weekly|alltime&game_type=all|daily|random`
 - `GET /v1/images/upload?code=...&environment=indoor|outdoor`
 - `POST /v1/images/upload?code=...&environment=indoor|outdoor`
 - `GET /v1/images/upload/jobs/{job_id}?code=...`
@@ -642,10 +642,10 @@ See `docs/MULTIPLAYER.md` for the full contract. Multiplayer games keep separate
 - Data Contracts:
   - `LeaderboardEntry[]`
 
-**G2 - Filter by mode and timeframe**
+**G2 - Filter by environment, game type, and timeframe**
 - Acceptance Criteria:
-  - Mode and timeframe filters update the list.
-  - Daily uses CST window.
+  - Environment, game type, and timeframe filters update the list.
+  - Today uses a CST window (timeframe), while Daily Challenge is a separate game-type filter.
 - Constraints:
   - Filters are combinable.
 - Dependencies:

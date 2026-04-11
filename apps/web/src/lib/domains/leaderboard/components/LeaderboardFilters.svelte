@@ -1,11 +1,13 @@
 <script lang="ts">
 import TogglePills from "$lib/shared/components/TogglePills.svelte";
-import type { LeaderboardMode, LeaderboardTimeframe } from "../types";
+import type { LeaderboardGameType, LeaderboardMode, LeaderboardTimeframe } from "../types";
 
 export let timeframe: LeaderboardTimeframe;
 export let mode: LeaderboardMode;
+export let gameType: LeaderboardGameType;
 export let onTimeframeChange: (value: LeaderboardTimeframe) => void;
 export let onModeChange: (value: LeaderboardMode) => void;
+export let onGameTypeChange: (value: LeaderboardGameType) => void;
 </script>
 
 <div class="filters">
@@ -15,7 +17,7 @@ export let onModeChange: (value: LeaderboardMode) => void;
 			ariaLabel="Leaderboard timeframe"
 			selected={timeframe}
 			options={[
-				{ value: "daily", label: "Daily" },
+				{ value: "daily", label: "Today" },
 				{ value: "weekly", label: "Weekly" },
 				{ value: "alltime", label: "All Time" },
 			]}
@@ -26,6 +28,28 @@ export let onModeChange: (value: LeaderboardMode) => void;
 					event.detail === "alltime"
 				) {
 					onTimeframeChange(event.detail);
+				}
+			}}
+		/>
+	</div>
+
+	<div class="filter-group">
+		<p class="filter-label">Game Type</p>
+		<TogglePills
+			ariaLabel="Leaderboard game type"
+			selected={gameType}
+			options={[
+				{ value: "all", label: "All" },
+				{ value: "daily", label: "Daily Challenge" },
+				{ value: "random", label: "Random Drop" },
+			]}
+			on:change={(event) => {
+				if (
+					event.detail === "all" ||
+					event.detail === "daily" ||
+					event.detail === "random"
+				) {
+					onGameTypeChange(event.detail);
 				}
 			}}
 		/>

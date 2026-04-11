@@ -5,7 +5,7 @@ import structlog
 
 logger = structlog.get_logger()
 
-LEADERBOARD_CACHE_PREFIX = "lb:v3:*"
+LEADERBOARD_CACHE_PREFIX = "lb:v4:*"
 DELETE_BATCH_SIZE = 200
 
 

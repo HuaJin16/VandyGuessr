@@ -1,9 +1,10 @@
 import { writable } from "svelte/store";
-import type { LeaderboardMode, LeaderboardTimeframe } from "../types";
+import type { LeaderboardGameType, LeaderboardMode, LeaderboardTimeframe } from "../types";
 
 interface LeaderboardViewState {
 	timeframe: LeaderboardTimeframe;
 	mode: LeaderboardMode;
+	gameType: LeaderboardGameType;
 	limit: number;
 	offset: number;
 }
@@ -11,6 +12,7 @@ interface LeaderboardViewState {
 const initialState: LeaderboardViewState = {
 	timeframe: "daily",
 	mode: "all",
+	gameType: "all",
 	limit: 8,
 	offset: 0,
 };
@@ -27,6 +29,9 @@ export function createLeaderboardViewStore() {
 		},
 		setMode(mode: LeaderboardMode) {
 			update((state) => (state.mode === mode ? state : { ...state, mode, offset: 0 }));
+		},
+		setGameType(gameType: LeaderboardGameType) {
+			update((state) => (state.gameType === gameType ? state : { ...state, gameType, offset: 0 }));
 		},
 		setLimit(limit: number) {
 			update((state) => (state.limit === limit ? state : { ...state, limit }));
