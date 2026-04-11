@@ -1,5 +1,6 @@
 <script lang="ts">
 import CampusTour from "$lib/pages/CampusTour.svelte";
+import DemoRedirect from "$lib/pages/DemoRedirect.svelte";
 import Game from "$lib/pages/Game.svelte";
 import GameHistory from "$lib/pages/GameHistory.svelte";
 import GameSummary from "$lib/pages/GameSummary.svelte";
@@ -27,11 +28,12 @@ onMount(() => {
 
 $: if (!$isLoading) {
 	const path = window.location.pathname;
+	const isPublicPath = path === "/login" || path === "/demo";
 	if ($isAuthenticated) {
 		if (path === "/login") {
 			navigate("/", { replace: true });
 		}
-	} else {
+	} else if (!isPublicPath) {
 		navigate("/login", { replace: true });
 	}
 }
@@ -65,6 +67,7 @@ $: if (!$isLoading) {
     <Route path="/upload" component={Upload} />
     <Route path="/review/submissions" component={ReviewSubmissions} />
     <Route path="/login" component={Login} />
+    <Route path="/demo" component={DemoRedirect} />
     {#if multiplayerEnabled}
       <Route path="/multiplayer/join/:code" component={MultiplayerJoin} />
       <Route path="/multiplayer/:id/lobby" component={MultiplayerLobby} />
