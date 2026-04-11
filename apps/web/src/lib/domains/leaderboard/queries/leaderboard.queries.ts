@@ -9,6 +9,7 @@ export const leaderboardQueries = {
 			currentUserOid,
 			params.timeframe,
 			params.mode,
+			params.gameType,
 			params.offset,
 			params.limit,
 		] as const,

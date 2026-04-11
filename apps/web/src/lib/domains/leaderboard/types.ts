@@ -1,5 +1,6 @@
 export type LeaderboardTimeframe = "daily" | "weekly" | "alltime";
 export type LeaderboardMode = "all" | "indoor" | "outdoor";
+export type LeaderboardGameType = "all" | "daily" | "random";
 
 export interface LeaderboardEntry {
 	rank: number;
@@ -22,6 +23,7 @@ export interface LeaderboardResponse {
 export interface LeaderboardParams {
 	timeframe: LeaderboardTimeframe;
 	mode: LeaderboardMode;
+	gameType: LeaderboardGameType;
 	limit: number;
 	offset: number;
 }

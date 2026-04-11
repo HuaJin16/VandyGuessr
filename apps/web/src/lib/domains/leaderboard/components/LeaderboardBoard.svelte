@@ -144,7 +144,7 @@ $: visibleTopEntries = entries.slice(0, topCount);
 			</div>
 		{:else if entries.length === 0}
 			<div class="table-state table-state--empty">
-				<p class="table-state__copy">No leaderboard results yet. Try another timeframe or environment.</p>
+				<p class="table-state__copy">No leaderboard results for this filter yet. "Today" is a CST time window, and Game Type controls Daily Challenge vs Random Drop.</p>
 			</div>
 		{:else}
 			<div class="lb-columns" aria-hidden="true">

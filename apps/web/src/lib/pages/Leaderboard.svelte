@@ -25,6 +25,7 @@ $: leaderboard = createQuery({
 		{
 			timeframe: view.timeframe,
 			mode: view.mode,
+			gameType: view.gameType,
 			limit: view.limit,
 			offset: view.offset,
 		},
@@ -49,8 +50,10 @@ $: currentUserName = $user.data?.name ?? "";
 				<LeaderboardFilters
 					timeframe={view.timeframe}
 					mode={view.mode}
+					gameType={view.gameType}
 					onTimeframeChange={viewStore.setTimeframe}
 					onModeChange={viewStore.setMode}
+					onGameTypeChange={viewStore.setGameType}
 				/>
 			</div>
 		</PageHeader>

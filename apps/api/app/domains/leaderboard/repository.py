@@ -10,6 +10,7 @@ class ILeaderboardRepository(Protocol):
     async def get_leaderboard_page(
         self,
         mode: str,
+        game_type: str,
         start: datetime | None,
         end: datetime | None,
         limit: int,
@@ -20,6 +21,7 @@ class ILeaderboardRepository(Protocol):
         self,
         user_id: str,
         mode: str,
+        game_type: str,
         start: datetime | None,
         end: datetime | None,
     ) -> dict | None: ...
@@ -31,6 +33,7 @@ class ILeaderboardRepository(Protocol):
         total_points: int,
         games_played: int,
         mode: str,
+        game_type: str,
         start: datetime | None,
         end: datetime | None,
     ) -> int: ...
@@ -38,6 +41,7 @@ class ILeaderboardRepository(Protocol):
     async def get_entries_by_offset(
         self,
         mode: str,
+        game_type: str,
         start: datetime | None,
         end: datetime | None,
         offset: int,
@@ -53,10 +57,15 @@ class LeaderboardRepository:
 
     def _build_base_match(
         self,
+        game_type: str,
         start: datetime | None,
         end: datetime | None,
     ) -> dict:
         match: dict = {"status": "completed"}
+        if game_type == "daily":
+            match["mode.daily"] = True
+        elif game_type == "random":
+            match["mode.daily"] = False
         if start and end:
             match["created_at"] = {"$gte": start, "$lt": end}
         elif start:
@@ -119,10 +128,13 @@ class LeaderboardRepository:
     def _build_round_pipeline(
         self,
         mode: str,
+        game_type: str,
         start: datetime | None,
         end: datetime | None,
     ) -> list[dict]:
-        pipeline: list[dict] = [{"$match": self._build_base_match(start, end)}]
+        pipeline: list[dict] = [
+            {"$match": self._build_base_match(game_type, start, end)}
+        ]
         pipeline.extend(self._unwind_and_filter_rounds())
         if mode != "all":
             pipeline.extend(self._env_lookup_stages(mode))
@@ -170,13 +182,14 @@ class LeaderboardRepository:
     async def get_leaderboard_page(
         self,
         mode: str,
+        game_type: str,
         start: datetime | None,
         end: datetime | None,
         limit: int,
         offset: int,
     ) -> tuple[list[dict], int]:
         pipeline = [
-            *self._build_round_pipeline(mode, start, end),
+            *self._build_round_pipeline(mode, game_type, start, end),
             self._sort_stage(),
             {
                 "$facet": {
@@ -203,13 +216,14 @@ class LeaderboardRepository:
     async def get_entries_by_offset(
         self,
         mode: str,
+        game_type: str,
         start: datetime | None,
         end: datetime | None,
         offset: int,
         limit: int,
     ) -> list[dict]:
         pipeline = [
-            *self._build_round_pipeline(mode, start, end),
+            *self._build_round_pipeline(mode, game_type, start, end),
             self._sort_stage(),
             {"$skip": offset},
             {"$limit": limit},
@@ -222,11 +236,12 @@ class LeaderboardRepository:
         self,
         user_id: str,
         mode: str,
+        game_type: str,
         start: datetime | None,
         end: datetime | None,
     ) -> dict | None:
         pipeline = [
-            *self._build_round_pipeline(mode, start, end),
+            *self._build_round_pipeline(mode, game_type, start, end),
             {"$match": {"_id": user_id}},
             *self._lookup_user_stage(),
         ]
@@ -241,6 +256,7 @@ class LeaderboardRepository:
         total_points: int,
         games_played: int,
         mode: str,
+        game_type: str,
         start: datetime | None,
         end: datetime | None,
     ) -> int:
@@ -265,7 +281,7 @@ class LeaderboardRepository:
             ]
         }
         pipeline = [
-            *self._build_round_pipeline(mode, start, end),
+            *self._build_round_pipeline(mode, game_type, start, end),
             {"$match": ahead_match},
             {"$count": "ahead"},
         ]
