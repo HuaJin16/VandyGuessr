@@ -85,9 +85,9 @@ function groupByLocation(items: TourImageItem[]): LocationGroup[] {
 }
 
 function filterLocations(groups: LocationGroup[], search: string): LocationGroup[] {
-	const query = search.trim().toLocaleLowerCase();
+	const query = search.trim().toLowerCase();
 	if (!query) return groups;
-	return groups.filter((group) => group.name.toLocaleLowerCase().includes(query));
+	return groups.filter((group) => group.name.toLowerCase().includes(query));
 }
 
 function goToLocation(group: LocationGroup) {
@@ -142,8 +142,6 @@ onMount(() => {
 		map?.invalidateSize();
 	});
 	resizeObserver.observe(mapContainer);
-
-	if (visibleLocations.length > 0) renderMarkers(visibleLocations);
 });
 
 onDestroy(() => {
@@ -559,7 +557,7 @@ onDestroy(() => {
 
 	@media (min-width: 1024px) {
 		.tour-layout {
-			grid-template-columns: 1fr 420px;
+			grid-template-columns: minmax(0, 1fr) 420px;
 		}
 	}
 </style>
