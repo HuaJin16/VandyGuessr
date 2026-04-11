@@ -170,8 +170,6 @@ onMount(() => {
 		map?.invalidateSize();
 	});
 	resizeObserver.observe(mapContainer);
-
-	if (markers.length > 0) renderMarkers(markers);
 });
 
 onDestroy(() => {
