@@ -175,9 +175,9 @@ async def test_enqueue_submission_stops_on_unreadable_file() -> None:
     repository.create.assert_not_awaited()
 
 
-def _submission_job_service() -> (
-    tuple[SubmissionJobService, AsyncMock, AsyncMock, AsyncMock]
-):
+def _submission_job_service() -> tuple[
+    SubmissionJobService, AsyncMock, AsyncMock, AsyncMock
+]:
     image_service = AsyncMock()
     image_service._validate_file = Mock()
     image_service.extract_upload_metadata = Mock()
