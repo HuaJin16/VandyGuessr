@@ -7,6 +7,7 @@ import { getAuthToken } from "$lib/shared/auth/token";
 import type {
 	PendingSubmissionItem,
 	SubmissionJobAcceptedResponse,
+	SubmissionJobStatusResponse,
 	TourEnvironment,
 	TourImageItem,
 	UploadEnvironment,
@@ -35,6 +36,23 @@ export const imagesService = {
 			throw new Error(typeof data.detail === "string" ? data.detail : "Upload failed");
 		}
 		return data as SubmissionJobAcceptedResponse;
+	},
+
+	getSubmissionStatus: async (jobId: string): Promise<SubmissionJobStatusResponse> => {
+		const token = await getAuthToken();
+		const url = `${apiBase()}/v1/images/submissions/${jobId}`;
+		const res = await fetch(url, {
+			headers: token ? { Authorization: `Bearer ${token}` } : {},
+		});
+		const data = (await res.json().catch(() => ({}))) as {
+			detail?: string;
+		} & Partial<SubmissionJobStatusResponse>;
+		if (!res.ok) {
+			throw new Error(
+				typeof data.detail === "string" ? data.detail : "Could not fetch upload status",
+			);
+		}
+		return data as SubmissionJobStatusResponse;
 	},
 
 	listPendingModeration: () =>

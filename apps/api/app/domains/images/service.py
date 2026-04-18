@@ -2,7 +2,7 @@
 
 import asyncio
 import contextlib
-import uuid
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -19,9 +19,8 @@ from app.domains.locations.service import LocationService
 from app.shared.exif import extract_metadata
 from app.shared.image_compression import compress_original_image, extension_for_format
 from app.shared.image_thumbnails import generate_thumbnail_image
-from app.shared.panorama_tiling import generate_panorama_tiles
 from app.shared.s3 import upload_bytes
-from app.shared.tile_upload import upload_tile_artifacts
+from app.shared.tile_upload import upload_panorama_tiles
 
 logger = structlog.get_logger()
 
@@ -44,6 +43,13 @@ class ImageService:
         "image/heic",
         "image/heif",
     }
+    HEIC_CONTENT_TYPES = {
+        "image/heic",
+        "image/heif",
+        "image/heic-sequence",
+        "image/heif-sequence",
+    }
+    HEIC_FALLBACK_CONTENT_TYPES = {"application/octet-stream"}
 
     def __init__(
         self,
@@ -53,25 +59,61 @@ class ImageService:
         self.image_repository = image_repository
         self.location_service = location_service
 
+    @classmethod
+    def _file_extension(cls, filename: str | None) -> str:
+        filename = filename or ""
+        if "." not in filename:
+            return ""
+        return f".{filename.rsplit('.', 1)[-1].lower()}"
+
+    @staticmethod
+    def _normalize_content_type(content_type: str | None) -> str | None:
+        if not content_type:
+            return None
+        normalized = content_type.split(";", 1)[0].strip().lower()
+        return normalized or None
+
     def _validate_file(
         self, filename: str | None, content_type: str | None, file_size: int
-    ) -> None:
+    ) -> str | None:
         """Validate file extension, content type, and size."""
         settings = get_settings()
 
         # Validate extension
-        filename = filename or ""
-        extension = f".{filename.rsplit('.', 1)[-1].lower()}" if "." in filename else ""
+        extension = self._file_extension(filename)
         if extension not in self.ALLOWED_EXTENSIONS:
             raise ImageUploadError("Unsupported file extension")
 
         # Validate content type
-        if content_type and content_type not in self.ALLOWED_CONTENT_TYPES:
-            raise ImageUploadError("Unsupported content type")
+        normalized_content_type = self._normalize_content_type(content_type)
+        if extension == ".heic":
+            if (
+                normalized_content_type in self.HEIC_CONTENT_TYPES
+                or normalized_content_type in self.HEIC_FALLBACK_CONTENT_TYPES
+                or normalized_content_type is None
+            ):
+                effective_content_type = "image/heic"
+            else:
+                raise ImageUploadError("Unsupported content type")
+        else:
+            if (
+                normalized_content_type
+                and normalized_content_type not in self.ALLOWED_CONTENT_TYPES
+            ):
+                raise ImageUploadError("Unsupported content type")
+            effective_content_type = normalized_content_type
 
         # Validate size
         if file_size > settings.upload_max_bytes:
             raise ImageUploadError("File exceeds maximum size")
+
+        return effective_content_type
+
+    def extract_upload_metadata(self, file_bytes: bytes) -> dict[str, object]:
+        try:
+            return extract_metadata(file_bytes)
+        except Exception as exc:
+            raise ImageUploadError("Could not read this file") from exc
 
     def _validate_image_geometry(self, width: int | None, height: int | None) -> None:
         """Validate image dimensions before expensive processing."""
@@ -100,6 +142,8 @@ class ImageService:
         *,
         moderation_status: Literal["approved", "pending"] = "approved",
         submitted_by_user_id: str | None = None,
+        asset_id: str,
+        progress_callback: Callable[[str], Awaitable[None]] | None = None,
     ) -> ImageUploadResult:
         """Upload a single image to S3 and persist metadata to MongoDB.
 
@@ -112,12 +156,23 @@ class ImageService:
         Returns:
             ImageUploadResult with success/failure info
         """
+
+        async def report_progress(stage: str) -> None:
+            if progress_callback is None:
+                return
+            with contextlib.suppress(Exception):
+                await progress_callback(stage)
+
         try:
+            await report_progress("validating_image")
+
             # Validate file
-            self._validate_file(filename, content_type, len(file_bytes))
+            effective_content_type = self._validate_file(
+                filename, content_type, len(file_bytes)
+            )
 
             # Extract EXIF metadata
-            metadata = extract_metadata(file_bytes)
+            metadata = self.extract_upload_metadata(file_bytes)
             self._validate_image_geometry(metadata.get("width"), metadata.get("height"))
             latitude = metadata.get("latitude")
             longitude = metadata.get("longitude")
@@ -125,19 +180,10 @@ class ImageService:
             if latitude is None or longitude is None:
                 raise ImageUploadError("Image is missing GPS EXIF data")
 
-            asset_id = str(uuid.uuid4())
+            await report_progress("generating_tiles")
+            tiles = await upload_panorama_tiles(asset_id, file_bytes)
 
-            tile_artifacts = await asyncio.to_thread(
-                generate_panorama_tiles, file_bytes
-            )
-            tile_gps = extract_metadata(tile_artifacts.base_image)
-            if tile_gps.get("latitude") is None or tile_gps.get("longitude") is None:
-                raise ImageUploadError(
-                    "Generated base panorama is missing GPS EXIF data"
-                )
-
-            tiles = await upload_tile_artifacts(asset_id, tile_artifacts)
-
+            await report_progress("generating_thumbnail")
             thumbnail_bytes = await asyncio.to_thread(
                 generate_thumbnail_image,
                 file_bytes,
@@ -148,12 +194,13 @@ class ImageService:
                 "image/jpeg",
             )
 
+            await report_progress("compressing_original")
             compression_result = await asyncio.to_thread(
                 compress_original_image,
                 file_bytes,
-                content_type,
+                effective_content_type,
             )
-            compression_gps = extract_metadata(compression_result.data)
+            compression_gps = self.extract_upload_metadata(compression_result.data)
             if (
                 compression_gps.get("latitude") is None
                 or compression_gps.get("longitude") is None
@@ -175,11 +222,12 @@ class ImageService:
                     (metadata.get("format") or "").lower()
                 )
                 upload_bytes_payload = file_bytes
-                upload_content_type = content_type
+                upload_content_type = effective_content_type
 
             key = f"images/{asset_id}{file_extension}"
 
             # Upload to S3
+            await report_progress("uploading_original")
             url = await upload_bytes(
                 key,
                 upload_bytes_payload,
@@ -193,6 +241,7 @@ class ImageService:
                     timestamp = datetime.fromisoformat(metadata["timestamp"])
 
             # Resolve campus location from coordinates
+            await report_progress("resolving_location")
             location_name = await self.location_service.resolve_location_name(
                 latitude, longitude
             )
@@ -230,6 +279,7 @@ class ImageService:
             )
 
             # Persist to MongoDB
+            await report_progress("persisting_image")
             image_id = await self.image_repository.create(image)
 
             if moderation_status == "pending":

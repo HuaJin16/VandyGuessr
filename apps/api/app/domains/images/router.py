@@ -11,7 +11,10 @@ from fastapi.responses import HTMLResponse
 from app.config import get_settings
 from app.container import deps
 from app.domains.images.service import ImageUploadError
-from app.domains.images.submission_job_models import SubmissionJobStatusResponse
+from app.domains.images.submission_job_models import (
+    SubmissionJobAcceptedResponse,
+    SubmissionJobStatusResponse,
+)
 from app.domains.images.submission_job_service import SubmissionJobService
 
 logger = structlog.get_logger()
@@ -32,6 +35,54 @@ def _require_code(code: str | None) -> None:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid upload code",
         )
+
+
+async def _enqueue_uploaded_file(
+    service: SubmissionJobService,
+    file: UploadFile,
+    environment: Literal["indoor", "outdoor"],
+) -> SubmissionJobAcceptedResponse:
+    file_bytes = await file.read()
+    return await service.enqueue_submission(
+        file_bytes=file_bytes,
+        filename=file.filename,
+        content_type=file.content_type,
+        environment=environment,
+        moderation_status="approved",
+        submitted_by_user_id=None,
+    )
+
+
+async def _enqueue_uploaded_files(
+    service: SubmissionJobService,
+    files: list[UploadFile],
+    environment: Literal["indoor", "outdoor"],
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    queued_items: list[dict[str, str]] = []
+    failed_items: list[dict[str, str]] = []
+
+    for file in files:
+        try:
+            job = await _enqueue_uploaded_file(service, file, environment)
+            queued_items.append(
+                {
+                    "filename": file.filename or "Unknown",
+                    "job_id": job.jobId,
+                }
+            )
+        except ImageUploadError as exc:
+            failed_items.append(
+                {"filename": file.filename or "Unknown", "error": exc.message}
+            )
+        except Exception:
+            failed_items.append(
+                {
+                    "filename": file.filename or "Unknown",
+                    "error": "An unexpected error occurred",
+                }
+            )
+
+    return queued_items, failed_items
 
 
 def _build_upload_form_html(environment: str) -> str:
@@ -109,6 +160,48 @@ def _build_upload_form_html(environment: str) -> str:
             color: #666;
             margin-top: 1rem;
         }}
+        .status-panel {{
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 1rem;
+        }}
+        .status-summary {{
+            margin: 0 0 0.75rem 0;
+            font-weight: 600;
+        }}
+        .status-progress {{
+            width: 100%;
+            height: 12px;
+        }}
+        .result-list {{
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0 0 0;
+        }}
+        .result-item {{
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }}
+        .result-item:last-child {{
+            border-bottom: none;
+        }}
+        .result-item.success {{
+            color: #2e7d32;
+        }}
+        .result-item.failed {{
+            color: #c62828;
+        }}
+        .result-item.processing {{
+            color: #1565c0;
+        }}
+        .result-item.queued {{
+            color: #6d4c41;
+        }}
+        small {{
+            color: #666;
+        }}
     </style>
 </head>
 <body>
@@ -130,16 +223,240 @@ def _build_upload_form_html(environment: str) -> str:
         <button type="submit" id="submit-btn">Upload Photos</button>
     </form>
 
+    <div class="status-panel" id="status-panel" hidden>
+        <p class="status-summary" id="status-summary">Ready to queue photos.</p>
+        <progress class="status-progress" id="status-progress" value="0" max="1"></progress>
+        <ul class="result-list" id="result-list"></ul>
+    </div>
+
     <p class="hint">
         Photos must have GPS location data (EXIF). Most iPhone/Android photos include this automatically.
     </p>
 
+    <p class="hint">
+        This page queues photos one at a time and then polls job progress until processing completes or fails.
+    </p>
+
     <script>
         const form = document.querySelector('form');
+        const fileInput = document.getElementById('files');
         const btn = document.getElementById('submit-btn');
-        form.addEventListener('submit', () => {{
+        const statusPanel = document.getElementById('status-panel');
+        const statusSummary = document.getElementById('status-summary');
+        const progress = document.getElementById('status-progress');
+        const results = document.getElementById('result-list');
+
+        function sleep(ms) {{
+            return new Promise((resolve) => window.setTimeout(resolve, ms));
+        }}
+
+        function stageLabel(status, processingStage) {{
+            if (status === 'queued') return 'Queued for worker pickup.';
+            if (status === 'completed') return 'Fully processed and ready for play.';
+            if (status === 'failed') return 'Processing failed.';
+            switch (processingStage) {{
+                case 'claimed':
+                    return 'Worker claimed job.';
+                case 'downloading_temp':
+                    return 'Downloading upload from temporary storage.';
+                case 'validating_image':
+                    return 'Validating panorama metadata.';
+                case 'generating_tiles':
+                    return 'Generating progressive panorama tiles.';
+                case 'generating_thumbnail':
+                    return 'Generating thumbnail preview.';
+                case 'compressing_original':
+                    return 'Compressing stored original.';
+                case 'uploading_original':
+                    return 'Uploading processed original.';
+                case 'resolving_location':
+                    return 'Resolving campus location name.';
+                case 'persisting_image':
+                    return 'Persisting final image metadata.';
+                case 'finalizing':
+                    return 'Finalizing submission record.';
+                default:
+                    return 'Processing panorama.';
+            }}
+        }}
+
+        function rowTone(status) {{
+            if (status === 'completed') return 'success';
+            if (status === 'failed') return 'failed';
+            if (status === 'processing') return 'processing';
+            return 'queued';
+        }}
+
+        function updateSummary() {{
+            const items = Array.from(results.querySelectorAll('.result-item'));
+            if (items.length === 0) {{
+                statusSummary.textContent = 'Ready to queue photos.';
+                return;
+            }}
+
+            let queued = 0;
+            let processing = 0;
+            let completed = 0;
+            let failed = 0;
+
+            items.forEach((item) => {{
+                switch (item.dataset.status) {{
+                    case 'completed':
+                        completed += 1;
+                        break;
+                    case 'failed':
+                        failed += 1;
+                        break;
+                    case 'processing':
+                        processing += 1;
+                        break;
+                    default:
+                        queued += 1;
+                        break;
+                }}
+            }});
+
+            statusSummary.textContent =
+                'Jobs: ' +
+                completed +
+                ' completed, ' +
+                processing +
+                ' processing, ' +
+                queued +
+                ' queued, ' +
+                failed +
+                ' failed.';
+        }}
+
+        function appendResult(filename, detail, status, extra) {{
+            const item = document.createElement('li');
+            item.className = 'result-item ' + rowTone(status);
+            item.dataset.status = status;
+
+            const name = document.createElement('strong');
+            name.textContent = filename;
+
+            const copy = document.createElement('small');
+            copy.textContent = detail;
+            copy.className = 'result-detail';
+
+            item.appendChild(name);
+            if (extra) {{
+                const extraNode = document.createElement('small');
+                extraNode.textContent = extra;
+                extraNode.style.display = 'block';
+                item.appendChild(document.createElement('br'));
+                item.appendChild(extraNode);
+            }}
+            item.appendChild(document.createElement('br'));
+            item.appendChild(copy);
+            results.appendChild(item);
+            updateSummary();
+            return item;
+        }}
+
+        function updateResult(item, detail, status) {{
+            item.dataset.status = status;
+            item.className = 'result-item ' + rowTone(status);
+            const detailNode = item.querySelector('.result-detail');
+            if (detailNode) detailNode.textContent = detail;
+            updateSummary();
+        }}
+
+        async function pollJob(uploadPath, query, jobId, item) {{
+            while (true) {{
+                try {{
+                    const statusUrl = uploadPath + '/jobs/' + encodeURIComponent(jobId) + '?' + query.toString();
+                    const response = await fetch(statusUrl);
+                    const payload = await response.json().catch(() => ({{}}));
+                    if (!response.ok) {{
+                        throw new Error(typeof payload.detail === 'string' ? payload.detail : 'Could not fetch job status');
+                    }}
+
+                    const detail = payload.status === 'failed' && payload.error
+                        ? payload.error
+                        : stageLabel(payload.status, payload.processingStage);
+                    updateResult(item, detail, payload.status);
+
+                    if (payload.status === 'completed' || payload.status === 'failed') {{
+                        return;
+                    }}
+                }} catch (error) {{
+                    updateResult(
+                        item,
+                        error instanceof Error ? error.message : 'Could not refresh status yet.',
+                        item.dataset.status || 'queued'
+                    );
+                }}
+
+                await sleep(2000);
+            }}
+        }}
+
+        form.addEventListener('submit', async (event) => {{
+            if (!window.fetch || !window.FormData) return;
+
+            const files = Array.from(fileInput.files || []);
+            if (files.length === 0) return;
+
+            event.preventDefault();
+
+            const query = new URLSearchParams(window.location.search);
+            const uploadPath = window.location.pathname.endsWith('/')
+                ? window.location.pathname.slice(0, -1)
+                : window.location.pathname;
+            const uploadUrl = uploadPath + '/jobs?' + query.toString();
+
             btn.disabled = true;
+            fileInput.disabled = true;
             btn.textContent = 'Queueing...';
+            statusPanel.hidden = false;
+            results.innerHTML = '';
+            progress.max = files.length;
+            progress.value = 0;
+
+            const polls = [];
+
+            for (let index = 0; index < files.length; index += 1) {{
+                const file = files[index];
+                const body = new FormData();
+                body.append('file', file, file.name);
+
+                try {{
+                    const response = await fetch(uploadUrl, {{
+                        method: 'POST',
+                        body,
+                    }});
+                    const payload = await response.json().catch(() => ({{}}));
+                    if (!response.ok) {{
+                        throw new Error(
+                            typeof payload.detail === 'string' ? payload.detail : 'Upload failed'
+                        );
+                    }}
+
+                    const row = appendResult(
+                        file.name,
+                        'Queued for background processing.',
+                        'queued',
+                        'Job ' + payload.jobId
+                    );
+                    polls.push(pollJob(uploadPath, query, payload.jobId, row));
+                }} catch (error) {{
+                    appendResult(
+                        file.name,
+                        error instanceof Error ? error.message : 'Upload failed',
+                        'failed'
+                    );
+                }}
+
+                progress.value = index + 1;
+            }}
+
+            await Promise.all(polls);
+
+            btn.disabled = false;
+            fileInput.disabled = false;
+            btn.textContent = 'Upload Photos';
         }});
     </script>
 </body>
@@ -403,31 +720,11 @@ async def upload_images(
             status_code=400,
         )
 
-    queued_items: list[dict[str, str]] = []
-    failed_items: list[dict[str, str]] = []
-    for file in files:
-        file_bytes = await file.read()
-        try:
-            await service.enqueue_submission(
-                file_bytes=file_bytes,
-                filename=file.filename,
-                content_type=file.content_type,
-                environment=environment,
-                moderation_status="approved",
-                submitted_by_user_id=None,
-            )
-            queued_items.append({"filename": file.filename or "Unknown"})
-        except ImageUploadError as exc:
-            failed_items.append(
-                {"filename": file.filename or "Unknown", "error": exc.message}
-            )
-        except Exception:
-            failed_items.append(
-                {
-                    "filename": file.filename or "Unknown",
-                    "error": "An unexpected error occurred",
-                }
-            )
+    queued_items, failed_items = await _enqueue_uploaded_files(
+        service,
+        files,
+        environment,
+    )
 
     return HTMLResponse(
         content=_build_result_html(
@@ -439,6 +736,34 @@ async def upload_images(
             code=code or "",
         )
     )
+
+
+@router.post(
+    "/upload/jobs",
+    response_model=SubmissionJobAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def queue_upload_job(
+    code: str | None = Query(default=None),
+    environment: Literal["indoor", "outdoor"] | None = Query(default=None),
+    file: UploadFile = File(...),
+    service: SubmissionJobService = deps(SubmissionJobService),
+) -> SubmissionJobAcceptedResponse:
+    _require_code(code)
+
+    if environment is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing environment parameter. Use environment=indoor or environment=outdoor.",
+        )
+
+    try:
+        return await _enqueue_uploaded_file(service, file, environment)
+    except ImageUploadError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=exc.message,
+        ) from exc
 
 
 @router.get("/upload/jobs/{job_id}", response_model=SubmissionJobStatusResponse)

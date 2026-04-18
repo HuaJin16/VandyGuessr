@@ -21,8 +21,12 @@ class SubmissionJobStatusResponse(BaseModel):
     filename: str | None = None
     environment: Literal["indoor", "outdoor"]
     error: str | None = None
+    attempts: int = 0
+    processingStage: str | None = None
     imageId: str | None = None
     imageUrl: str | None = None
     createdAt: datetime
     startedAt: datetime | None = None
+    heartbeatAt: datetime | None = None
     completedAt: datetime | None = None
+    updatedAt: datetime

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { imagesService } from "$lib/domains/images/api/images.service";
 import { preflightUploadFile } from "$lib/domains/images/exifPreflight";
 import { submitUploadBatch } from "$lib/domains/images/submissionFlow";
 import type {
@@ -33,12 +34,81 @@ let submitProgressCurrent = 0;
 let submitProgressTotal = 0;
 let batchSummary: BatchSubmissionSummary | null = null;
 let selectionRunId = 0;
+let jobTrackingRunId = 0;
 
 let fileInput: HTMLInputElement;
 
 $: readyFiles = selectedFiles.filter((item) => item.preflightOk === true);
 $: rejectedFiles = selectedFiles.filter((item) => item.preflightOk === false);
 $: canSubmit = !preflightPending && !submitting && readyFiles.length > 0;
+$: trackedJobs = batchSummary?.jobs ?? [];
+$: trackedQueued = trackedJobs.filter((job) => job.status === "queued").length;
+$: trackedProcessing = trackedJobs.filter((job) => job.status === "processing").length;
+$: trackedCompleted = trackedJobs.filter((job) => job.status === "completed").length;
+$: trackedFailed = trackedJobs.filter((job) => job.status === "failed").length;
+$: totalBatchFailures = (batchSummary?.failures.length ?? 0) + trackedFailed;
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function stageLabel(status: string, processingStage: string | null, error: string): string {
+	if (status === "failed") return error || "Processing failed.";
+	if (status === "completed") return "Fully processed and waiting for review.";
+	if (status === "queued") return "Queued for worker pickup.";
+	if (processingStage === "claimed") return "Worker claimed the upload.";
+	if (processingStage === "downloading_temp") return "Downloading the temporary upload.";
+	if (processingStage === "validating_image") return "Validating panorama metadata.";
+	if (processingStage === "generating_tiles") return "Generating progressive panorama tiles.";
+	if (processingStage === "generating_thumbnail") return "Generating the thumbnail preview.";
+	if (processingStage === "compressing_original") return "Compressing the stored original.";
+	if (processingStage === "uploading_original") return "Uploading the processed original.";
+	if (processingStage === "resolving_location") return "Resolving the nearest campus location.";
+	if (processingStage === "persisting_image") return "Persisting final image metadata.";
+	if (processingStage === "finalizing") return "Finalizing the submission record.";
+	return "Processing panorama.";
+}
+
+function updateTrackedJob(
+	runId: number,
+	jobId: string,
+	updater: (job: BatchSubmissionSummary["jobs"][number]) => BatchSubmissionSummary["jobs"][number],
+) {
+	if (jobTrackingRunId !== runId || batchSummary === null) return;
+	batchSummary = {
+		...batchSummary,
+		jobs: batchSummary.jobs.map((job) => (job.jobId === jobId ? updater(job) : job)),
+	};
+}
+
+async function pollJobStatus(runId: number, jobId: string) {
+	while (jobTrackingRunId === runId) {
+		try {
+			const status = await imagesService.getSubmissionStatus(jobId);
+			updateTrackedJob(runId, jobId, (job) => ({
+				...job,
+				status: status.status,
+				processingStage: status.processingStage,
+				attempts: status.attempts,
+				error: status.error ?? "",
+			}));
+
+			if (status.status === "completed" || status.status === "failed") return;
+		} catch (error) {
+			updateTrackedJob(runId, jobId, (job) => ({
+				...job,
+				error: error instanceof Error ? error.message : "Could not refresh upload status.",
+			}));
+		}
+
+		await sleep(2000);
+	}
+}
+
+async function trackBatchJobs(summary: BatchSubmissionSummary) {
+	const runId = ++jobTrackingRunId;
+	await Promise.all(summary.jobs.map((job) => pollJobStatus(runId, job.jobId)));
+}
 
 function pluralizePhoto(count: number): string {
 	return `${count} photo${count === 1 ? "" : "s"}`;
@@ -48,6 +118,7 @@ async function onFileSelected(event: Event) {
 	const input = event.currentTarget as HTMLInputElement;
 	const files = Array.from(input.files ?? []);
 	const runId = ++selectionRunId;
+	jobTrackingRunId += 1;
 	batchSummary = null;
 	submitProgressCurrent = 0;
 	submitProgressTotal = 0;
@@ -94,7 +165,7 @@ async function submit() {
 
 	try {
 		const filesToSubmit = [...selectedFiles];
-		batchSummary = await submitUploadBatch({
+		const summary = await submitUploadBatch({
 			items: filesToSubmit,
 			environment,
 			onProgress: ({ current, total }) => {
@@ -102,11 +173,13 @@ async function submit() {
 				submitProgressTotal = total;
 			},
 		});
+		batchSummary = summary;
+		void trackBatchJobs(summary);
 
-		if (batchSummary.failed === 0) {
-			toast.success(`Thanks — ${pluralizePhoto(batchSummary.queued)} queued for processing.`);
-		} else if (batchSummary.queued > 0) {
-			toast.warning(`${batchSummary.queued} queued, ${batchSummary.failed} failed.`);
+		if (summary.failed === 0) {
+			toast.success(`Thanks - ${pluralizePhoto(summary.queued)} queued for processing.`);
+		} else if (summary.queued > 0) {
+			toast.warning(`${summary.queued} queued, ${summary.failed} failed.`);
 		} else {
 			toast.error("No photos were queued. See details below.");
 		}
@@ -225,7 +298,7 @@ onDestroy(unsub);
 				{#if batchSummary}
 					<Card tone="subtle" class="result-card">
 						<p class="result-card__title">
-							Queueing complete: {batchSummary.queued} queued, {batchSummary.failed} failed out of {batchSummary.total}.
+							Upload jobs: {trackedCompleted} completed, {trackedProcessing} processing, {trackedQueued} queued, {totalBatchFailures} failed out of {batchSummary.total}.
 						</p>
 						{#if batchSummary.failures.length > 0}
 							<ul class="result-list">
@@ -233,6 +306,16 @@ onDestroy(unsub);
 									<li>
 										<span>{failure.filename}</span>
 										{failure.reason}
+									</li>
+								{/each}
+							</ul>
+						{/if}
+						{#if batchSummary.jobs.length > 0}
+							<ul class="result-list result-list--jobs">
+								{#each batchSummary.jobs as job (job.jobId)}
+									<li>
+										<span>{job.filename}</span>
+										{job.status}: {stageLabel(job.status, job.processingStage, job.error)}
 									</li>
 								{/each}
 							</ul>
@@ -441,6 +524,10 @@ onDestroy(unsub);
 		font-size: 14px;
 		line-height: 1.55;
 		color: var(--muted);
+	}
+
+	.result-list--jobs {
+		margin-top: 12px;
 	}
 
 	.result-list span {

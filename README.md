@@ -143,7 +143,7 @@ VandyGuessr requires 360-degree campus photos with GPS EXIF data.
 
 Students signed in through the web app can upload from **Upload** in the nav or the home page card. Submissions are stored as **pending** until someone on the `REVIEWER_EMAIL_ALLOWLIST` approves them in the **Review** UI. Set that env var to a comma-separated list of `@vanderbilt.edu` addresses (see `apps/api/.env.example`). The API also exposes `can_review_submissions` on `GET /v1/users/me` for the frontend.
 
-Uploads are queued and processed asynchronously. In local development, run `uv run python -m app.workers.image_submission_worker` from `apps/api/` if you want crowd uploads or operator uploads to complete.
+Uploads are queued and processed asynchronously. In local development, run `uv run python -m app.workers.image_submission_worker` from `apps/api/` if you want crowd uploads or operator uploads to complete. The worker uses lease-based job recovery, so stale `processing` jobs can be reclaimed after crashes instead of remaining stuck forever.
 
 ### Operator upload URLs (secret code)
 
@@ -163,9 +163,9 @@ Share these links with trusted bulk contributors (replace `YOUR_SECRET_CODE` wit
 1. Open the upload link on your phone
 2. Select one or more photos (or take a new photo)
 3. Tap "Upload Photos"
-4. View results showing which uploads succeeded and their GPS coordinates
+4. View per-photo queue and processing status until each panorama is completed or failed
 
-Images are stored in DigitalOcean Spaces (S3-compatible) and metadata is persisted to MongoDB for use in games.
+Images are stored in DigitalOcean Spaces (S3-compatible) and metadata is persisted to MongoDB for use in games. A panorama is not inserted into the playable image pool until tiling, thumbnail generation, compression, location resolution, and final metadata persistence all succeed.
 
 Each upload also generates a tiled panorama pyramid (base image + progressive tiles) so gameplay can load quickly and stream detail as players pan/zoom. Tiling preserves source panorama geometry (including wide iPhone panoramas) using stored pano crop/full metadata. Existing images can be backfilled with:
 
