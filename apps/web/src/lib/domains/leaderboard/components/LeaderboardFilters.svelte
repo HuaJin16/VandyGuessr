@@ -80,9 +80,7 @@ export let onGameTypeChange: (value: LeaderboardGameType) => void;
 
 <style>
 	.filters {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: flex-end;
+		display: grid;
 		gap: 14px;
 	}
 
@@ -98,5 +96,13 @@ export let onGameTypeChange: (value: LeaderboardGameType) => void;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--muted);
+	}
+
+	@media (min-width: 1024px) {
+		.filters {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: flex-end;
+		}
 	}
 </style>

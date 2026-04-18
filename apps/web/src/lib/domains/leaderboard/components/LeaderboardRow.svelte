@@ -171,11 +171,25 @@ function rankBgClass(rank: number): string {
 		pointer-events: none;
 	}
 
-	@media (max-width: 560px) {
+	@media (max-width: 640px) {
 		.lb-row {
 			grid-template-columns: 28px 32px minmax(0, 1fr) auto;
 			gap: 10px;
 			padding: 14px 14px;
+		}
+
+		.avatar {
+			width: 32px;
+			height: 32px;
+			font-size: 11px;
+		}
+
+		.player-name {
+			font-size: 14px;
+		}
+
+		.player-score {
+			font-size: 14px;
 		}
 
 		.player-games {

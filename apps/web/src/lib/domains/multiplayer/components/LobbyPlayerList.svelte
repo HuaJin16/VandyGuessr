@@ -281,9 +281,19 @@ function toggleReady() {
 			grid-template-columns: auto minmax(0, 1fr);
 		}
 
+		.player-avatar {
+			width: 36px;
+			height: 36px;
+		}
+
 		.player-badges {
 			grid-column: 2;
 			justify-content: flex-start;
+		}
+
+		.player-row :global(button) {
+			grid-column: 2;
+			justify-self: start;
 		}
 	}
 </style>

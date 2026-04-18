@@ -74,12 +74,12 @@ onDestroy(() => {
 	<div class="topbar">
 		<div class="topbar__slot">
 			{#if !isLastRound}
-				<button class="ghost" on:click={() => gameStore.toggleEndDialog()}>
+				<button class="ghost" aria-label="End game" on:click={() => gameStore.toggleEndDialog()}>
 					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 						<line x1="18" y1="6" x2="6" y2="18" />
 						<line x1="6" y1="6" x2="18" y2="18" />
 					</svg>
-					End Game
+					<span class="ghost-label">End Game</span>
 				</button>
 			{/if}
 		</div>
@@ -95,13 +95,24 @@ onDestroy(() => {
 		</div>
 
 		<div class="topbar__slot topbar__slot--end">
-			<button class="ghost" on:click={() => navigate("/", { replace: true })}>
-				Home
+			<button class="ghost" aria-label="Go home" on:click={() => navigate("/", { replace: true })}>
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M3 10.5L12 3l9 7.5" />
+					<path d="M5.5 9.5V21h13V9.5" />
+				</svg>
+				<span class="ghost-label">Home</span>
 			</button>
 		</div>
 	</div>
 
-	<MapAssembly position={$gameStore.guessPosition} disabled={$gameStore.submitting} onMapClick={handleMapClick} {onGuess} />
+	<div class="dock-slot">
+		<MapAssembly
+			position={$gameStore.guessPosition}
+			disabled={$gameStore.submitting}
+			onMapClick={handleMapClick}
+			{onGuess}
+		/>
+	</div>
 </main>
 
 {#if $gameStore.showEndDialog}
@@ -126,9 +137,10 @@ onDestroy(() => {
 		position: relative;
 		z-index: 2;
 		min-height: 100vh;
+		min-height: 100dvh;
 		display: grid;
-		grid-template-rows: auto 1fr;
-		padding: 12px;
+		grid-template-rows: auto minmax(0, 1fr) auto;
+		padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
 		gap: 10px;
 		pointer-events: none;
 	}
@@ -149,6 +161,13 @@ onDestroy(() => {
 
 	.topbar__slot--end {
 		justify-content: flex-end;
+	}
+
+	.dock-slot {
+		grid-row: 3;
+		display: flex;
+		align-items: flex-end;
+		pointer-events: none;
 	}
 
 	.hud-center {
@@ -172,6 +191,7 @@ onDestroy(() => {
 		gap: 8px;
 		cursor: pointer;
 		transition: background 120ms var(--ease);
+		min-height: 44px;
 	}
 
 	.ghost:hover {
@@ -183,11 +203,23 @@ onDestroy(() => {
 		box-shadow: var(--ring);
 	}
 
-	@media (min-width: 880px) {
+	.ghost-label {
+		display: none;
+	}
+
+	@media (min-width: 1024px) {
+		.ghost-label {
+			display: inline;
+		}
+	}
+
+	@media (min-width: 1024px) {
 		.shell {
 			padding: 16px;
+			padding-top: calc(16px + env(safe-area-inset-top));
+			padding-bottom: calc(16px + env(safe-area-inset-bottom));
 			grid-template-columns: 1fr 360px;
-			grid-template-rows: auto 1fr;
+			grid-template-rows: auto minmax(0, 1fr);
 			align-items: end;
 		}
 
@@ -195,18 +227,10 @@ onDestroy(() => {
 			grid-column: 1 / -1;
 			grid-row: 1;
 		}
-	}
 
-	@media (max-width: 560px) {
-		.topbar {
-			grid-template-columns: 1fr;
-			justify-items: center;
-		}
-
-		.topbar__slot,
-		.topbar__slot--end {
-			width: 100%;
-			justify-content: space-between;
+		.dock-slot {
+			grid-column: 2;
+			grid-row: 2;
 		}
 	}
 </style>

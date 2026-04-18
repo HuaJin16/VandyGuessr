@@ -41,7 +41,7 @@ function toggleExpanded() {
 				Tap the map to place a single pin. Accuracy determines your score.
 			{/if}
 		</p>
-		<Button class="w-full sm:w-auto" size="lg" disabled={!position || disabled} on:click={onGuess}>
+		<Button class="w-full lg:w-auto" size="lg" disabled={!position || disabled} on:click={onGuess}>
 			Lock Guess
 		</Button>
 	</div>
@@ -50,6 +50,7 @@ function toggleExpanded() {
 <style>
 	.dock {
 		width: 100%;
+		max-width: 100%;
 		pointer-events: auto;
 		display: grid;
 		gap: 12px;
@@ -97,11 +98,12 @@ function toggleExpanded() {
 		font-size: 12px;
 		font-weight: 700;
 		cursor: pointer;
+		display: none;
 	}
 
 	.map-wrapper {
 		position: relative;
-		height: 190px;
+		height: 180px;
 		border: 1px solid var(--line);
 		border-radius: var(--radius-md);
 		overflow: hidden;
@@ -109,7 +111,7 @@ function toggleExpanded() {
 	}
 
 	.dock.expanded .map-wrapper {
-		height: 320px;
+		height: 180px;
 	}
 
 	.dock-footer {
@@ -123,15 +125,24 @@ function toggleExpanded() {
 		color: var(--muted);
 	}
 
-	@media (min-width: 880px) {
+	@media (min-width: 1024px) {
 		.dock {
-			grid-column: 2;
-			grid-row: 2;
-			align-self: end;
+			padding: 16px;
+			gap: 14px;
+		}
+
+		.dock-toggle {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
 		}
 
 		.map-wrapper {
 			height: 220px;
+		}
+
+		.dock.expanded .map-wrapper {
+			height: 320px;
 		}
 	}
 </style>

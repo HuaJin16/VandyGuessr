@@ -385,13 +385,15 @@ onDestroy(() => {
 <style>
 	.lobby-actions-top {
 		display: flex;
-		justify-content: flex-end;
+		justify-content: stretch;
 	}
 
 	.status-indicator {
 		display: inline-flex;
 		align-items: center;
+		justify-content: center;
 		gap: 8px;
+		width: 100%;
 		padding: 10px 12px;
 		border-radius: var(--radius-pill);
 		border: 1px solid var(--line);
@@ -399,6 +401,10 @@ onDestroy(() => {
 		font-size: 13px;
 		font-weight: 700;
 		color: var(--muted);
+	}
+
+	:global(.action-stack > button) {
+		width: 100%;
 	}
 
 	.status-dot {
@@ -565,7 +571,17 @@ onDestroy(() => {
 		100% { transform: scale(2.2); opacity: 0; }
 	}
 
-	@media (min-width: 960px) {
+	@media (min-width: 640px) {
+		.lobby-actions-top {
+			justify-content: flex-end;
+		}
+
+		.status-indicator {
+			width: auto;
+		}
+	}
+
+	@media (min-width: 1024px) {
 		.lobby-grid {
 			grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
 		}

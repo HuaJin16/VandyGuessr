@@ -65,11 +65,14 @@ export type ToggleOption = {
 
 <style>
 	.toggle-group {
-		display: inline-flex;
+		display: flex;
+		flex-wrap: wrap;
+		width: 100%;
 		border-radius: var(--radius-sm);
 		padding: 3px;
 		border: 1px solid var(--line);
 		background: var(--surface-strong);
+		gap: 3px;
 	}
 
 	.toggle-btn {
@@ -78,8 +81,11 @@ export type ToggleOption = {
 		justify-content: center;
 		gap: 5px;
 		border-radius: 6px;
-		padding: 6px 12px;
-		font-size: 13px;
+		padding: 8px 12px;
+		min-height: 44px;
+		min-width: 0;
+		flex: 1 1 0;
+		font-size: 14px;
 		font-weight: 500;
 		cursor: pointer;
 		border: none;
@@ -87,7 +93,9 @@ export type ToggleOption = {
 		background: transparent;
 		color: var(--muted);
 		appearance: none;
-		white-space: nowrap;
+		white-space: normal;
+		text-align: center;
+		line-height: 1.2;
 		transition: color var(--duration-fast) var(--ease),
 			background var(--duration-fast) var(--ease);
 	}
@@ -105,5 +113,21 @@ export type ToggleOption = {
 		background: var(--brand);
 		color: #fff;
 		font-weight: 600;
+	}
+
+	@media (min-width: 640px) {
+		.toggle-group {
+			display: inline-flex;
+			flex-wrap: nowrap;
+			width: auto;
+		}
+
+		.toggle-btn {
+			min-height: 40px;
+			flex: 0 1 auto;
+			padding: 6px 12px;
+			font-size: 13px;
+			white-space: nowrap;
+		}
 	}
 </style>
