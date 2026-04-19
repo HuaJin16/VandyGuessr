@@ -21,16 +21,44 @@ export interface SubmissionFailure {
 	reason: string;
 }
 
+export interface SubmissionJobItem {
+	id: string;
+	filename: string;
+	jobId: string;
+	status: "queued" | "processing" | "completed" | "failed";
+	processingStage: string | null;
+	attempts: number;
+	error: string;
+}
+
 export interface BatchSubmissionSummary {
 	total: number;
 	queued: number;
 	failed: number;
 	failures: SubmissionFailure[];
+	jobs: SubmissionJobItem[];
 }
 
 export interface SubmissionJobAcceptedResponse {
 	jobId: string;
 	status: "queued";
+}
+
+export interface SubmissionJobStatusResponse {
+	jobId: string;
+	status: "queued" | "processing" | "completed" | "failed";
+	filename: string | null;
+	environment: UploadEnvironment;
+	error: string | null;
+	attempts: number;
+	processingStage: string | null;
+	imageId: string | null;
+	imageUrl: string | null;
+	createdAt: string;
+	startedAt: string | null;
+	heartbeatAt: string | null;
+	completedAt: string | null;
+	updatedAt: string;
 }
 
 export interface PendingSubmissionItem {

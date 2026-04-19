@@ -513,12 +513,14 @@ export function cn(...inputs: ClassValue[]) {
 
 ### Upload Pipeline and Metadata
 
-- **Upload endpoints**: Secret-code-protected HTML multi-upload for trusted operators; logged-in students use `POST /v1/images/submissions` (Bearer token, multipart) which stores images as **pending** until a reviewer approves them. Reviewers are configured via `REVIEWER_EMAIL_ALLOWLIST`.
+- **Upload endpoints**: Trusted operators use the secret-code HTML upload flow, which now queues each photo as its own background job via `POST /v1/images/upload/jobs`; logged-in students use `POST /v1/images/submissions` (Bearer token, multipart) which stores images as **pending** until a reviewer approves them. Reviewers are configured via `REVIEWER_EMAIL_ALLOWLIST`.
 - **EXIF extraction**: GPS metadata is extracted from EXIF and used to seed location data into MongoDB.
 - **Tiling**: After EXIF extraction, the backend generates a low-resolution base panorama plus tile levels for progressive streaming in the viewer.
 - **Tiling geometry**: Tile generation is aspect-ratio aware and stores pano crop/full geometry (`base_pano_data`) so non-2:1 sources (for example iPhone panoramas) render without stretching.
 - **Compression**: The stored fallback original is re-encoded with a configurable JPEG quality policy (EXIF-preserving) to reduce storage and egress while keeping gameplay compatibility.
 - **S3 object keys**: Images are stored under an `images/` prefix with unique UUIDs (e.g., `images/{uuid}.jpg`) and tiles under `images/{uuid}/base.jpg`, `images/{uuid}/l{level}/{col}_{row}.jpg`.
+- **Queue durability**: `image_submission_jobs` is the durable source of truth for work claims. Redis wakes workers quickly, but workers can reclaim stale `processing` jobs via lease expiry so crashed workers do not strand uploads forever.
+- **Playability gate**: Images are inserted into the playable `images` collection only after tiles, thumbnail, compression, location resolution, and final MongoDB persistence succeed.
 - **MongoDB persistence**: Image metadata (URL, coordinates, environment, timestamps) is stored in the `images` collection.
 - **Backfill path**: Existing images can be tiled with `python -m scripts.backfill_image_tiles`.
 - **Compression backfill**: Existing originals can be recompressed and annotated with `python -m scripts.backfill_image_compression`.
@@ -528,11 +530,15 @@ export function cn(...inputs: ClassValue[]) {
 ```
 apps/api/app/domains/images/
 ├── __init__.py
-├── router.py            # GET (HTML form) + POST (multi-file upload) — operator / secret code
-├── json_router.py       # POST /submissions (crowd) + GET/POST moderation (reviewers)
+├── router.py            # GET (HTML form) + POST/POST jobs — operator / secret code
+├── json_router.py       # POST /submissions (crowd) + GET job status + GET/POST moderation
 ├── moderation_service.py
 ├── service.py           # Upload orchestration, validation, S3 + MongoDB persistence
 ├── repository.py        # MongoDB CRUD; gameplay pool excludes pending/rejected
+├── submission_job_entities.py
+├── submission_job_models.py
+├── submission_job_repository.py
+├── submission_job_service.py
 ├── entities.py          # ImageEntity document schema
 └── models.py            # API response schemas
 ```

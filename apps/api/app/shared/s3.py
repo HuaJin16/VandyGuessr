@@ -21,7 +21,15 @@ def get_s3_client():
         endpoint_url=settings.spaces_endpoint or None,
         aws_access_key_id=settings.spaces_access_key or None,
         aws_secret_access_key=settings.spaces_secret_key or None,
-        config=Config(s3={"addressing_style": "virtual"}),
+        config=Config(
+            s3={"addressing_style": "virtual"},
+            connect_timeout=settings.spaces_connect_timeout_seconds,
+            read_timeout=settings.spaces_read_timeout_seconds,
+            retries={
+                "max_attempts": settings.spaces_retry_attempts,
+                "mode": "standard",
+            },
+        ),
     )
 
 

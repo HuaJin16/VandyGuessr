@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     upload_queue_key: str = "images:submission:queue"
     upload_queue_max_attempts: int = Field(default=3, ge=1, le=10)
     upload_temp_prefix: str = "images/uploads-temp"
+    upload_worker_idle_timeout_seconds: int = Field(default=5, ge=1, le=60)
+    upload_processing_lease_seconds: int = Field(default=180, ge=30, le=3600)
+    upload_processing_heartbeat_seconds: int = Field(default=20, ge=5, le=120)
 
     # Image processing
     panorama_base_max_width: int = Field(default=2048, ge=512, le=8192)
@@ -78,6 +81,9 @@ class Settings(BaseSettings):
     spaces_bucket: str = ""
     spaces_access_key: str = ""
     spaces_secret_key: str = ""
+    spaces_connect_timeout_seconds: int = Field(default=5, ge=1, le=60)
+    spaces_read_timeout_seconds: int = Field(default=60, ge=5, le=600)
+    spaces_retry_attempts: int = Field(default=3, ge=1, le=10)
 
     @property
     def microsoft_jwks_url(self) -> str:

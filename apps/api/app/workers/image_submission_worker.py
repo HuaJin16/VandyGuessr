@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 
 import structlog
 
@@ -24,27 +25,33 @@ async def run_worker() -> None:
     await connect_to_mongo()
     await connect_to_redis()
     service = container.resolve(SubmissionJobService)
+    worker_id = f"image-worker-{uuid.uuid4()}"
 
-    logger.info("image_submission_worker_started", queue_key=settings.upload_queue_key)
+    logger.info(
+        "image_submission_worker_started",
+        queue_key=settings.upload_queue_key,
+        worker_id=worker_id,
+    )
 
     try:
         while True:
-            payload = await service.redis.blpop(settings.upload_queue_key, timeout=5)
-            if payload is None:
+            claimed = await service.claim_next_job(worker_id)
+            if claimed is None:
+                await service.wait_for_job_signal()
                 continue
-            _, raw_job_id = payload
-            job_id = (
-                raw_job_id.decode("utf-8")
-                if isinstance(raw_job_id, bytes)
-                else str(raw_job_id)
-            )
-            if not job_id:
-                continue
-            await service.process_job(job_id)
+            try:
+                await service.process_claimed_job(claimed, worker_id=worker_id)
+            except Exception as exc:
+                logger.exception(
+                    "image_submission_worker_job_crashed",
+                    worker_id=worker_id,
+                    job_id=str(claimed.get("_id")),
+                    error=str(exc),
+                )
     finally:
         await close_mongo_connection()
         await close_redis_connection()
-        logger.info("image_submission_worker_stopped")
+        logger.info("image_submission_worker_stopped", worker_id=worker_id)
 
 
 def main() -> None:

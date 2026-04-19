@@ -3,6 +3,7 @@ import { mapServerUploadError } from "./exifPreflight";
 import type {
 	BatchSubmissionSummary,
 	SubmissionFailure,
+	SubmissionJobItem,
 	UploadEnvironment,
 	UploadSelectionItem,
 } from "./types";
@@ -25,6 +26,7 @@ export async function submitUploadBatch({
 	onProgress,
 }: SubmitUploadBatchInput): Promise<BatchSubmissionSummary> {
 	const failures: SubmissionFailure[] = [];
+	const jobs: SubmissionJobItem[] = [];
 	let queued = 0;
 
 	for (const item of items) {
@@ -47,8 +49,17 @@ export async function submitUploadBatch({
 		});
 
 		try {
-			await imagesService.submitSubmission(item.file, environment);
+			const job = await imagesService.submitSubmission(item.file, environment);
 			queued += 1;
+			jobs.push({
+				id: item.id,
+				filename: item.file.name,
+				jobId: job.jobId,
+				status: job.status,
+				processingStage: null,
+				attempts: 0,
+				error: "",
+			});
 		} catch (e: unknown) {
 			const reason = e instanceof Error ? mapServerUploadError(e.message) : "Upload failed.";
 			failures.push({
@@ -64,5 +75,6 @@ export async function submitUploadBatch({
 		queued,
 		failed: failures.length,
 		failures,
+		jobs,
 	};
 }

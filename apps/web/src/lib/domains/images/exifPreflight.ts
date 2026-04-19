@@ -133,6 +133,9 @@ export async function preflightUploadFile(file: File): Promise<UploadFilePreflig
 
 export function mapServerUploadError(detail: string | undefined): string {
 	if (!detail) return "Upload failed.";
+	if (detail.includes("Could not read this file")) {
+		return "Could not read this photo. Try the original image from your camera roll.";
+	}
 	if (detail.includes("missing GPS EXIF")) return MISSING_GPS_MESSAGE;
 	if (detail.includes("File exceeds maximum size")) return FILE_TOO_LARGE_MESSAGE;
 	if (detail.includes("Image dimensions exceed")) return PANORAMA_TOO_LARGE_MESSAGE;

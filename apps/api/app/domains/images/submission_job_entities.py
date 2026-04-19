@@ -18,12 +18,17 @@ class ImageSubmissionJobEntity(BaseModel):
     environment: Literal["indoor", "outdoor"]
     moderation_status: Literal["approved", "pending"]
     submitted_by_user_id: str | None = None
+    asset_id: str
     temp_key: str
     status: ImageSubmissionJobStatus = "queued"
     attempts: int = 0
     image_id: str | None = None
     image_url: str | None = None
     error: str | None = None
+    processing_stage: str | None = None
+    claimed_by: str | None = None
+    lease_expires_at: datetime | None = None
+    heartbeat_at: datetime | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     started_at: datetime | None = None
     completed_at: datetime | None = None
