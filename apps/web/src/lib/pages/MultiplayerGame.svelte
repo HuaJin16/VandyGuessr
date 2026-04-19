@@ -455,12 +455,12 @@ onDestroy(() => {
 
 	<main class="shell">
 		<div class="topbar">
-			<button class="ghost ghost-danger" on:click={() => (showForfeitDialog = true)}>
+			<button class="ghost ghost-danger" aria-label="Forfeit game" on:click={() => (showForfeitDialog = true)}>
 				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 					<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
 					<line x1="4" y1="22" x2="4" y2="15" />
 				</svg>
-				Forfeit
+				<span class="ghost-label">Forfeit</span>
 			</button>
 			<div class="hud-center">
 				<MultiplayerHud
@@ -474,19 +474,21 @@ onDestroy(() => {
 			</div>
 		</div>
 
-		{#if !hasGuessed}
-			<MapAssembly
-				position={guessPosition}
-				disabled={submitting}
-				onMapClick={handleMapClick}
-				onGuess={submitGuess}
-			/>
-		{:else}
-			<div class="waiting-chip">
-				<div class="waiting-dot" />
-				<p class="m-0 text-sm font-medium text-muted">Waiting for other players…</p>
-			</div>
-		{/if}
+		<div class="dock-slot">
+			{#if !hasGuessed}
+				<MapAssembly
+					position={guessPosition}
+					disabled={submitting}
+					onMapClick={handleMapClick}
+					onGuess={submitGuess}
+				/>
+			{:else}
+				<div class="waiting-chip">
+					<div class="waiting-dot" />
+					<p class="m-0 text-sm font-medium text-muted">Waiting for other players…</p>
+				</div>
+			{/if}
+		</div>
 
 		{#if $multiplayerStore.connection === "disconnected"}
 			<div class="reconnect-bar">
@@ -568,9 +570,10 @@ onDestroy(() => {
 		position: relative;
 		z-index: 2;
 		min-height: 100vh;
+		min-height: 100dvh;
 		display: grid;
-		grid-template-rows: auto 1fr;
-		padding: 10px;
+		grid-template-rows: auto minmax(0, 1fr) auto;
+		padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));
 		gap: 6px;
 		pointer-events: none;
 	}
@@ -586,6 +589,13 @@ onDestroy(() => {
 		flex: 1;
 		display: flex;
 		justify-content: center;
+		pointer-events: none;
+	}
+
+	.dock-slot {
+		grid-row: 3;
+		display: flex;
+		align-items: flex-end;
 		pointer-events: none;
 	}
 
@@ -605,10 +615,15 @@ onDestroy(() => {
 		cursor: pointer;
 		transition: all 120ms var(--ease);
 		text-decoration: none;
+		min-height: 44px;
 	}
 
 	.ghost:hover { background: rgba(28, 25, 23, 0.55); }
 	.ghost:focus-visible { outline: none; box-shadow: var(--ring); }
+
+	.ghost-label {
+		display: none;
+	}
 
 	.ghost-danger {
 		border-color: rgba(220, 74, 58, 0.5);
@@ -656,14 +671,14 @@ onDestroy(() => {
 		justify-content: center;
 		gap: 12px;
 		background: rgba(26, 26, 26, 0.92);
-		padding: 10px 16px;
+		padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
 		pointer-events: auto;
 	}
 
 	/* Disconnect toast */
 	.toast-disconnect {
 		position: fixed;
-		top: 80px;
+		top: calc(72px + env(safe-area-inset-top));
 		left: 50%;
 		transform: translateX(-50%);
 		z-index: 20;
@@ -862,6 +877,12 @@ onDestroy(() => {
 		50% { opacity: 0.4; }
 	}
 
+	@media (min-width: 1024px) {
+		.ghost-label {
+			display: inline;
+		}
+	}
+
 	@media (max-width: 400px) {
 		.ghost { font-size: 12px; padding: 7px 9px; }
 		.dialog { padding: 18px; }
@@ -870,11 +891,23 @@ onDestroy(() => {
 		.dialog-actions { grid-template-columns: 1fr; }
 	}
 
-	@media (min-width: 880px) {
+	@media (max-width: 640px) {
+		.toast-disconnect {
+			align-items: flex-start;
+		}
+
+		.toast-text {
+			white-space: normal;
+		}
+	}
+
+	@media (min-width: 1024px) {
 		.shell {
 			padding: 14px;
+			padding-top: calc(14px + env(safe-area-inset-top));
+			padding-bottom: calc(14px + env(safe-area-inset-bottom));
 			gap: 6px;
-			grid-template-rows: auto 1fr;
+			grid-template-rows: auto minmax(0, 1fr);
 			grid-template-columns: 1fr 360px;
 			align-items: end;
 		}
@@ -885,7 +918,7 @@ onDestroy(() => {
 			align-items: start;
 		}
 
-		.waiting-chip {
+		.dock-slot {
 			grid-column: 2;
 			grid-row: 2;
 		}

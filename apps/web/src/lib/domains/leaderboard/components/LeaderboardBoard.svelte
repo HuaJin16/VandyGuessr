@@ -300,7 +300,7 @@ $: visibleTopEntries = entries.slice(0, topCount);
 		color: var(--ink);
 	}
 
-	@media (max-width: 560px) {
+	@media (max-width: 640px) {
 		.lb-columns {
 			display: none;
 		}

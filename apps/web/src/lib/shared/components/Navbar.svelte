@@ -4,7 +4,7 @@ import { userQueries } from "$lib/domains/users/queries/users.queries";
 import { auth } from "$lib/shared/auth/auth.store";
 import Avatar from "$lib/shared/components/Avatar.svelte";
 import { createQuery } from "@tanstack/svelte-query";
-import { ChevronDown, LogOut } from "lucide-svelte";
+import { ChevronDown, LogOut, Menu, X } from "lucide-svelte";
 import { navigate } from "svelte-routing";
 import logoMark from "../../../assets/VandyGuessr_Favicon.png";
 import logoLockup from "../../../assets/VandyGuessr_Logo.png";
@@ -19,7 +19,11 @@ export let activePage:
 	| undefined = undefined;
 
 let dropdownOpen = false;
+let mobileMenuOpen = false;
 let triggerEl: HTMLButtonElement;
+let dropdownEl: HTMLDivElement;
+let mobileTriggerEl: HTMLButtonElement;
+let mobileMenuEl: HTMLDivElement;
 
 $: me = createQuery({
 	...userQueries.me($auth.currentUserOid),
@@ -37,10 +41,13 @@ $: stats = createQuery({
 $: userStats = $stats.data?.userEntry ?? null;
 
 function go(path: string) {
+	closeDropdown();
+	closeMobileMenu();
 	navigate(path);
 }
 
 function toggleDropdown() {
+	mobileMenuOpen = false;
 	dropdownOpen = !dropdownOpen;
 }
 
@@ -48,10 +55,26 @@ function closeDropdown() {
 	dropdownOpen = false;
 }
 
+function toggleMobileMenu() {
+	dropdownOpen = false;
+	mobileMenuOpen = !mobileMenuOpen;
+}
+
+function closeMobileMenu() {
+	mobileMenuOpen = false;
+}
+
 function handleWindowClick(e: MouseEvent) {
-	if (!dropdownOpen) return;
-	if (triggerEl?.contains(e.target as Node)) return;
-	closeDropdown();
+	const target = e.target as Node | null;
+	if (!target) return;
+
+	if (dropdownOpen && !triggerEl?.contains(target) && !dropdownEl?.contains(target)) {
+		closeDropdown();
+	}
+
+	if (mobileMenuOpen && !mobileTriggerEl?.contains(target) && !mobileMenuEl?.contains(target)) {
+		closeMobileMenu();
+	}
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -59,10 +82,16 @@ function handleKeydown(e: KeyboardEvent) {
 		closeDropdown();
 		triggerEl?.focus();
 	}
+
+	if (e.key === "Escape" && mobileMenuOpen) {
+		closeMobileMenu();
+		mobileTriggerEl?.focus();
+	}
 }
 
 function handleLogout() {
 	closeDropdown();
+	closeMobileMenu();
 	auth.logout();
 }
 
@@ -108,8 +137,25 @@ const links = [
 		</nav>
 
 		<div class="nav-right">
+			<button
+				type="button"
+				class="nav-icon-btn nav-menu-toggle"
+				bind:this={mobileTriggerEl}
+				on:click|stopPropagation={toggleMobileMenu}
+				aria-expanded={mobileMenuOpen}
+				aria-haspopup="true"
+				aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+			>
+				{#if mobileMenuOpen}
+					<X size={18} />
+				{:else}
+					<Menu size={18} />
+				{/if}
+			</button>
+
 			{#if $me.data}
 				<button
+					type="button"
 					class="nav-trigger"
 					bind:this={triggerEl}
 					on:click|stopPropagation={toggleDropdown}
@@ -122,7 +168,7 @@ const links = [
 				</button>
 
 				{#if dropdownOpen}
-					<div class="dropdown" role="menu">
+					<div class="dropdown" bind:this={dropdownEl} role="menu">
 						<div class="dropdown-header">
 							<p class="dropdown-name">{$me.data.name}</p>
 						</div>
@@ -153,6 +199,33 @@ const links = [
 			{/if}
 		</div>
 	</div>
+
+	{#if mobileMenuOpen}
+		<div class="mobile-menu" bind:this={mobileMenuEl}>
+			<nav class="mobile-menu__nav" aria-label="Mobile primary navigation">
+				{#each links as link}
+					<a
+						href={link.path}
+						class="mobile-link"
+						class:mobile-link--active={activePage === link.page}
+						on:click|preventDefault={() => go(link.path)}
+					>
+						{link.label}
+					</a>
+				{/each}
+				{#if $me.data?.can_review_submissions}
+					<a
+						href="/review/submissions"
+						class="mobile-link"
+						class:mobile-link--active={activePage === "review"}
+						on:click|preventDefault={() => go("/review/submissions")}
+					>
+						Review
+					</a>
+				{/if}
+			</nav>
+		</div>
+	{/if}
 </header>
 
 <style>
@@ -165,7 +238,7 @@ const links = [
 	}
 
 	.nav-inner {
-		width: min(var(--page-wide), calc(100% - 32px));
+		width: min(var(--page-wide), calc(100% - 24px));
 		margin: 0 auto;
 		height: 56px;
 		display: flex;
@@ -198,14 +271,7 @@ const links = [
 	}
 
 	.nav-links {
-		display: flex;
-		align-items: center;
-		gap: 2px;
-		margin-left: 16px;
-		overflow-x: auto;
-		-webkit-overflow-scrolling: touch;
-		mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
-		-webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+		display: none;
 	}
 
 	.nav-link {
@@ -235,16 +301,40 @@ const links = [
 		position: relative;
 		display: flex;
 		align-items: center;
+		gap: 8px;
 		margin-left: auto;
 		flex-shrink: 0;
+	}
+
+	.nav-icon-btn {
+		width: 44px;
+		height: 44px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid var(--line);
+		border-radius: var(--radius-md);
+		background: var(--surface);
+		color: var(--ink);
+		cursor: pointer;
+		transition: background var(--duration-fast) var(--ease),
+			border-color var(--duration-fast) var(--ease);
+	}
+
+	.nav-icon-btn:hover {
+		background: var(--surface-subtle);
+		border-color: var(--line-strong);
 	}
 
 	/* Avatar trigger */
 	.nav-trigger {
 		display: flex;
 		align-items: center;
+		justify-content: center;
 		gap: 8px;
 		padding: 4px;
+		min-width: 44px;
+		min-height: 44px;
 		border-radius: var(--radius-sm);
 		border: none;
 		background: transparent;
@@ -278,10 +368,50 @@ const links = [
 	}
 
 	.nav-trigger:focus-visible,
+	.nav-icon-btn:focus-visible,
 	.nav-link:focus-visible,
+	.mobile-link:focus-visible,
 	.nav-brand:focus-visible {
 		outline: none;
 		box-shadow: var(--ring);
+	}
+
+	.mobile-menu {
+		border-top: 1px solid var(--line);
+		background: var(--surface);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.mobile-menu__nav {
+		width: min(var(--page-wide), calc(100% - 24px));
+		margin: 0 auto;
+		padding: 12px 0 16px;
+		display: grid;
+		gap: 6px;
+	}
+
+	.mobile-link {
+		display: flex;
+		align-items: center;
+		min-height: 44px;
+		padding: 10px 14px;
+		border-radius: var(--radius-md);
+		color: var(--muted);
+		text-decoration: none;
+		font-size: 14px;
+		font-weight: 600;
+		transition: background var(--duration-fast) var(--ease),
+			color var(--duration-fast) var(--ease);
+	}
+
+	.mobile-link:hover {
+		background: var(--surface-subtle);
+		color: var(--ink);
+	}
+
+	.mobile-link--active {
+		background: var(--surface-strong);
+		color: var(--ink);
 	}
 
 	/* Dropdown panel */
@@ -289,7 +419,7 @@ const links = [
 		position: absolute;
 		top: calc(100% + 8px);
 		right: 0;
-		width: 240px;
+		width: min(240px, calc(100vw - 24px));
 		background: var(--surface);
 		border: 1px solid var(--line);
 		border-radius: var(--radius-md);
@@ -386,13 +516,28 @@ const links = [
 		background: var(--danger-light);
 	}
 
-	@media (min-width: 768px) {
+	@media (min-width: 1024px) {
 		.nav-logo-mark {
 			display: none;
 		}
 
 		.nav-logo-lockup {
 			display: block;
+		}
+
+		.mobile-menu {
+			display: none;
+		}
+
+		.nav-menu-toggle {
+			display: none;
+		}
+
+		.nav-links {
+			display: flex;
+			align-items: center;
+			gap: 2px;
+			margin-left: 24px;
 		}
 
 		.nav-trigger-name {
@@ -405,12 +550,6 @@ const links = [
 
 		.nav-trigger {
 			padding: 4px 8px 4px 4px;
-		}
-
-		.nav-links {
-			margin-left: 24px;
-			mask-image: none;
-			-webkit-mask-image: none;
 		}
 	}
 </style>
