@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.domains.multiplayer.service import (
+    MAX_PLAYERS,
     ROUNDS_PER_GAME,
     MultiplayerError,
     MultiplayerService,
@@ -237,6 +238,37 @@ async def test_join_game_returns_existing_player_without_readding() -> None:
     assert player is None
     assert result_doc["_id"] == "game-1"
     repo.add_player_if_waiting_and_not_full.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_join_game_rejects_when_lobby_is_full() -> None:
+    doc = {
+        "_id": "game-1",
+        "status": "waiting",
+        "invite_code": "ABC123",
+        "players": [
+            {"user_id": f"player-{index}", "name": f"Player {index}"}
+            for index in range(MAX_PLAYERS)
+        ],
+    }
+    repo = AsyncMock()
+    repo.find_by_id = AsyncMock(side_effect=[doc, doc])
+    repo.add_player_if_waiting_and_not_full = AsyncMock(return_value=False)
+    redis_client = AsyncMock()
+    redis_client.get = AsyncMock(return_value="game-1")
+    redis_client.ttl = AsyncMock(return_value=300)
+    service = _service(repo=repo, redis_client=redis_client)
+
+    with pytest.raises(MultiplayerError, match="Game is full") as exc:
+        await service.join_game(
+            user_id="player-new",
+            name="New Player",
+            avatar_url=None,
+            code="abc123",
+        )
+
+    assert exc.value.status_code == 409
+    repo.add_player_if_waiting_and_not_full.assert_awaited_once()
 
 
 @pytest.mark.asyncio

@@ -6,7 +6,7 @@ import type { MultiplayerPlayer } from "../types";
 export let players: MultiplayerPlayer[];
 export let hostId: string;
 export let currentUserId: string;
-export let maxPlayers = 10;
+export let maxPlayers = 30;
 export let readyPlayers: string[] = [];
 export let showReadyToggle = true;
 
