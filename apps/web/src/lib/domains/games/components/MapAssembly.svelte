@@ -24,12 +24,18 @@ function toggleExpanded() {
 			<p class="dock-overline">Guess map</p>
 			<p class="dock-title">{position ? "Pin placed" : "Place your pin"}</p>
 		</div>
-		<button class="dock-toggle" type="button" on:click={toggleExpanded}>
+		<button
+			class="dock-toggle"
+			type="button"
+			aria-controls="guess-map-panel"
+			aria-expanded={expanded}
+			on:click={toggleExpanded}
+		>
 			{expanded ? "Collapse" : "Expand"}
 		</button>
 	</div>
 
-	<div class="map-wrapper">
+	<div class="map-wrapper" id="guess-map-panel">
 		<GuessMap {position} on:click={handleClick} />
 	</div>
 
@@ -37,8 +43,10 @@ function toggleExpanded() {
 		<p class="dock-note">
 			{#if position}
 				Your latest pin is locked in for submission until you move it again.
-			{:else}
+			{:else if expanded}
 				Tap the map to place a single pin. Accuracy determines your score.
+			{:else}
+				Expand the map to place a single pin, then collapse it to return to the full panorama.
 			{/if}
 		</p>
 		<Button class="w-full lg:w-auto" size="lg" disabled={!position || disabled} on:click={onGuess}>
@@ -92,26 +100,49 @@ function toggleExpanded() {
 	}
 
 	.dock-toggle {
-		border: none;
-		background: transparent;
-		color: var(--muted);
+		border: 1px solid var(--line);
+		border-radius: var(--radius-pill);
+		background: rgba(255, 255, 255, 0.82);
+		color: var(--ink);
 		font-size: 12px;
 		font-weight: 700;
+		padding: 10px 12px;
+		min-height: 44px;
 		cursor: pointer;
-		display: none;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		transition: border-color var(--duration-fast) var(--ease),
+			background var(--duration-fast) var(--ease);
+	}
+
+	.dock-toggle:hover {
+		border-color: var(--line-strong);
+		background: rgba(255, 255, 255, 0.96);
+	}
+
+	.dock-toggle:focus-visible {
+		outline: none;
+		box-shadow: var(--ring);
 	}
 
 	.map-wrapper {
 		position: relative;
-		height: 180px;
-		border: 1px solid var(--line);
+		height: 0;
+		border: 1px solid transparent;
 		border-radius: var(--radius-md);
 		overflow: hidden;
-		transition: height 200ms var(--ease);
+		opacity: 0;
+		pointer-events: none;
+		transition: height 200ms var(--ease), opacity var(--duration-fast) var(--ease),
+			border-color var(--duration-fast) var(--ease);
 	}
 
 	.dock.expanded .map-wrapper {
-		height: 180px;
+		height: min(42dvh, 320px);
+		opacity: 1;
+		pointer-events: auto;
+		border-color: var(--line);
 	}
 
 	.dock-footer {
@@ -131,14 +162,11 @@ function toggleExpanded() {
 			gap: 14px;
 		}
 
-		.dock-toggle {
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-		}
-
 		.map-wrapper {
 			height: 220px;
+			opacity: 1;
+			pointer-events: auto;
+			border-color: var(--line);
 		}
 
 		.dock.expanded .map-wrapper {

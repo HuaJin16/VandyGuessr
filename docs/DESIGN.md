@@ -245,8 +245,8 @@ VandyGuessr is designed mobile-first. Students will primarily use it on their ph
 - **Desktop:** Standard spacing, normal text
 
 #### Map Assembly (Gameplay)
-- **Mobile:** Full-width, fixed height (180px), no hover expansion
-- **Desktop:** 340px collapsed → 480-560px on hover, anchored bottom-right
+- **Mobile:** Full-width, collapsed by default so the panorama stays dominant; tap to expand the map, place or adjust the pin, then collapse it again
+- **Desktop:** Anchored bottom-right with a roomy collapsed state and a larger expanded state for fine pin placement
 
 #### Leaderboard Table
 - **Mobile:** Hide "Class of" secondary text, compact avatar (32px)
@@ -304,16 +304,17 @@ Used on: Gameplay, Round Results
 /* Mobile: Full width */
 @media (max-width: 639px) {
     .map-assembly { width: 100%; }
-    .map-container { width: 100%; height: 180px; }
+    .map-container { width: 100%; height: 0; }
+    .map-assembly.expanded .map-container { height: min(42dvh, 320px); }
 }
 
 /* Desktop: Expandable */
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
     .map-assembly { width: 340px; }
     .map-container { width: 340px; height: 220px; }
 
-    .map-assembly:hover { width: 480px; }
-    .map-assembly:hover .map-container { width: 480px; height: 320px; }
+    .map-assembly.expanded { width: 480px; }
+    .map-assembly.expanded .map-container { width: 480px; height: 320px; }
 }
 ```
 
@@ -586,7 +587,7 @@ Used on: End Game trigger, Cancel actions, subtle controls
 - **End Game button** top-left corner (ghost style, shows "X" icon on mobile, "End Game" text on desktop)
 - HUD pill at top center
 - Side controls (zoom, compass) on right (desktop only)
-- Map assembly bottom-right, expands on hover (desktop)
+- Map assembly stays collapsible on mobile and expands via toggle on desktop
 - End Game button hidden on round 5 (game about to end anyway)
 
 ### End Game Dialog (06-end-game-dialog.html)
